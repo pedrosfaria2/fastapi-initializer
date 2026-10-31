@@ -14,6 +14,13 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_ready(client: TestClient) -> None:
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
 def test_metadata_returns_catalog(client: TestClient) -> None:
     response = client.get("/api/metadata")
 
