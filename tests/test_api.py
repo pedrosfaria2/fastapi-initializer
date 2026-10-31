@@ -1,6 +1,7 @@
 """HTTP API contract."""
 
 import io
+import tarfile
 from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
@@ -109,3 +110,95 @@ def test_index_renders_a_working_form(client: TestClient) -> None:
     assert 'action="/api/generate"' in response.text
     assert 'name="name"' in response.text
     assert 'id="dependency-groups"' in response.text
+
+
+def test_metadata_supports_versioned_media_type(client: TestClient) -> None:
+    response = client.get(
+        "/metadata",
+        headers={"Accept": "application/vnd.fastapi-initializr.v1+json"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/vnd.fastapi-initializr.v1+json")
+    body = response.json()
+    assert "starter.zip" in body["links"]
+    assert body["type"]["default"] == "uv-project"
+    assert body["fastapi"]["default"] == "0.162.0"
+
+
+def test_dependencies_returns_resolved_coordinates(client: TestClient) -> None:
+    response = client.get("/dependencies", params={"fastapiVersion": "0.161.1"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["fastapiVersion"] == "0.161.1"
+    assert body["dependencies"]["sqlalchemy"]["packages"]
+
+
+def test_dependencies_rejects_unknown_fastapi_version(client: TestClient) -> None:
+    response = client.get("/dependencies", params={"fastapiVersion": "0.100.0"})
+
+    assert response.status_code == 400
+    assert "Unknown FastAPI version" in response.json()["detail"]
+
+
+def test_starter_zip_alias(client: TestClient) -> None:
+    response = client.get("/starter.zip", params={"name": "my-service"})
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        assert "my-service/pyproject.toml" in archive.namelist()
+
+
+def test_starter_tgz_returns_tar_gz(client: TestClient) -> None:
+    response = client.get("/starter.tgz", params={"name": "my-service"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/gzip")
+    with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as archive:
+        assert "my-service/pyproject.toml" in archive.getnames()
+
+
+def test_pyproject_output(client: TestClient) -> None:
+    response = client.get(
+        "/pyproject.toml",
+        params={"name": "my-service", "fastapiVersion": "0.161.1"},
+    )
+
+    assert response.status_code == 200
+    assert 'name = "my-service"' in response.text
+    assert "fastapi>=0.161.1,<0.162.0" in response.text
+
+
+def test_generate_uses_base_dir_version_author_and_fastapi_version(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/api/generate",
+        params={
+            "name": "my-service",
+            "version": "1.2.3",
+            "author": "Ada Lovelace",
+            "fastapiVersion": "0.161.1",
+            "baseDir": "custom-root",
+        },
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        names = archive.namelist()
+        assert "custom-root/pyproject.toml" in names
+        pyproject = archive.read("custom-root/pyproject.toml").decode()
+        assert 'version = "1.2.3"' in pyproject
+        assert 'name = "Ada Lovelace"' in pyproject
+        assert "fastapi>=0.161.1,<0.162.0" in pyproject
+
+
+def test_generate_rejects_unknown_fastapi_version(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "fastapi": "0.100.0"},
+    )
+
+    assert response.status_code == 422
+    assert "FastAPI version" in str(response.json())
