@@ -124,6 +124,7 @@ Parameters:
 | `arq` | Messaging | ARQ worker and example background task | `redis` |
 | `auth-jwt` | Security | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
 | `email` | Security | Console/SMTP email, password reset, and verification | `auth-jwt` |
+| `oauth2` | Security | Google/GitHub OAuth2 login linked to local users | `auth-jwt` |
 | `cors` | Web | CORS middleware and settings | — |
 | `static-templates` | Web | Jinja2 templates, static assets, and a welcome page | — |
 | `websockets` | Web | WebSocket echo endpoint | — |
@@ -133,6 +134,7 @@ Parameters:
 | `testcontainers` | Testing | PostgreSQL/Redis integration fixtures | `postgres`, `redis` |
 | `sentry` | Observability | Sentry error reporting, disabled without a DSN | — |
 | `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
+| `opentelemetry` | Observability | OTLP tracing for FastAPI, SQLAlchemy, and Redis | — |
 | `docker` | Operations | Dockerfile and .dockerignore | — |
 | `compose` | Operations | Compose stack for the app, PostgreSQL, and Redis | — |
 | `makefile` | Operations | Common development targets | — |
