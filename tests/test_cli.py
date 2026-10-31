@@ -199,3 +199,89 @@ def test_update_dry_run_writes_nothing(tmp_path: Path) -> None:
 
     assert main(["update", str(project), "--dry-run"]) == 0
     assert (project / "pyproject.toml").read_text() == before
+
+
+def test_new_dry_run_writes_nothing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["new", "my-service", "--output", str(tmp_path), "--dry-run"])
+
+    assert exit_code == 0
+    assert not (tmp_path / "my-service").exists()
+    assert "pyproject.toml" in capsys.readouterr().out
+
+
+def test_new_json_summary(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(
+        [
+            "new",
+            "my-service",
+            "--output",
+            str(tmp_path),
+            "--dependency",
+            "sqlalchemy",
+            "--json",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["target"] == str(tmp_path / "my-service")
+    assert payload["dependencies"] == ["sqlalchemy"]
+    assert payload["dryRun"] is False
+    assert "pyproject.toml" in payload["files"]
+
+
+def test_new_lists_dependencies_without_a_name(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["new", "--list-dependencies"]) == 0
+    output = capsys.readouterr().out
+    assert "Database:" in output
+    assert "sqlalchemy" in output
+
+
+def test_new_list_dependencies_json(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["new", "--list-dependencies", "--json"]) == 0
+    rows = json.loads(capsys.readouterr().out)
+
+    assert {"id": "sqlalchemy", "name": "SQLAlchemy", "group": "Database"} in rows
+
+
+def test_new_requires_a_name() -> None:
+    assert main(["new"]) == 2
+
+
+def test_list_supports_json(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["list", "--json"]) == 0
+    rows = json.loads(capsys.readouterr().out)
+
+    assert any(row["id"] == "docker" for row in rows)
+
+
+@pytest.mark.parametrize(
+    ("shell", "marker"),
+    [("bash", "complete -F"), ("zsh", "#compdef"), ("fish", "complete -c")],
+)
+def test_completion_scripts_include_catalog_values(
+    shell: str,
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["completion", shell]) == 0
+    output = capsys.readouterr().out
+
+    assert marker in output
+    assert "sqlalchemy" in output
+    assert "db-auth" in output
+
+
+def test_completion_rejects_an_unknown_shell() -> None:
+    with pytest.raises(SystemExit):
+        main(["completion", "powershell"])

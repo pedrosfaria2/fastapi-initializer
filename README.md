@@ -255,19 +255,37 @@ Useful commands:
 
 ```sh
 uv run fastapi-initializr list
+uv run fastapi-initializr list --json
 uv run fastapi-initializr metadata
 uv run fastapi-initializr new my-service --force
 uv run fastapi-initializr new my-service --lock
+uv run fastapi-initializr new my-service --dry-run
+uv run fastapi-initializr new my-service --json
+uv run fastapi-initializr new --list-dependencies
 uv run fastapi-initializr update ./my-service
 ```
 
 The CLI uses the same validation and templates as the API. `--lock` runs
-`uv lock` in the generated project.
+`uv lock` in the generated project. `--dry-run` prints the file plan without
+writing, and `--json` prints a machine-readable summary.
 
 `update` re-renders the project from `.fastapi-initializr.json` and writes files
 that still match the recorded digests. It aborts with exit code `3` when a file
 was edited locally; rerun with `--force` to overwrite those files. `--dry-run`
 prints the plan without writing.
+
+Shell completion scripts are generated from the catalog:
+
+```sh
+# bash
+source <(uv run fastapi-initializr completion bash)
+
+# zsh
+uv run fastapi-initializr completion zsh > ~/.zfunc/_fastapi-initializr
+
+# fish
+uv run fastapi-initializr completion fish | source
+```
 
 ## Development
 
