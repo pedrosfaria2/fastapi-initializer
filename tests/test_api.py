@@ -119,6 +119,26 @@ def test_index_renders_a_working_form(client: TestClient) -> None:
     assert 'id="dependency-groups"' in response.text
 
 
+def test_index_server_renders_options_without_javascript(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Python 3.11" in response.text
+    assert "FastAPI 0.162.0" in response.text
+    assert "SQLAlchemy" in response.text
+    assert 'name="dependencies"' in response.text
+    assert 'name="version"' in response.text
+    assert 'name="author"' in response.text
+    assert 'name="baseDir"' in response.text
+    assert 'name="applicationName"' in response.text
+    assert 'id="dependency-search"' in response.text
+    assert 'id="selected-count"' in response.text
+    assert 'id="share"' in response.text
+    assert 'id="reset"' in response.text
+    assert 'id="output"' in response.text
+    assert 'id="fastapi"' in response.text
+
+
 def test_metadata_supports_versioned_media_type(client: TestClient) -> None:
     response = client.get(
         "/metadata",
