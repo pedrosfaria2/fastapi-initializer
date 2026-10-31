@@ -14,7 +14,7 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") or spec.has("mongodb") %}
 
 Copy the example environment file and adjust it for your machine:
 
@@ -199,6 +199,40 @@ With PostgreSQL selected, the default points at the `db` service described in
 SQLite is used by default and the database file is created on first use.
 {% endif %}
 {% endif %}
+{% if spec.has("mongodb") %}
+
+## MongoDB and Beanie
+
+Beanie initializes from the `MONGODB_URL` and `MONGODB_DB` settings during the
+application lifespan. The defaults connect to a local MongoDB instance:
+
+```text
+mongodb://localhost:27017
+app
+```
+
+The `documents` collection stores `name`, `description`, and `created_at` fields.
+The CRUD endpoints reuse the same bounded pagination contract as the SQLAlchemy
+example:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/documents` | Create a document and return it with status `201`. |
+| `GET` | `/documents` | List documents ordered by id with `limit` and `offset`. |
+| `GET` | `/documents/{document_id}` | Return one document or `404`. |
+| `PATCH` | `/documents/{document_id}` | Update the provided fields or return `404`. |
+| `DELETE` | `/documents/{document_id}` | Delete one document and return `204`, or `404`. |
+
+```sh
+curl -X POST "http://127.0.0.1:8000/documents" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "first", "description": "example"}'
+
+curl "http://127.0.0.1:8000/documents?limit=20&offset=0"
+```
+
+The tests use `mongomock-motor`, so they do not need a live MongoDB server.
+{% endif %}
 {% if spec.has("redis") %}
 
 ## Redis
@@ -270,6 +304,25 @@ from websockets.sync.client import connect
 with connect("ws://127.0.0.1:8000/ws") as websocket:
     websocket.send("hello")
     print(websocket.recv())
+```
+{% endif %}
+{% if spec.has("graphql") %}
+
+## GraphQL
+
+Strawberry serves a GraphQL endpoint at `/graphql` with the interactive explorer
+available from the same path. The schema exposes `hello` and `echo`:
+
+```sh
+curl -X POST "http://127.0.0.1:8000/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ hello(name: \"Ada\") }"}'
+```
+
+```sh
+curl -X POST "http://127.0.0.1:8000/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "mutation { echo(message: \"ping\") }"}'
 ```
 {% endif %}
 {% if spec.has("rate-limit") %}
@@ -493,7 +546,7 @@ Build and run the container:
 
 ```sh
 docker build -t {{ spec.name }} .
-docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %} --env-file .env{% endif %} {{ spec.name }}
+docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") or spec.has("mongodb") %} --env-file .env{% endif %} {{ spec.name }}
 ```
 {% endif %}
 {% if spec.has("alembic") %}
@@ -521,7 +574,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── README.md
 ├── .gitignore
 ├── .python-version
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") or spec.has("mongodb") %}
 ├── .env.example
 {% endif %}
 {% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
@@ -606,6 +659,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("email") %}
 │   │       ├── auth_email.py
 {% endif %}
+{% if spec.has("mongodb") %}
+│   │       ├── documents.py
+{% endif %}
 │   │       ├── health.py
 {% if spec.has("sqlalchemy") %}
 │   │       ├── items.py
@@ -637,6 +693,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │   ├── errors.py
 │   │   ├── logging.py
 │   │   ├── middleware.py
+{% if spec.has("mongodb") %}
+│   │   ├── mongo.py
+{% endif %}
 {% if spec.has("sentry") %}
 │   │   ├── observability.py
 {% endif %}
@@ -661,6 +720,11 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("auth-jwt") %}
 │   │   └── security.py
 {% endif %}
+{% if spec.has("graphql") %}
+│   ├── graphql/
+│   │   ├── __init__.py
+│   │   └── schema.py
+{% endif %}
 {% if spec.has("arq") %}
 │   ├── tasks/
 │   │   ├── __init__.py
@@ -673,28 +737,39 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │   ├── base.py
 │   │   └── session.py
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has("sqlalchemy") or spec.has("mongodb") %}
 │   ├── models/
 │   │   ├── __init__.py
+{% if spec.has("sqlalchemy") %}
 │   │   ├── item.py
+{% endif %}
+{% if spec.has("mongodb") %}
+│   │   ├── document.py
+{% endif %}
 {% if spec.has("auth-jwt") %}
 │   │   └── user.py
 {% endif %}
 {% endif %}
 │   ├── schemas/
-{% if spec.has("sqlalchemy") %}
 │   │   ├── __init__.py
+{% if spec.has("sqlalchemy") %}
 │   │   ├── item.py
+{% endif %}
+{% if spec.has("mongodb") %}
+│   │   ├── document.py
+{% endif %}
 {% if spec.has("auth-jwt") %}
 │   │   └── user.py
 {% endif %}
-{% else %}
-│   │   └── __init__.py
-{% endif %}
 │   └── services/
-{% if spec.has("sqlalchemy") %}
+{% if spec.has("sqlalchemy") or spec.has("mongodb") %}
 │       ├── __init__.py
+{% if spec.has("sqlalchemy") %}
 │       ├── items.py
+{% endif %}
+{% if spec.has("mongodb") %}
+│       ├── documents.py
+{% endif %}
 {% if spec.has("email") %}
 │       ├── auth_email.py
 {% endif %}
@@ -709,6 +784,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 └── tests/
     ├── conftest.py
+{% if spec.has("mongodb") %}
+    ├── test_documents.py
+{% endif %}
+{% if spec.has("graphql") %}
+    ├── test_graphql.py
+{% endif %}
 {% if spec.has("auth-jwt") %}
     ├── test_auth.py
 {% endif %}

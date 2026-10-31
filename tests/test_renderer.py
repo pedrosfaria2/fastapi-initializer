@@ -4,7 +4,9 @@ import ast
 import tomllib
 from typing import Any, cast
 
+import pytest
 import yaml  # type: ignore[import-untyped]  # PyYAML ships no inline type hints
+from pydantic import ValidationError
 
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
@@ -740,6 +742,7 @@ def test_generated_python_parses() -> None:
                 "kubernetes",
                 "ci-gitlab",
                 "ci-bitbucket",
+                "graphql",
             }
         ),
     )
@@ -778,6 +781,7 @@ def test_no_unresolved_template_markers() -> None:
                 "kubernetes",
                 "ci-gitlab",
                 "ci-bitbucket",
+                "graphql",
             }
         ),
     )
@@ -989,6 +993,115 @@ def test_testcontainers_files_are_absent_by_default() -> None:
     assert "tests/integration/test_integration.py" not in files
     assert "scripts/run_integration.sh" not in files
     assert ".github/workflows/integration.yml" not in files
+
+
+def test_mongodb_feature_renders_beanie_slice() -> None:
+    spec = ProjectSpec(name="my-service", dependencies=frozenset({"mongodb"}))
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/mongo.py" in files
+    assert "src/my_service/models/document.py" in files
+    assert "src/my_service/schemas/document.py" in files
+    assert "src/my_service/services/documents.py" in files
+    assert "src/my_service/api/routes/documents.py" in files
+    assert "tests/test_documents.py" in files
+    assert "src/my_service/db/session.py" not in files
+
+    config = files["src/my_service/core/config.py"]
+    assert 'mongodb_url: str = "mongodb://localhost:27017"' in config
+    assert 'mongodb_db: str = "app"' in config
+
+    env = files[".env.example"]
+    assert "MONGODB_URL=mongodb://localhost:27017" in env
+    assert "MONGODB_DB=app" in env
+
+    models = files["src/my_service/models/__init__.py"]
+    assert "from my_service.models.document import Document" in models
+    assert '"Document"' in models
+
+    routes = files["src/my_service/api/routes/__init__.py"]
+    assert "    documents," in routes
+    assert "api_router.include_router(documents.router)" in routes
+
+    main = files["src/my_service/main.py"]
+    assert "from my_service.core.mongo import close_mongo, init_mongo" in main
+    assert "await init_mongo()" in main
+    assert "await close_mongo()" in main
+
+    mongo = files["src/my_service/core/mongo.py"]
+    assert "async def init_mongo(client: AsyncIOMotorClient[Any] | None = None) -> None:" in mongo
+    assert "await init_beanie(" in mongo
+    assert "async def close_mongo() -> None:" in mongo
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "beanie>=2.2.0" in data["project"]["dependencies"]
+    assert "motor>=3.7.1" in data["project"]["dependencies"]
+    assert "mongomock-motor>=0.0.36" in data["dependency-groups"]["dev"]
+
+    readme = files["README.md"]
+    assert "## MongoDB and Beanie" in readme
+    assert "mongodb://localhost:27017" in readme
+    assert "tests use `mongomock-motor`" in readme
+
+
+def test_mongodb_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/core/mongo.py" not in files
+    assert "src/my_service/models/document.py" not in files
+    assert "src/my_service/services/documents.py" not in files
+    assert "src/my_service/api/routes/documents.py" not in files
+    assert "tests/test_documents.py" not in files
+    assert ".env.example" not in files
+    assert "## MongoDB and Beanie" not in files["README.md"]
+
+
+def test_mongodb_rejects_python_314() -> None:
+    with pytest.raises(ValidationError, match=r"Python <3\.14"):
+        ProjectSpec(
+            name="my-service",
+            python="3.14",
+            dependencies=frozenset({"mongodb"}),
+        )
+
+
+def test_graphql_feature_renders_schema_and_route() -> None:
+    spec = ProjectSpec(name="my-service", dependencies=frozenset({"graphql"}))
+
+    files = render_project(spec)
+
+    assert "src/my_service/graphql/__init__.py" in files
+    assert "src/my_service/graphql/schema.py" in files
+    assert "tests/test_graphql.py" in files
+
+    schema = files["src/my_service/graphql/schema.py"]
+    assert "class Query:" in schema
+    assert 'def hello(self, name: str = "world") -> str:' in schema
+    assert "class Mutation:" in schema
+    assert "def echo(self, message: str) -> str:" in schema
+
+    main = files["src/my_service/main.py"]
+    assert "from strawberry.fastapi import GraphQLRouter" in main
+    assert "from my_service.graphql.schema import schema" in main
+    assert 'app.include_router(GraphQLRouter(schema), prefix="/graphql")' in main
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "strawberry-graphql[fastapi]>=0.339.0" in data["project"]["dependencies"]
+
+    readme = files["README.md"]
+    assert "## GraphQL" in readme
+    assert "/graphql" in readme
+
+
+def test_graphql_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/graphql/__init__.py" not in files
+    assert "src/my_service/graphql/schema.py" not in files
+    assert "tests/test_graphql.py" not in files
+    assert "GraphQLRouter" not in files["src/my_service/main.py"]
+    assert "## GraphQL" not in files["README.md"]
 
 
 def test_preview_lists_rendered_files() -> None:

@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 {% if spec.has_database %}
     database_url: str = "{{ spec.database_url }}"
 {% endif %}
+{% if spec.has("mongodb") %}
+    mongodb_url: str = "mongodb://localhost:27017"
+    mongodb_db: str = "app"
+{% endif %}
 {% if spec.has("redis") %}
     redis_url: str = "redis://localhost:6379/0"
 {% endif %}

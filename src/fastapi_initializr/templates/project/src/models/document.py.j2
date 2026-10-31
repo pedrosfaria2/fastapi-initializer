@@ -1,0 +1,24 @@
+"""Document model stored in MongoDB."""
+
+from datetime import UTC, datetime
+
+from beanie import Document as BeanieDocument
+from pydantic import Field
+
+
+def _utc_now() -> datetime:
+    """Return the current time as a timezone-aware UTC datetime."""
+    return datetime.now(UTC)
+
+
+class Document(BeanieDocument):
+    """A document stored in the documents collection."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)
+    created_at: datetime = Field(default_factory=_utc_now)
+
+    class Settings:
+        """Beanie collection settings."""
+
+        name = "documents"

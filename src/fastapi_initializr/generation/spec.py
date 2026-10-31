@@ -120,6 +120,11 @@ class ProjectSpec(BaseModel):
             allowed = ", ".join(SUPPORTED_FASTAPI_VERSIONS)
             raise ValueError(f"FastAPI version must be one of: {allowed}.")
 
+        if self.has("mongodb") and self.python == "3.14":
+            raise ValueError(
+                "MongoDB with Beanie requires Python <3.14; select Python 3.11, 3.12, or 3.13."
+            )
+
         unknown = sorted(self.dependencies - DEPENDENCIES.keys())
         if unknown:
             raise ValueError(f"Unknown dependencies: {', '.join(unknown)}.")

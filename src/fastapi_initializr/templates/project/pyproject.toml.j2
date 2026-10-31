@@ -75,6 +75,12 @@ ignore_missing_imports = true
 module = ["yaml", "yaml.*"]
 ignore_missing_imports = true
 {% endif %}
+{% if spec.has("mongodb") %}
+
+[[tool.mypy.overrides]]
+module = ["mongomock_motor", "mongomock_motor.*"]
+ignore_missing_imports = true
+{% endif %}
 
 [tool.pyright]
 include = ["src", "tests"]

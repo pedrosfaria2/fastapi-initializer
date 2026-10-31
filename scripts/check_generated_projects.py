@@ -19,6 +19,10 @@ CASES: dict[str, ProjectSpec] = {
         name="database-service",
         dependencies=frozenset({"sqlalchemy", "alembic"}),
     ),
+    "mongo": ProjectSpec(
+        name="mongo-service",
+        dependencies=frozenset({"mongodb"}),
+    ),
     "auth": ProjectSpec(
         name="auth-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
@@ -52,6 +56,10 @@ CASES: dict[str, ProjectSpec] = {
     "worker": ProjectSpec(
         name="worker-service",
         dependencies=frozenset({"redis", "arq", "cache"}),
+    ),
+    "graphql": ProjectSpec(
+        name="graphql-service",
+        dependencies=frozenset({"graphql"}),
     ),
     "operations": ProjectSpec(
         name="operations-service",
@@ -99,6 +107,7 @@ CASES: dict[str, ProjectSpec] = {
                 "opentelemetry",
                 "static-templates",
                 "websockets",
+                "graphql",
                 "rate-limit",
                 "uploads",
                 "s3",

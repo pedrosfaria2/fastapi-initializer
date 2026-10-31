@@ -1,0 +1,26 @@
+"""Strawberry GraphQL schema."""
+
+import strawberry
+
+
+@strawberry.type
+class Query:
+    """Root query fields."""
+
+    @strawberry.field
+    def hello(self, name: str = "world") -> str:
+        """Return a friendly greeting."""
+        return f"Hello, {name}!"
+
+
+@strawberry.type
+class Mutation:
+    """Root mutation fields."""
+
+    @strawberry.mutation
+    def echo(self, message: str) -> str:
+        """Return the received message."""
+        return message
+
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)

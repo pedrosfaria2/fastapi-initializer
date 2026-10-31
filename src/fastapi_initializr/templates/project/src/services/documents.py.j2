@@ -1,0 +1,75 @@
+"""Document service functions."""
+
+from bson import ObjectId
+from bson.errors import InvalidId
+
+from {{ spec.package }}.models.document import Document
+from {{ spec.package }}.schemas.document import DocumentCreate, DocumentUpdate
+
+MAX_PAGE_SIZE = 100
+DEFAULT_PAGE_SIZE = 50
+
+
+class DocumentNotFoundError(Exception):
+    """Raised when a document does not exist."""
+
+    def __init__(self, document_id: str) -> None:
+        super().__init__(f"Document {document_id} was not found")
+        self.document_id = document_id
+
+
+def _validate_pagination(limit: int, offset: int) -> None:
+    if not 1 <= limit <= MAX_PAGE_SIZE:
+        raise ValueError(f"limit must be between 1 and {MAX_PAGE_SIZE}")
+    if offset < 0:
+        raise ValueError("offset must be greater than or equal to 0")
+
+
+def _object_id(document_id: str) -> ObjectId:
+    try:
+        return ObjectId(document_id)
+    except InvalidId as error:
+        raise DocumentNotFoundError(document_id) from error
+
+
+async def create_document(payload: DocumentCreate) -> Document:
+    """Create and insert a new document."""
+    document = Document(**payload.model_dump())
+    await document.insert()
+    return document
+
+
+async def list_documents(
+    *,
+    limit: int = DEFAULT_PAGE_SIZE,
+    offset: int = 0,
+) -> list[Document]:
+    """Return a bounded page of documents ordered by id."""
+    _validate_pagination(limit, offset)
+    return await Document.find_all().sort("_id").skip(offset).limit(limit).to_list()
+
+
+async def get_document(document_id: str) -> Document:
+    """Return one document or raise a domain error."""
+    document = await Document.get(_object_id(document_id))
+    if document is None:
+        raise DocumentNotFoundError(document_id)
+    return document
+
+
+async def update_document(
+    document_id: str,
+    payload: DocumentUpdate,
+) -> Document:
+    """Apply the provided fields to an existing document."""
+    document = await get_document(document_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(document, field, value)
+    await document.save()
+    return document
+
+
+async def delete_document(document_id: str) -> None:
+    """Delete an existing document."""
+    document = await get_document(document_id)
+    await document.delete()

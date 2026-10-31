@@ -1,0 +1,36 @@
+"""Document schemas."""
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class DocumentCreate(BaseModel):
+    """Fields accepted when creating a document."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)
+
+
+class DocumentUpdate(BaseModel):
+    """Fields accepted when updating a document."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+
+
+class DocumentRead(BaseModel):
+    """A document returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    description: str | None
+    created_at: datetime
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def stringify_id(cls, value: object) -> str:
+        """Convert the MongoDB ObjectId into a JSON-friendly string."""
+        return str(value)

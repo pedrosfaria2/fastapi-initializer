@@ -62,6 +62,7 @@ def _needs_env(spec: ProjectSpec) -> bool:
         or spec.has("uploads")
         or spec.has("oauth2")
         or spec.has("opentelemetry")
+        or spec.has("mongodb")
     )
 
 
@@ -133,6 +134,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("sqlalchemy"),
     ),
     FileSpec(
+        "src/api/routes/documents.py.j2",
+        "src/{{ spec.package }}/api/routes/documents.py",
+        _has("mongodb"),
+    ),
+    FileSpec(
         "src/api/routes/auth.py.j2",
         "src/{{ spec.package }}/api/routes/auth.py",
         _has("auth-jwt"),
@@ -183,6 +189,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("cache"),
     ),
     FileSpec(
+        "src/core/mongo.py.j2",
+        "src/{{ spec.package }}/core/mongo.py",
+        _has("mongodb"),
+    ),
+    FileSpec(
         "src/core/observability.py.j2",
         "src/{{ spec.package }}/core/observability.py",
         _has("sentry"),
@@ -223,6 +234,16 @@ FILES: tuple[FileSpec, ...] = (
         _has("s3"),
     ),
     FileSpec(
+        "src/graphql/__init__.py.j2",
+        "src/{{ spec.package }}/graphql/__init__.py",
+        _has("graphql"),
+    ),
+    FileSpec(
+        "src/graphql/schema.py.j2",
+        "src/{{ spec.package }}/graphql/schema.py",
+        _has("graphql"),
+    ),
+    FileSpec(
         "src/db/__init__.py.j2",
         "src/{{ spec.package }}/db/__init__.py",
         _has_database,
@@ -240,7 +261,12 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/models/__init__.py.j2",
         "src/{{ spec.package }}/models/__init__.py",
-        _has("sqlalchemy"),
+        _has_any("sqlalchemy", "mongodb"),
+    ),
+    FileSpec(
+        "src/models/document.py.j2",
+        "src/{{ spec.package }}/models/document.py",
+        _has("mongodb"),
     ),
     FileSpec(
         "src/models/item.py.j2",
@@ -267,6 +293,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/schemas/document.py.j2",
+        "src/{{ spec.package }}/schemas/document.py",
+        _has("mongodb"),
+    ),
+    FileSpec(
         "src/services/__init__.py.j2",
         "src/{{ spec.package }}/services/__init__.py",
     ),
@@ -274,6 +305,11 @@ FILES: tuple[FileSpec, ...] = (
         "src/services/items.py.j2",
         "src/{{ spec.package }}/services/items.py",
         _has("sqlalchemy"),
+    ),
+    FileSpec(
+        "src/services/documents.py.j2",
+        "src/{{ spec.package }}/services/documents.py",
+        _has("mongodb"),
     ),
     FileSpec(
         "src/services/auth.py.j2",
@@ -330,6 +366,8 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("tests/conftest.py.j2", "tests/conftest.py"),
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
+    FileSpec("tests/test_documents.py.j2", "tests/test_documents.py", _has("mongodb")),
+    FileSpec("tests/test_graphql.py.j2", "tests/test_graphql.py", _has("graphql")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
     FileSpec("tests/test_email_auth.py.j2", "tests/test_email_auth.py", _has("email")),
     FileSpec("tests/test_oauth.py.j2", "tests/test_oauth.py", _has("oauth2")),

@@ -64,6 +64,25 @@ def test_rejects_invalid_python_version() -> None:
         ProjectSpec(name="my-service", python="3.10")
 
 
+def test_rejects_mongodb_with_python_314() -> None:
+    with pytest.raises(ValidationError, match=r"MongoDB with Beanie requires Python <3\.14"):
+        ProjectSpec(
+            name="my-service",
+            python="3.14",
+            dependencies=frozenset({"mongodb"}),
+        )
+
+
+def test_accepts_mongodb_with_python_313() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        python="3.13",
+        dependencies=frozenset({"mongodb"}),
+    )
+
+    assert spec.has("mongodb")
+
+
 def test_rejects_control_characters_in_description() -> None:
     with pytest.raises(ValidationError, match="control characters"):
         ProjectSpec(name="my-service", description="bad\x00description")

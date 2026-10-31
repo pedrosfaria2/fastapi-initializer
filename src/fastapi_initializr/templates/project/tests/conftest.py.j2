@@ -2,11 +2,15 @@
 
 {% if spec.has("sqlalchemy") %}
 import asyncio
+{% endif %}
 from collections.abc import Iterator
+{% if spec.has("sqlalchemy") %}
 from pathlib import Path
+{% endif %}
+{% if spec.has("sqlalchemy") %}
 from typing import cast
-{% else %}
-from collections.abc import Iterator
+{% elif spec.has("mongodb") %}
+from typing import Any, cast
 {% endif %}
 
 import pytest
@@ -14,6 +18,11 @@ import pytest
 from fastapi import FastAPI
 {% endif %}
 from fastapi.testclient import TestClient
+{% if spec.has("mongodb") %}
+from mongomock.database import Database as MongoMockDatabase
+from mongomock_motor import AsyncMongoMockClient
+from motor.motor_asyncio import AsyncIOMotorClient
+{% endif %}
 {% if spec.has("sqlalchemy") %}
 from sqlalchemy.ext.asyncio import AsyncEngine
 {% endif %}
@@ -22,10 +31,26 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.main import create_app
 from {{ spec.package }}.models import Base
+{% elif spec.has("mongodb") %}
+from {{ spec.package }} import main as main_module
+from {{ spec.package }}.core import mongo
+from {{ spec.package }}.core.config import get_settings
 {% else %}
 from {{ spec.package }}.main import create_app
 {% endif %}
 
+{% if spec.has("mongodb") %}
+_ORIGINAL_LIST_COLLECTION_NAMES = MongoMockDatabase.list_collection_names
+
+
+def _list_collection_names_compat(
+    database: MongoMockDatabase,
+    **_kwargs: object,
+) -> list[str]:
+    """Ignore pymongo options that mongomock does not support."""
+    return _ORIGINAL_LIST_COLLECTION_NAMES(database)
+
+{% endif %}
 {% if spec.has("sqlalchemy") %}
 
 def _create_tables(client: TestClient) -> None:
@@ -49,6 +74,32 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     try:
         with TestClient(create_app()) as test_client:
             _create_tables(test_client)
+            yield test_client
+    finally:
+        get_settings.cache_clear()
+{% elif spec.has("mongodb") %}
+
+@pytest.fixture
+def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """Return a client whose MongoDB operations use an in-memory mock."""
+    monkeypatch.setattr(
+        MongoMockDatabase,
+        "list_collection_names",
+        _list_collection_names_compat,
+    )
+    mock_client = AsyncMongoMockClient()
+
+    async def init_test_mongo() -> None:
+        await mongo.init_mongo(client=cast(AsyncIOMotorClient[Any], mock_client))
+
+    async def close_test_mongo() -> None:
+        await mongo.close_mongo()
+
+    monkeypatch.setattr(main_module, "init_mongo", init_test_mongo)
+    monkeypatch.setattr(main_module, "close_mongo", close_test_mongo)
+    get_settings.cache_clear()
+    try:
+        with TestClient(main_module.create_app()) as test_client:
             yield test_client
     finally:
         get_settings.cache_clear()

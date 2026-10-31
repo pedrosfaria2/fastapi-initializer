@@ -1,7 +1,7 @@
 """Application entry point."""
-{% if spec.has_database or spec.has("static-templates") %}
+{% if spec.has_database or spec.has("mongodb") or spec.has("static-templates") %}
 
-{% if spec.has_database %}
+{% if spec.has_database or spec.has("mongodb") %}
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 {% endif %}
@@ -30,6 +30,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 {% if spec.has("oauth2") %}
 from starlette.middleware.sessions import SessionMiddleware
 {% endif %}
+{% if spec.has("graphql") %}
+from strawberry.fastapi import GraphQLRouter
+{% endif %}
 
 from {{ spec.package }} import __version__
 from {{ spec.package }}.api.routes import api_router
@@ -37,6 +40,9 @@ from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.errors import install_error_handlers
 from {{ spec.package }}.core.logging import configure_logging
 from {{ spec.package }}.core.middleware import RequestIdMiddleware
+{% if spec.has("mongodb") %}
+from {{ spec.package }}.core.mongo import close_mongo, init_mongo
+{% endif %}
 {% if spec.has("sentry") %}
 from {{ spec.package }}.core.observability import init_sentry
 {% endif %}
@@ -48,6 +54,9 @@ from {{ spec.package }}.core.tracing import configure_tracing
 {% endif %}
 {% if spec.has_database %}
 from {{ spec.package }}.db.session import SessionFactory
+{% endif %}
+{% if spec.has("graphql") %}
+from {{ spec.package }}.graphql.schema import schema
 {% endif %}
 
 
@@ -66,6 +75,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 {% endif %}
+{% if spec.has("mongodb") %}
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Initialize Beanie for the application lifetime."""
+    await init_mongo()
+    try:
+        yield
+    finally:
+        await close_mongo()
+
+
+{% endif %}
 def create_app() -> FastAPI:
     """Build the FastAPI application."""
     settings = get_settings()
@@ -76,7 +97,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
-{% if spec.has_database %}
+{% if spec.has_database or spec.has("mongodb") %}
         lifespan=lifespan,
 {% endif %}
     )
@@ -103,6 +124,9 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     install_error_handlers(app)
     app.include_router(api_router)
+{% if spec.has("graphql") %}
+    app.include_router(GraphQLRouter(schema), prefix="/graphql")
+{% endif %}
 {% if spec.has("static-templates") %}
     app.mount(
         "/static",

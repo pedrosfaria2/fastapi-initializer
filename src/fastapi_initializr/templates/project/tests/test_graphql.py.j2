@@ -1,0 +1,23 @@
+"""GraphQL query and mutation contract."""
+
+from fastapi.testclient import TestClient
+
+
+def test_graphql_hello_query(client: TestClient) -> None:
+    response = client.post(
+        "/graphql",
+        json={"query": '{ hello(name: "Ada") }'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"data": {"hello": "Hello, Ada!"}}
+
+
+def test_graphql_echo_mutation(client: TestClient) -> None:
+    response = client.post(
+        "/graphql",
+        json={"query": 'mutation { echo(message: "ping") }'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"data": {"echo": "ping"}}

@@ -1,0 +1,32 @@
+"""MongoDB client and Beanie initialization."""
+
+from typing import Any, cast
+
+from beanie import init_beanie  # pyright: ignore[reportUnknownVariableType]  # unparameterized AsyncDatabase in beanie
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.asynchronous.database import AsyncDatabase
+
+from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.models.document import Document
+
+_client: AsyncIOMotorClient[Any] | None = None
+
+
+async def init_mongo(client: AsyncIOMotorClient[Any] | None = None) -> None:
+    """Initialize Beanie with the configured database or an injected client."""
+    global _client
+    settings = get_settings()
+    _client = client or AsyncIOMotorClient(settings.mongodb_url)
+    database = _client[settings.mongodb_db]
+    await init_beanie(
+        database=cast(AsyncDatabase[Any], database),
+        document_models=[Document],
+    )
+
+
+async def close_mongo() -> None:
+    """Close the MongoDB client opened by init_mongo."""
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None

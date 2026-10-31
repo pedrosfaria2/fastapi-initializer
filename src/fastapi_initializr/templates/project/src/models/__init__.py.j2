@@ -1,11 +1,25 @@
 """Database models."""
 
-from {{ spec.package }}.db.base import Base
 {% if spec.has("sqlalchemy") %}
+from {{ spec.package }}.db.base import Base
 from {{ spec.package }}.models.item import Item
 {% endif %}
 {% if spec.has("auth-jwt") %}
 from {{ spec.package }}.models.user import User
 {% endif %}
+{% if spec.has("mongodb") %}
+from {{ spec.package }}.models.document import Document
+{% endif %}
 
-__all__ = [{% if spec.has("sqlalchemy") %}"Base", "Item"{% endif %}{% if spec.has("auth-jwt") %}, "User"{% endif %}]
+__all__ = [
+{% if spec.has("sqlalchemy") %}
+    "Base",
+    "Item",
+{% endif %}
+{% if spec.has("auth-jwt") %}
+    "User",
+{% endif %}
+{% if spec.has("mongodb") %}
+    "Document",
+{% endif %}
+]
