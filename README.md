@@ -7,9 +7,9 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 ## Features
 
 - Metadata-driven web UI and HTTP API.
-- Downloadable, deterministic zip archive.
-- Safe project and package name validation.
-- Allowlisted dependency catalog.
+- Deterministic zip and tar.gz archives, plus standalone `pyproject.toml`.
+- Searchable dependency catalog with docs links and compatibility rules.
+- Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health endpoint,
   and tests.
 - Optional SQLAlchemy, Alembic, PostgreSQL, CORS, Docker, GitHub Actions, and
@@ -36,21 +36,48 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | --- | --- | --- |
 | `GET` | `/` | Web UI |
 | `GET` | `/health` | Liveness |
-| `GET` | `/api/metadata` | Option catalog |
-| `GET` | `/api/preview` | Rendered file list and contents |
-| `GET` | `/api/generate` | Download a zip |
-| `POST` | `/api/generate` | Download a zip from JSON |
+| `GET` | `/metadata` | Capability document |
+| `GET` | `/api/metadata` | Option catalog alias |
+| `GET` | `/dependencies` | Resolved dependency coordinates |
+| `GET` | `/preview` | Rendered file list and contents |
+| `GET` | `/starter.zip` | Download a zip |
+| `GET` | `/starter.tgz` | Download a tar.gz |
+| `GET` | `/pyproject.toml` | Download only the build file |
+| `POST` | `/starter.zip` | Download a zip from JSON |
+| `POST` | `/preview` | Preview from JSON |
+
+The `/api/preview` and `/api/generate` aliases remain available.
 
 Download a project:
 
 ```sh
-curl -OJ 'http://127.0.0.1:8000/api/generate?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
+curl -OJ 'http://127.0.0.1:8000/starter.zip?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
+```
+
+Download a tar.gz or the build file:
+
+```sh
+curl -OJ 'http://127.0.0.1:8000/starter.tgz?name=my-service'
+curl 'http://127.0.0.1:8000/pyproject.toml?name=my-service'
 ```
 
 Preview the same project:
 
 ```sh
-curl 'http://127.0.0.1:8000/api/preview?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
+curl 'http://127.0.0.1:8000/preview?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
+```
+
+Resolve dependency coordinates:
+
+```sh
+curl 'http://127.0.0.1:8000/dependencies?fastapiVersion=0.161.1'
+```
+
+The capability document supports a versioned media type:
+
+```sh
+curl -H 'Accept: application/vnd.fastapi-initializr.v1+json' \
+  http://127.0.0.1:8000/metadata
 ```
 
 Use JSON for API clients:
@@ -66,7 +93,12 @@ Parameters:
 - `name`: project and distribution name.
 - `package`: import package; derived from `name` when omitted.
 - `description`: project summary.
-- `python`: `3.11`, `3.12`, `3.13`, or `3.14`.
+- `version`: project version, `MAJOR.MINOR.PATCH` (default `0.1.0`).
+- `author`: optional author name.
+- `python` / `pythonVersion`: `3.11`, `3.12`, `3.13`, or `3.14`.
+- `fastapi` / `fastapiVersion`: supported FastAPI version.
+- `baseDir`: root directory inside the archive (defaults to `name`).
+- `applicationName`: OpenAPI application title (defaults to `name`).
 - `dependencies`: repeated ids or a comma-separated list.
 
 ## Options
