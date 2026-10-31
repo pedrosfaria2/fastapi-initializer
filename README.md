@@ -120,11 +120,17 @@ Parameters:
 | `alembic` | Database | Alembic configuration and migrations | `sqlalchemy` |
 | `postgres` | Database | Async PostgreSQL driver | `sqlalchemy` |
 | `redis` | Database | Async Redis client and settings | — |
+| `cache` | Database | Typed cache-aside helpers with TTL and invalidation | `redis` |
+| `arq` | Messaging | ARQ worker and example background task | `redis` |
 | `auth-jwt` | Security | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
+| `email` | Security | Console/SMTP email, password reset, and verification | `auth-jwt` |
 | `cors` | Web | CORS middleware and settings | — |
 | `static-templates` | Web | Jinja2 templates, static assets, and a welcome page | — |
 | `websockets` | Web | WebSocket echo endpoint | — |
 | `rate-limit` | Web | SlowAPI limiter and example route | — |
+| `uploads` | Web | Local file uploads with size/type validation | — |
+| `s3` | Operations | S3-compatible storage backend | `uploads` |
+| `testcontainers` | Testing | PostgreSQL/Redis integration fixtures | `postgres`, `redis` |
 | `sentry` | Observability | Sentry error reporting, disabled without a DSN | — |
 | `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
 | `docker` | Operations | Dockerfile and .dockerignore | — |
