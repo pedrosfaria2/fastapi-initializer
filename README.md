@@ -333,8 +333,9 @@ docker run --rm -p 8000:8000 fastapi-initializr
 
 The image uses `python:3.14-slim-trixie` with a pinned uv 0.13.6 binary,
 installs the project non-editable from `uv.lock`, runs as the unprivileged
-numeric user `10001`, and exposes `/health` for its healthcheck. CI builds the
-image, records its size, and smoke-tests `/health`.
+numeric user `10001`, and exposes `/health` for its healthcheck. Build it with
+the commands above; the repository gate covers the Dockerfile invariants but
+does not build the image.
 
 ## Development
 
