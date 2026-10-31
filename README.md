@@ -106,16 +106,24 @@ Parameters:
 
 ## Options
 
-| ID | Adds | Requires |
-| --- | --- | --- |
-| `sqlalchemy` | Async SQLAlchemy session and SQLite driver | — |
-| `alembic` | Alembic configuration and migrations | `sqlalchemy` |
-| `postgres` | Async PostgreSQL driver | `sqlalchemy` |
-| `auth-jwt` | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
-| `cors` | CORS middleware and settings | — |
-| `docker` | Dockerfile and .dockerignore | — |
-| `ci` | GitHub Actions workflow | — |
-| `pre-commit` | Ruff, mypy, and pyright hooks | — |
+| ID | Group | Adds | Requires |
+| --- | --- | --- | --- |
+| `sqlalchemy` | Database | Async SQLAlchemy session and SQLite driver | — |
+| `alembic` | Database | Alembic configuration and migrations | `sqlalchemy` |
+| `postgres` | Database | Async PostgreSQL driver | `sqlalchemy` |
+| `redis` | Database | Async Redis client and settings | — |
+| `auth-jwt` | Security | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
+| `cors` | Web | CORS middleware and settings | — |
+| `static-templates` | Web | Jinja2 templates, static assets, and a welcome page | — |
+| `websockets` | Web | WebSocket echo endpoint | — |
+| `rate-limit` | Web | SlowAPI limiter and example route | — |
+| `sentry` | Observability | Sentry error reporting, disabled without a DSN | — |
+| `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
+| `docker` | Operations | Dockerfile and .dockerignore | — |
+| `compose` | Operations | Compose stack for the app, PostgreSQL, and Redis | — |
+| `makefile` | Operations | Common development targets | — |
+| `ci` | Operations | GitHub Actions workflow | — |
+| `pre-commit` | Operations | Ruff, mypy, and pyright hooks | — |
 
 Every generated project includes FastAPI, Uvicorn, Pydantic Settings,
 `python-multipart`, pytest, httpx2, Ruff, mypy, and pyright.
