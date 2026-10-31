@@ -1,0 +1,88 @@
+"""Cache helper behavior using an in-memory backend."""
+
+import asyncio
+
+from {{ spec.package }}.core.cache_helpers import Cache, cache_aside
+
+
+class FakeBackend:
+    """In-memory stand-in for a Redis-backed cache."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.ttls: dict[str, int | None] = {}
+
+    async def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None:
+        self.values[key] = value
+        self.ttls[key] = ttl
+
+    async def delete(self, key: str) -> None:
+        self.values.pop(key, None)
+        self.ttls.pop(key, None)
+
+
+def test_cache_set_get_and_delete() -> None:
+    backend = FakeBackend()
+    cache = Cache(backend, namespace="test", default_ttl=60)
+
+    asyncio.run(cache.set("greeting", "hello"))
+
+    assert asyncio.run(cache.get("greeting")) == "hello"
+    assert backend.ttls["test:greeting"] == 60
+
+    asyncio.run(cache.delete("greeting"))
+
+    assert asyncio.run(cache.get("greeting")) is None
+
+
+def test_cache_aside_returns_cached_value_without_recomputing() -> None:
+    backend = FakeBackend()
+    cache = Cache(backend, namespace="test")
+    calls = 0
+
+    @cache_aside(cache, lambda name: f"greeting:{name}")
+    async def greet(name: str) -> dict[str, str]:
+        nonlocal calls
+        calls += 1
+        return {"greeting": f"Hello, {name}"}
+
+    first = asyncio.run(greet("Ada"))
+    second = asyncio.run(greet("Ada"))
+
+    assert first == second == {"greeting": "Hello, Ada"}
+    assert calls == 1
+
+
+def test_cache_aside_passes_ttl_to_backend() -> None:
+    backend = FakeBackend()
+    cache = Cache(backend, namespace="test")
+
+    @cache_aside(cache, lambda value: f"square:{value}", ttl=30)
+    async def square(value: int) -> int:
+        return value * value
+
+    assert asyncio.run(square(4)) == 16
+    assert backend.ttls["test:square:4"] == 30
+
+
+def test_cache_aside_recomputes_after_invalidation() -> None:
+    backend = FakeBackend()
+    cache = Cache(backend, namespace="test")
+    calls = 0
+
+    @cache_aside(cache, lambda: "total")
+    async def total() -> int:
+        nonlocal calls
+        calls += 1
+        return calls
+
+    assert asyncio.run(total()) == 1
+    assert asyncio.run(total()) == 1
+
+    asyncio.run(cache.delete("total"))
+
+    assert asyncio.run(total()) == 2
+    assert calls == 2

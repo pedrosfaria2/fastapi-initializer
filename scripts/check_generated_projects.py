@@ -37,6 +37,10 @@ CASES: dict[str, ProjectSpec] = {
             }
         ),
     ),
+    "worker": ProjectSpec(
+        name="worker-service",
+        dependencies=frozenset({"redis", "arq", "cache"}),
+    ),
     "operations": ProjectSpec(
         name="operations-service",
         dependencies=frozenset({"docker", "compose", "ci", "pre-commit", "makefile"}),
@@ -51,6 +55,8 @@ CASES: dict[str, ProjectSpec] = {
                 "cors",
                 "auth-jwt",
                 "redis",
+                "cache",
+                "arq",
                 "sentry",
                 "prometheus",
                 "static-templates",

@@ -8,7 +8,8 @@ from {{ spec.package }}.core.config import get_settings
 def create_redis_client() -> Redis:
     """Create an async Redis client without connecting at import time."""
     # Redis types its connection kwargs as Unknown, which is safe for this call.
-    return Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
+    client: Redis = Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
         get_settings().redis_url,
         decode_responses=True,
     )
+    return client

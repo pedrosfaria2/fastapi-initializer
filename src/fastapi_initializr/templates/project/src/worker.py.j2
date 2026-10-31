@@ -1,0 +1,18 @@
+"""ARQ worker configuration."""
+
+from collections.abc import Awaitable, Callable
+from typing import ClassVar
+
+from arq.connections import RedisSettings
+
+from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.tasks import example_task
+
+ExampleTask = Callable[[dict[str, object], str], Awaitable[str]]
+
+
+class WorkerSettings:
+    """Settings used by ``arq {{ spec.package }}.worker.WorkerSettings``."""
+
+    functions: ClassVar[list[ExampleTask]] = [example_task]
+    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)

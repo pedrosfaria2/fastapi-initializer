@@ -106,7 +106,7 @@ def test_extended_web_features_render_files_and_settings() -> None:
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
     for package in (
-        "redis>=8.1.0",
+        "redis>=5.3.1",
         "sentry-sdk[fastapi]>=2.73.0",
         "prometheus-fastapi-instrumentator>=8.1.0",
         "slowapi>=0.1.10",
@@ -119,6 +119,12 @@ def test_extended_web_features_are_absent_by_default() -> None:
     files = render_project(ProjectSpec(name="my-service"))
 
     assert "src/my_service/core/cache.py" not in files
+    assert "src/my_service/core/cache_helpers.py" not in files
+    assert "src/my_service/tasks/__init__.py" not in files
+    assert "src/my_service/tasks/example.py" not in files
+    assert "src/my_service/worker.py" not in files
+    assert "tests/test_cache_helpers.py" not in files
+    assert "tests/test_worker.py" not in files
     assert "src/my_service/core/observability.py" not in files
     assert "src/my_service/core/rate_limit.py" not in files
     assert "src/my_service/api/routes/pages.py" not in files
@@ -127,6 +133,54 @@ def test_extended_web_features_are_absent_by_default() -> None:
     assert "templates/index.html" not in files
     assert "Makefile" not in files
     assert "docker-compose.yml" not in files
+
+
+def test_worker_and_cache_helpers_render_files_and_settings() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"redis", "arq", "cache"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/worker.py" in files
+    assert "src/my_service/tasks/__init__.py" in files
+    assert "src/my_service/tasks/example.py" in files
+    assert "src/my_service/core/cache_helpers.py" in files
+    assert "tests/test_worker.py" in files
+    assert "tests/test_cache_helpers.py" in files
+
+    worker = files["src/my_service/worker.py"]
+    assert "class WorkerSettings:" in worker
+    assert "functions: ClassVar[list[ExampleTask]] = [example_task]" in worker
+    assert "RedisSettings.from_dsn(get_settings().redis_url)" in worker
+    assert "from my_service.tasks import example_task" in worker
+
+    task = files["src/my_service/tasks/example.py"]
+    assert "async def example_task(ctx: dict[str, object], name: str) -> str:" in task
+    assert 'return f"Hello, {name}!"' in task
+
+    cache_helpers = files["src/my_service/core/cache_helpers.py"]
+    assert "class CacheBackend(Protocol):" in cache_helpers
+    assert "class Cache:" in cache_helpers
+    assert "def cache_aside(" in cache_helpers
+    assert "ParamSpec" in cache_helpers
+    assert "cast(T, json.loads(cached))" in cache_helpers
+
+    compose = files["docker-compose.yml"]
+    assert "  worker:" in compose
+    assert "    build: ." in compose
+    assert "    command: arq my_service.worker.WorkerSettings" in compose
+    assert "      - .env" in compose
+    assert "        condition: service_healthy" in compose
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "arq>=0.28.0" in data["project"]["dependencies"]
+
+    readme = files["README.md"]
+    assert "uv run arq my_service.worker.WorkerSettings" in readme
+    assert "ARQ runs background jobs against Redis." in readme
+    assert "## Cache helpers" in readme
 
 
 def test_operations_features_render_makefile_and_compose() -> None:
@@ -271,6 +325,8 @@ def test_generated_python_parses() -> None:
                 "postgres",
                 "cors",
                 "redis",
+                "cache",
+                "arq",
                 "sentry",
                 "prometheus",
                 "static-templates",

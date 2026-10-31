@@ -1,0 +1,127 @@
+"""Reusable cache helpers built on the async Redis client."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import ParamSpec, Protocol, TypeVar, cast
+
+from redis.asyncio import Redis
+
+from {{ spec.package }}.core.cache import create_redis_client
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+class CacheBackend(Protocol):
+    """Minimal async storage used by :class:`Cache`."""
+
+    async def get(self, key: str) -> str | None:
+        """Return the stored value or ``None`` when the key is missing."""
+        ...
+
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None:
+        """Store a value, optionally expiring after ``ttl`` seconds."""
+        ...
+
+    async def delete(self, key: str) -> None:
+        """Remove a key."""
+        ...
+
+
+class RedisCacheBackend:
+    """Cache backend backed by an async Redis client."""
+
+    def __init__(self, client: Redis | None = None) -> None:
+        self._client = client or create_redis_client()
+
+    async def get(self, key: str) -> str | None:
+        """Return the stored value or ``None`` when the key is missing."""
+        value = await self._client.get(key)
+        return value if isinstance(value, str) else None
+
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None:
+        """Store a value, optionally expiring after ``ttl`` seconds."""
+        if ttl is None:
+            await self._client.set(key, value)
+        else:
+            await self._client.set(key, value, ex=ttl)
+
+    async def delete(self, key: str) -> None:
+        """Remove a key."""
+        await self._client.delete(key)
+
+
+class Cache:
+    """Namespaced cache with a default time to live."""
+
+    def __init__(
+        self,
+        backend: CacheBackend,
+        *,
+        namespace: str = "cache",
+        default_ttl: int | None = 300,
+    ) -> None:
+        self._backend = backend
+        self.namespace = namespace
+        self.default_ttl = default_ttl
+
+    def key(self, key: str) -> str:
+        """Return the namespaced storage key."""
+        return f"{self.namespace}:{key}"
+
+    async def get(self, key: str) -> str | None:
+        """Return a cached value or ``None`` when it is missing."""
+        return await self._backend.get(self.key(key))
+
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None:
+        """Store a value with an explicit or default time to live."""
+        effective_ttl = self.default_ttl if ttl is None else ttl
+        await self._backend.set(self.key(key), value, effective_ttl)
+
+    async def delete(self, key: str) -> None:
+        """Invalidate one key."""
+        await self._backend.delete(self.key(key))
+
+
+{% if supports_pep695 %}
+def cache_aside(  # noqa: UP047 - PEP 695 syntax requires Python 3.12
+{% else %}
+def cache_aside(
+{% endif %}
+    cache: Cache,
+    key_builder: Callable[P, str],
+    *,
+    ttl: int | None = None,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    """Cache an async function result as JSON and reuse it on later calls.
+
+    ``key_builder`` receives the same arguments as the wrapped function and
+    returns the logical cache key. Pass ``ttl`` to override the cache default.
+    """
+
+    def decorator(function: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        @wraps(function)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            key = key_builder(*args, **kwargs)
+            cached = await cache.get(key)
+            if cached is not None:
+                return cast(T, json.loads(cached))
+            result = await function(*args, **kwargs)
+            await cache.set(key, json.dumps(result), ttl=ttl)
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def create_cache(*, namespace: str = "cache", default_ttl: int | None = 300) -> Cache:
+    """Build a cache using the application's Redis client."""
+    return Cache(
+        RedisCacheBackend(),
+        namespace=namespace,
+        default_ttl=default_ttl,
+    )

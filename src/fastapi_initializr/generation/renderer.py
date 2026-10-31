@@ -62,8 +62,8 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("gitignore.j2", ".gitignore"),
     FileSpec("python-version.j2", ".python-version"),
     FileSpec("env.example.j2", ".env.example", _needs_env),
-    FileSpec("Dockerfile.j2", "Dockerfile", _has_any("docker", "compose")),
-    FileSpec("dockerignore.j2", ".dockerignore", _has_any("docker", "compose")),
+    FileSpec("Dockerfile.j2", "Dockerfile", _has_any("docker", "compose", "arq")),
+    FileSpec("dockerignore.j2", ".dockerignore", _has_any("docker", "compose", "arq")),
     FileSpec(
         "docker-compose.yml.j2",
         "docker-compose.yml",
@@ -144,6 +144,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("redis"),
     ),
     FileSpec(
+        "src/core/cache_helpers.py.j2",
+        "src/{{ spec.package }}/core/cache_helpers.py",
+        _has("cache"),
+    ),
+    FileSpec(
         "src/core/observability.py.j2",
         "src/{{ spec.package }}/core/observability.py",
         _has("sentry"),
@@ -217,6 +222,21 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/tasks/__init__.py.j2",
+        "src/{{ spec.package }}/tasks/__init__.py",
+        _has("arq"),
+    ),
+    FileSpec(
+        "src/tasks/example.py.j2",
+        "src/{{ spec.package }}/tasks/example.py",
+        _has("arq"),
+    ),
+    FileSpec(
+        "src/worker.py.j2",
+        "src/{{ spec.package }}/worker.py",
+        _has("arq"),
+    ),
+    FileSpec(
         "templates/index.html.j2",
         "templates/index.html",
         _has("static-templates"),
@@ -231,6 +251,12 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
     FileSpec("tests/test_cache.py.j2", "tests/test_cache.py", _has("redis")),
+    FileSpec(
+        "tests/test_cache_helpers.py.j2",
+        "tests/test_cache_helpers.py",
+        _has("cache"),
+    ),
+    FileSpec("tests/test_worker.py.j2", "tests/test_worker.py", _has("arq")),
     FileSpec("tests/test_sentry.py.j2", "tests/test_sentry.py", _has("sentry")),
     FileSpec(
         "tests/test_prometheus.py.j2",
@@ -273,6 +299,7 @@ def build_context(spec: ProjectSpec) -> dict[str, object]:
         "pydantic_settings_version": "2.16.2",
         "jinja2_version": "3.1.6",
         "python_multipart_version": "0.0.32",
+        "supports_pep695": tuple(int(part) for part in spec.python.split(".")) >= (3, 12),
         "pytest_version": "9.2.0",
         "httpx2_version": "2.16.0",
         "ruff_version": "0.17.3",

@@ -1,0 +1,5 @@
+"""Background tasks executed by the ARQ worker."""
+
+from {{ spec.package }}.tasks.example import example_task
+
+__all__ = ["example_task"]

@@ -33,8 +33,9 @@ includes only the selected services:
 - PostgreSQL 17 when PostgreSQL is selected, with database `app` and the
   credentials `postgres` / `postgres`.
 - Redis 7 when Redis is selected, with a persistent volume.
+- An ARQ worker when ARQ is selected, built from the same image as the app.
 
-Every service has a healthcheck. Start the stack with:
+PostgreSQL and Redis include healthchecks. Start the stack with:
 
 ```sh
 docker compose up -d
@@ -147,6 +148,44 @@ redis://localhost:6379/0
 time. Start Redis with `docker compose up -d redis` when the Compose stack is
 selected.
 {% endif %}
+{% if spec.has("cache") %}
+
+## Cache helpers
+
+`{{ spec.package }}.core.cache_helpers` provides a namespaced `Cache` class and
+a `cache_aside` decorator. The decorator serializes results as JSON, reuses them
+on later calls, and accepts a per-function TTL:
+
+```python
+from {{ spec.package }}.core.cache_helpers import cache_aside, create_cache
+
+cache = create_cache(namespace="example", default_ttl=60)
+
+
+@cache_aside(cache, lambda item_id: f"item:{item_id}", ttl=30)
+async def load_item(item_id: int) -> dict[str, int]:
+    return {"id": item_id}
+```
+
+`Cache` accepts any backend that implements the `CacheBackend` protocol, so
+tests can use an in-memory fake without a running Redis server.
+{% endif %}
+{% if spec.has("arq") %}
+
+## Background jobs
+
+ARQ runs background jobs against Redis. The worker configuration lives in
+`{{ spec.package }}.worker.WorkerSettings`, and the example task in
+`{{ spec.package }}.tasks.example` shows the expected `ctx` and argument
+signature. Start the worker from the project root:
+
+```sh
+uv run arq {{ spec.package }}.worker.WorkerSettings
+```
+
+The worker reads `REDIS_URL` through `RedisSettings.from_dsn` and registers
+`example_task` in `WorkerSettings.functions`.
+{% endif %}
 {% if spec.has("static-templates") %}
 
 ## Static files and templates
@@ -252,7 +291,7 @@ Run all hooks manually:
 uv run pre-commit run --all-files
 ```
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
 
 ## Docker
 
@@ -291,7 +330,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has_environment or spec.has("redis") or spec.has("sentry") %}
 ├── .env.example
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
 ├── Dockerfile
 ├── .dockerignore
 {% endif %}
@@ -350,6 +389,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("redis") %}
 │   │   ├── cache.py
 {% endif %}
+{% if spec.has("cache") %}
+│   │   ├── cache_helpers.py
+{% endif %}
 │   │   ├── config.py
 │   │   ├── errors.py
 │   │   ├── logging.py
@@ -362,6 +404,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("auth-jwt") %}
 │   │   └── security.py
+{% endif %}
+{% if spec.has("arq") %}
+│   ├── tasks/
+│   │   ├── __init__.py
+│   │   └── example.py
+│   ├── worker.py
 {% endif %}
 {% if spec.has_database %}
 │   ├── db/
@@ -405,6 +453,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("redis") %}
     ├── test_cache.py
 {% endif %}
+{% if spec.has("cache") %}
+    ├── test_cache_helpers.py
+{% endif %}
 {% if spec.has("makefile") %}
     ├── test_makefile.py
 {% endif %}
@@ -423,6 +474,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("sentry") %}
     ├── test_sentry.py
+{% endif %}
+{% if spec.has("arq") %}
+    ├── test_worker.py
 {% endif %}
 {% if spec.has("websockets") %}
     └── test_websockets.py

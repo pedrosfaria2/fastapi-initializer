@@ -20,6 +20,16 @@ services:
 {% endif %}
 {% endif %}
 {% endif %}
+{% if spec.has("arq") %}
+  worker:
+    build: .
+    command: arq {{ spec.package }}.worker.WorkerSettings
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+{% endif %}
 {% if spec.has("postgres") %}
   db:
     image: postgres:17

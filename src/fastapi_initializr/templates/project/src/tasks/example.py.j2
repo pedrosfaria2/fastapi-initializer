@@ -1,0 +1,7 @@
+"""Example ARQ task."""
+
+
+async def example_task(ctx: dict[str, object], name: str) -> str:
+    """Return a greeting and record the task name in the worker context."""
+    ctx["last_task"] = "example"
+    return f"Hello, {name}!"

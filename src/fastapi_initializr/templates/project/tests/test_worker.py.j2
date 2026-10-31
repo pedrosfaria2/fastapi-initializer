@@ -1,0 +1,16 @@
+"""ARQ worker configuration and eager task execution."""
+
+import asyncio
+
+from {{ spec.package }}.tasks import example_task
+from {{ spec.package }}.worker import WorkerSettings
+
+
+def test_example_task_returns_greeting() -> None:
+    result = asyncio.run(example_task({}, "Ada"))
+
+    assert result == "Hello, Ada!"
+
+
+def test_worker_registers_example_task() -> None:
+    assert example_task in WorkerSettings.functions
