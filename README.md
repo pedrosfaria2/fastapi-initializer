@@ -139,6 +139,10 @@ Parameters:
 | `compose` | Operations | Compose stack for the app, PostgreSQL, and Redis | — |
 | `makefile` | Operations | Common development targets | — |
 | `ci` | Operations | GitHub Actions workflow | — |
+| `ci-gitlab` | Operations | GitLab CI pipeline | — |
+| `ci-bitbucket` | Operations | Bitbucket Pipelines configuration | — |
+| `security-scan` | Operations | pip-audit, Bandit, detect-secrets, and CycloneDX SBOM | — |
+| `kubernetes` | Operations | Deployment, Service, ConfigMap, and Ingress | — |
 | `pre-commit` | Operations | Ruff, mypy, and pyright hooks | — |
 
 Every generated project includes FastAPI, Uvicorn, Pydantic Settings,
