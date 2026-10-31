@@ -20,7 +20,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 ## Quick start
 
-Requires Python 3.12+ and uv 0.13.6+.
+Requires Python 3.12+ and uv 0.13.6 (0.13.x).
 
 ```sh
 uv sync --locked
