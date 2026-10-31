@@ -14,7 +14,7 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %}
 
 Copy the example environment file and adjust it for your machine:
 
@@ -114,6 +114,44 @@ curl -X POST "http://127.0.0.1:8000/auth/login" \
 curl "http://127.0.0.1:8000/auth/me" \
   -H "Authorization: Bearer <access_token>"
 ```
+{% endif %}
+{% if spec.has("email") %}
+
+## Email, password reset, and verification
+
+Email messages are rendered from `templates/email/` with Jinja2. The
+`EMAIL_BACKEND` setting selects the transport: `console` (the default) writes
+messages to standard output for local development, while `smtp` sends them
+through the configured SMTP server. The console backend prints the rendered
+message for local use and never prints SMTP credentials.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/auth/request-password-reset` | Send a reset link token when the email is registered and return `202`. |
+| `POST` | `/auth/reset-password` | Accept `token` and `new_password` and return `204`, or `400` for an invalid token. |
+| `POST` | `/auth/request-verification` | Send a verification token when the email is registered and return `202`. |
+| `POST` | `/auth/verify-email` | Accept `token`, mark the email as verified, and return `204`, or `400` for an invalid token. |
+
+Requests for an unknown email return the same generic `202` response as a
+registered email and send nothing. Password reset tokens expire after 30
+minutes; email verification tokens expire after 24 hours.
+
+Request a reset and submit the token shown by the console backend:
+
+```sh
+curl -X POST "http://127.0.0.1:8000/auth/request-password-reset" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+curl -X POST "http://127.0.0.1:8000/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "<token>", "new_password": "new-correct-horse-battery"}'
+```
+
+Configure SMTP with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+`SMTP_FROM`, and `SMTP_STARTTLS`. The values in `.env.example` are local
+placeholders; replace them before deploying. Set `EMAIL_BACKEND=smtp` to use
+the SMTP backend.
 {% endif %}
 {% if spec.has_database %}
 
@@ -299,7 +337,7 @@ Build and run the container:
 
 ```sh
 docker build -t {{ spec.name }} .
-docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %} --env-file .env{% endif %} {{ spec.name }}
+docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %} --env-file .env{% endif %} {{ spec.name }}
 ```
 {% endif %}
 {% if spec.has("alembic") %}
@@ -327,7 +365,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── README.md
 ├── .gitignore
 ├── .python-version
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %}
 ├── .env.example
 {% endif %}
 {% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
@@ -357,8 +395,19 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("static-templates") %}
 ├── static/
 │   └── style.css
+{% endif %}
+{% if spec.has("static-templates") or spec.has("email") %}
 ├── templates/
+{% if spec.has("static-templates") and spec.has("email") %}
+│   ├── index.html
+{% elif spec.has("static-templates") %}
 │   └── index.html
+{% endif %}
+{% if spec.has("email") %}
+│   └── email/
+│       ├── password_reset.txt
+│       └── verify_email.txt
+{% endif %}
 {% endif %}
 ├── src/{{ spec.package }}/
 │   ├── __init__.py
@@ -370,6 +419,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │       ├── __init__.py
 {% if spec.has("auth-jwt") %}
 │   │       ├── auth.py
+{% endif %}
+{% if spec.has("email") %}
+│   │       ├── auth_email.py
 {% endif %}
 │   │       ├── health.py
 {% if spec.has("sqlalchemy") %}
@@ -401,6 +453,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("rate-limit") %}
 │   │   ├── rate_limit.py
+{% endif %}
+{% if spec.has("email") %}
+│   │   ├── email.py
 {% endif %}
 {% if spec.has("auth-jwt") %}
 │   │   └── security.py
@@ -439,6 +494,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("sqlalchemy") %}
 │       ├── __init__.py
 │       ├── items.py
+{% if spec.has("email") %}
+│       ├── auth_email.py
+{% endif %}
 {% if spec.has("auth-jwt") %}
 │       └── auth.py
 {% endif %}
@@ -449,6 +507,9 @@ uv run alembic revision --autogenerate -m "describe the change"
     ├── conftest.py
 {% if spec.has("auth-jwt") %}
     ├── test_auth.py
+{% endif %}
+{% if spec.has("email") %}
+    ├── test_email_auth.py
 {% endif %}
 {% if spec.has("redis") %}
     ├── test_cache.py

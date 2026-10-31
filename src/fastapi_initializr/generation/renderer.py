@@ -38,6 +38,7 @@ class FileSpec:
     template: str
     output: str
     condition: Callable[[ProjectSpec], bool] = lambda _: True
+    runtime_template: bool = False
 
 
 def _has(feature: str) -> Callable[[ProjectSpec], bool]:
@@ -53,7 +54,7 @@ def _has_any(*features: str) -> Callable[[ProjectSpec], bool]:
 
 
 def _needs_env(spec: ProjectSpec) -> bool:
-    return spec.has_environment or spec.has("redis") or spec.has("sentry")
+    return spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email")
 
 
 FILES: tuple[FileSpec, ...] = (
@@ -119,6 +120,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/api/routes/auth_email.py.j2",
+        "src/{{ spec.package }}/api/routes/auth_email.py",
+        _has("email"),
+    ),
+    FileSpec(
         "src/api/routes/pages.py.j2",
         "src/{{ spec.package }}/api/routes/pages.py",
         _has("static-templates"),
@@ -162,6 +168,11 @@ FILES: tuple[FileSpec, ...] = (
         "src/core/security.py.j2",
         "src/{{ spec.package }}/core/security.py",
         _has("auth-jwt"),
+    ),
+    FileSpec(
+        "src/core/email.py.j2",
+        "src/{{ spec.package }}/core/email.py",
+        _has("email"),
     ),
     FileSpec(
         "src/db/__init__.py.j2",
@@ -222,6 +233,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/services/auth_email.py.j2",
+        "src/{{ spec.package }}/services/auth_email.py",
+        _has("email"),
+    ),
+    FileSpec(
         "src/tasks/__init__.py.j2",
         "src/{{ spec.package }}/tasks/__init__.py",
         _has("arq"),
@@ -242,6 +258,18 @@ FILES: tuple[FileSpec, ...] = (
         _has("static-templates"),
     ),
     FileSpec(
+        "templates/email/password_reset.txt.j2",
+        "templates/email/password_reset.txt",
+        _has("email"),
+        runtime_template=True,
+    ),
+    FileSpec(
+        "templates/email/verify_email.txt.j2",
+        "templates/email/verify_email.txt",
+        _has("email"),
+        runtime_template=True,
+    ),
+    FileSpec(
         "static/style.css.j2",
         "static/style.css",
         _has("static-templates"),
@@ -250,6 +278,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
+    FileSpec("tests/test_email_auth.py.j2", "tests/test_email_auth.py", _has("email")),
     FileSpec("tests/test_cache.py.j2", "tests/test_cache.py", _has("redis")),
     FileSpec(
         "tests/test_cache_helpers.py.j2",
@@ -318,8 +347,13 @@ def _validate_output_path(path: str) -> str:
     return pure.as_posix()
 
 
-def _validate_content(path: str, content: str) -> None:
-    if any(marker in content for marker in ("{{", "{%", "{#")):
+def _validate_content(
+    path: str,
+    content: str,
+    *,
+    allow_template_markers: bool = False,
+) -> None:
+    if not allow_template_markers and any(marker in content for marker in ("{{", "{%", "{#")):
         raise ValueError(f"Unresolved template marker in {path}")
     if path.endswith(".py"):
         ast.parse(content, filename=path)
@@ -340,6 +374,10 @@ def render_project(spec: ProjectSpec) -> dict[str, str]:
             raise ValueError(f"Duplicate output path: {output}")
         template = _ENVIRONMENT.get_template(file_spec.template)
         content = template.render(context)
-        _validate_content(output, content)
+        _validate_content(
+            output,
+            content,
+            allow_template_markers=file_spec.runtime_template,
+        )
         rendered[output] = content
     return dict(sorted(rendered.items()))

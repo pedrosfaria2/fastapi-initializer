@@ -1,0 +1,91 @@
+"""Password reset and email verification endpoints."""
+
+from fastapi import APIRouter, status
+from pydantic import BaseModel, EmailStr, Field
+
+from {{ spec.package }}.api.dependencies import SessionDep
+from {{ spec.package }}.core.email import EmailBackendDep
+from {{ spec.package }}.services import auth_email
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+GENERIC_EMAIL_MESSAGE = "If the email is registered, a message has been sent."
+
+
+class PasswordResetRequest(BaseModel):
+    """Fields accepted when requesting a password reset."""
+
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    """Fields accepted when completing a password reset."""
+
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class EmailVerificationRequest(BaseModel):
+    """Fields accepted when requesting email verification."""
+
+    email: EmailStr
+
+
+class EmailVerificationConfirm(BaseModel):
+    """Fields accepted when confirming email verification."""
+
+    token: str = Field(min_length=1)
+
+
+class MessageResponse(BaseModel):
+    """A generic response that does not reveal account existence."""
+
+    message: str
+
+
+@router.post(
+    "/request-password-reset",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    session: SessionDep,
+    backend: EmailBackendDep,
+) -> MessageResponse:
+    """Send a password reset message when the email is registered."""
+    await auth_email.request_password_reset(session, payload.email, backend)
+    return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    payload: PasswordResetConfirm,
+    session: SessionDep,
+) -> None:
+    """Replace the password for a valid reset token."""
+    await auth_email.reset_password(session, payload.token, payload.new_password)
+
+
+@router.post(
+    "/request-verification",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def request_verification(
+    payload: EmailVerificationRequest,
+    session: SessionDep,
+    backend: EmailBackendDep,
+) -> MessageResponse:
+    """Send a verification message when the email is registered."""
+    await auth_email.request_email_verification(session, payload.email, backend)
+    return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
+
+
+@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+async def verify_email(
+    payload: EmailVerificationConfirm,
+    session: SessionDep,
+) -> None:
+    """Mark the email behind a valid verification token as verified."""
+    await auth_email.verify_email(session, payload.token)

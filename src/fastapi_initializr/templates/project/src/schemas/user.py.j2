@@ -20,6 +20,9 @@ class UserRead(BaseModel):
     id: int
     email: EmailStr
     is_active: bool
+{% if spec.has("email") %}
+    is_verified: bool
+{% endif %}
     created_at: datetime
 
 

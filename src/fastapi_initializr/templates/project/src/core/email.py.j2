@@ -1,0 +1,87 @@
+"""Email backends and message templates."""
+
+import sys
+from collections.abc import Mapping
+from dataclasses import dataclass
+from email.message import EmailMessage as MIMEMessage
+from pathlib import Path
+from typing import Annotated, Protocol
+
+import aiosmtplib
+from fastapi import Depends
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+from {{ spec.package }}.core.config import Settings, get_settings
+
+TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates" / "email"
+
+_ENVIRONMENT = Environment(
+    loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    undefined=StrictUndefined,
+    autoescape=False,  # noqa: S701 - plain-text email templates
+    keep_trailing_newline=True,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class EmailMessage:
+    """A plain-text email message."""
+
+    to: str
+    subject: str
+    body: str
+
+
+class EmailBackend(Protocol):
+    """An asynchronous email transport."""
+
+    async def send(self, message: EmailMessage) -> None: ...
+
+
+class ConsoleEmailBackend:
+    """Write emails to stdout for local development."""
+
+    async def send(self, message: EmailMessage) -> None:
+        """Print the message without contacting an SMTP server."""
+        sys.stdout.write(f"[email] to={message.to} subject={message.subject}\n{message.body}\n")
+
+
+class SMTPEmailBackend:
+    """Send emails through an SMTP server."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+
+    async def send(self, message: EmailMessage) -> None:
+        """Send one message using the configured SMTP settings."""
+        email = MIMEMessage()
+        email["From"] = self._settings.smtp_from
+        email["To"] = message.to
+        email["Subject"] = message.subject
+        email.set_content(message.body)
+        await aiosmtplib.send(
+            email,
+            hostname=self._settings.smtp_host,
+            port=self._settings.smtp_port,
+            username=self._settings.smtp_username or None,
+            password=self._settings.smtp_password or None,
+            start_tls=self._settings.smtp_starttls,
+        )
+
+
+def get_email_backend(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EmailBackend:
+    """Return the configured email backend."""
+    if settings.email_backend == "smtp":
+        return SMTPEmailBackend(settings)
+    return ConsoleEmailBackend()
+
+
+EmailBackendDep = Annotated[EmailBackend, Depends(get_email_backend)]
+
+
+def render_email_template(name: str, context: Mapping[str, str]) -> str:
+    """Render a plain-text email template from the templates directory."""
+    template = _ENVIRONMENT.get_template(name)
+    return str(template.render(context))

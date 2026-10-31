@@ -290,6 +290,80 @@ def test_auth_feature_is_absent_without_auth_jwt() -> None:
     )
 
 
+def test_email_feature_renders_reset_and_verification_slice() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "email"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/email.py" in files
+    assert "src/my_service/services/auth_email.py" in files
+    assert "src/my_service/api/routes/auth_email.py" in files
+    assert "templates/email/password_reset.txt" in files
+    assert "templates/email/verify_email.txt" in files
+    assert "tests/test_email_auth.py" in files
+
+    routes = files["src/my_service/api/routes/__init__.py"]
+    assert "    auth_email," in routes
+    assert "api_router.include_router(auth_email.router)" in routes
+
+    config = files["src/my_service/core/config.py"]
+    for setting in (
+        'email_backend: str = "console"',
+        'smtp_host: str = "localhost"',
+        "smtp_port: int = 587",
+        "smtp_starttls: bool = True",
+    ):
+        assert setting in config
+
+    assert "is_verified: Mapped[bool]" in files["src/my_service/models/user.py"]
+    assert "is_verified: bool" in files["src/my_service/schemas/user.py"]
+
+    security = files["src/my_service/core/security.py"]
+    assert "def create_action_token(" in security
+    assert "def decode_action_token(" in security
+
+    assert "{{ token }}" in files["templates/email/password_reset.txt"]
+    assert "{{ token }}" in files["templates/email/verify_email.txt"]
+
+    env = files[".env.example"]
+    assert "EMAIL_BACKEND=console" in env
+    assert "SMTP_HOST=localhost" in env
+    assert "SMTP_FROM=noreply@example.com" in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dependencies = data["project"]["dependencies"]
+    assert "aiosmtplib>=5.1.3" in dependencies
+    assert "jinja2>=3.1.6" in dependencies
+
+    readme = files["README.md"]
+    assert "## Email, password reset, and verification" in readme
+    assert "/auth/request-password-reset" in readme
+    assert "/auth/verify-email" in readme
+    assert "EMAIL_BACKEND" in readme
+
+
+def test_email_feature_is_absent_without_email() -> None:
+    files = render_project(
+        ProjectSpec(
+            name="my-service",
+            dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
+        )
+    )
+
+    assert "src/my_service/core/email.py" not in files
+    assert "src/my_service/services/auth_email.py" not in files
+    assert "src/my_service/api/routes/auth_email.py" not in files
+    assert "templates/email/password_reset.txt" not in files
+    assert "templates/email/verify_email.txt" not in files
+    assert "tests/test_email_auth.py" not in files
+    assert "is_verified" not in files["src/my_service/models/user.py"]
+    assert "is_verified" not in files["src/my_service/schemas/user.py"]
+    assert "auth_email" not in files["src/my_service/api/routes/__init__.py"]
+
+
 def test_pyproject_parses_and_contains_selected_packages() -> None:
     spec = ProjectSpec(
         name="my-service",
@@ -324,6 +398,8 @@ def test_generated_python_parses() -> None:
                 "alembic",
                 "postgres",
                 "cors",
+                "auth-jwt",
+                "email",
                 "redis",
                 "cache",
                 "arq",

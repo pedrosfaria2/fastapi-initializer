@@ -1,0 +1,92 @@
+"""Password reset and email verification service functions."""
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from {{ spec.package }}.core.email import (
+    EmailBackend,
+    EmailMessage,
+    render_email_template,
+)
+from {{ spec.package }}.core.errors import DomainError
+from {{ spec.package }}.core.security import (
+    create_action_token,
+    decode_action_token,
+    hash_password,
+)
+from {{ spec.package }}.services.auth import get_user_by_email
+
+RESET_TOKEN_PURPOSE = "password_reset"  # noqa: S105 - token purpose, not a credential
+EMAIL_VERIFY_PURPOSE = "email_verify"
+PASSWORD_RESET_EXPIRE_MINUTES = 30
+EMAIL_VERIFY_EXPIRE_MINUTES = 1440
+
+
+class InvalidActionTokenError(DomainError):
+    """Raised when a one-time token is invalid or expired."""
+
+    status_code = 400
+    code = "invalid_action_token"
+
+
+async def request_password_reset(
+    session: AsyncSession,
+    email: str,
+    backend: EmailBackend,
+) -> None:
+    """Send a password reset token when the email belongs to a user."""
+    user = await get_user_by_email(session, email)
+    if user is None:
+        return
+    token = create_action_token(
+        user.email,
+        RESET_TOKEN_PURPOSE,
+        PASSWORD_RESET_EXPIRE_MINUTES,
+    )
+    body = render_email_template("password_reset.txt", {"token": token})
+    await backend.send(EmailMessage(to=user.email, subject="Reset your password", body=body))
+
+
+async def reset_password(
+    session: AsyncSession,
+    token: str,
+    new_password: str,
+) -> None:
+    """Replace a user's password using a valid reset token."""
+    email = decode_action_token(token, RESET_TOKEN_PURPOSE)
+    if email is None:
+        raise InvalidActionTokenError("Invalid or expired password reset token")
+    user = await get_user_by_email(session, email)
+    if user is None:
+        raise InvalidActionTokenError("Invalid or expired password reset token")
+    user.hashed_password = hash_password(new_password)
+    await session.commit()
+
+
+async def request_email_verification(
+    session: AsyncSession,
+    email: str,
+    backend: EmailBackend,
+) -> None:
+    """Send an email verification token when the email belongs to a user."""
+    user = await get_user_by_email(session, email)
+    if user is None:
+        return
+    token = create_action_token(
+        user.email,
+        EMAIL_VERIFY_PURPOSE,
+        EMAIL_VERIFY_EXPIRE_MINUTES,
+    )
+    body = render_email_template("verify_email.txt", {"token": token})
+    await backend.send(EmailMessage(to=user.email, subject="Verify your email", body=body))
+
+
+async def verify_email(session: AsyncSession, token: str) -> None:
+    """Mark a user's email as verified using a valid verification token."""
+    email = decode_action_token(token, EMAIL_VERIFY_PURPOSE)
+    if email is None:
+        raise InvalidActionTokenError("Invalid or expired email verification token")
+    user = await get_user_by_email(session, email)
+    if user is None:
+        raise InvalidActionTokenError("Invalid or expired email verification token")
+    user.is_verified = True
+    await session.commit()

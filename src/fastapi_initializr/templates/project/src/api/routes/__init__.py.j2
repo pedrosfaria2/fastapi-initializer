@@ -6,6 +6,9 @@ from {{ spec.package }}.api.routes import (
 {% if spec.has("auth-jwt") %}
     auth,
 {% endif %}
+{% if spec.has("email") %}
+    auth_email,
+{% endif %}
     health,
 {% if spec.has("sqlalchemy") %}
     items,
@@ -28,6 +31,9 @@ api_router.include_router(items.router)
 {% endif %}
 {% if spec.has("auth-jwt") %}
 api_router.include_router(auth.router)
+{% endif %}
+{% if spec.has("email") %}
+api_router.include_router(auth_email.router)
 {% endif %}
 {% if spec.has("rate-limit") %}
 api_router.include_router(limited.router)

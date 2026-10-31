@@ -63,3 +63,34 @@ def decode_access_token(token: str) -> TokenPayload | None:
         return TokenPayload.model_validate(payload)
     except (InvalidTokenError, ValidationError):
         return None
+
+
+def create_action_token(subject: str, purpose: str, expires_minutes: int) -> str:
+    """Create a short-lived token scoped to one action."""
+    settings = get_settings()
+    expires_at = datetime.now(UTC) + timedelta(minutes=expires_minutes)
+    payload: dict[str, object] = {
+        "sub": subject,
+        "purpose": purpose,
+        "exp": expires_at,
+    }
+    return _PYJWT.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_action_token(token: str, purpose: str) -> str | None:
+    """Return the subject when the token is valid for the expected purpose."""
+    settings = get_settings()
+    try:
+        payload = _PYJWT.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+    except InvalidTokenError:
+        return None
+    if payload.get("purpose") != purpose:
+        return None
+    subject = payload.get("sub")
+    if not isinstance(subject, str) or not subject:
+        return None
+    return subject
