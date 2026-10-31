@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from fastapi_initializr.generation.catalog import resolve_packages
 from fastapi_initializr.generation.constants import core_packages
+from fastapi_initializr.generation.manifest import MANIFEST_NAME, render_manifest
 from fastapi_initializr.generation.spec import ProjectSpec
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "project"
@@ -514,4 +515,5 @@ def render_project(spec: ProjectSpec) -> dict[str, str]:
             allow_template_markers=file_spec.runtime_template,
         )
         rendered[output] = content
+    rendered[MANIFEST_NAME] = render_manifest(spec, rendered)
     return dict(sorted(rendered.items()))

@@ -185,6 +185,7 @@ my-service/
 ├── pyproject.toml
 ├── .python-version
 ├── .gitignore
+├── .fastapi-initializr.json
 ├── README.md
 ├── src/my_service/
 │   ├── main.py
@@ -213,6 +214,10 @@ cd my-service
 uv sync
 uv run fastapi dev
 ```
+
+`.fastapi-initializr.json` records the template version, the resolved options,
+and a SHA-256 digest for every generated file. Keep it in version control; the
+`update` command uses it to detect local edits before overwriting files.
 
 Quality gates:
 
