@@ -8,8 +8,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 - Metadata-driven web UI and HTTP API.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml`.
-- Searchable dependency catalog with docs links, compatibility rules, shift-click
-  selection, Share, Reset, and keyboard generation.
+- Searchable catalog with 30 selectable features, docs links, compatibility
+  rules, shift-click selection, Share, Reset, and keyboard generation.
 - Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
   request IDs, logging, error handlers, and tests.
@@ -119,6 +119,7 @@ Parameters:
 | `sqlalchemy` | Database | Async SQLAlchemy session and SQLite driver | — |
 | `alembic` | Database | Alembic configuration and migrations | `sqlalchemy` |
 | `postgres` | Database | Async PostgreSQL driver | `sqlalchemy` |
+| `mongodb` | Database | Beanie ODM, document CRUD, and MongoDB settings | — |
 | `redis` | Database | Async Redis client and settings | — |
 | `cache` | Database | Typed cache-aside helpers with TTL and invalidation | `redis` |
 | `arq` | Messaging | ARQ worker and example background task | `redis` |
@@ -130,6 +131,7 @@ Parameters:
 | `websockets` | Web | WebSocket echo endpoint | — |
 | `rate-limit` | Web | SlowAPI limiter and example route | — |
 | `uploads` | Web | Local file uploads with size/type validation | — |
+| `graphql` | Web | Strawberry GraphQL query and mutation | — |
 | `s3` | Operations | S3-compatible storage backend | `uploads` |
 | `testcontainers` | Testing | PostgreSQL/Redis integration fixtures | `postgres`, `redis` |
 | `sentry` | Observability | Sentry error reporting, disabled without a DSN | — |
