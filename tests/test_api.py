@@ -209,3 +209,25 @@ def test_generate_rejects_unknown_fastapi_version(client: TestClient) -> None:
 
     assert response.status_code == 422
     assert "FastAPI version" in str(response.json())
+
+
+def test_generate_rejects_unsafe_base_dir(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "baseDir": "../evil"},
+    )
+
+    assert response.status_code == 422
+    assert "baseDir" in str(response.json())
+
+
+def test_generate_uses_application_name(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "applicationName": "My Public API"},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        config = archive.read("my-service/src/my_service/core/config.py").decode()
+        assert 'app_name: str = "My Public API"' in config
