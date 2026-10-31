@@ -54,6 +54,59 @@ def test_all_features_include_conditional_files() -> None:
     assert ".env.example" in files
 
 
+def test_auth_feature_renders_security_slice() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/models/user.py" in files
+    assert "src/my_service/schemas/user.py" in files
+    assert "src/my_service/core/security.py" in files
+    assert "src/my_service/services/auth.py" in files
+    assert "src/my_service/api/routes/auth.py" in files
+    assert "tests/test_auth.py" in files
+    assert "tests/test_items.py" in files
+    assert "src/my_service/models/__init__.py" in files
+    assert "from my_service.models.item import Item" in files["src/my_service/models/__init__.py"]
+    assert "from my_service.models.user import User" in files["src/my_service/models/__init__.py"]
+    routes = files["src/my_service/api/routes/__init__.py"]
+    assert "from my_service.api.routes import auth, health, items" in routes
+    assert "api_router.include_router(auth.router)" in routes
+    assert (
+        'OAuth2PasswordBearer(tokenUrl="/auth/login")' in files["src/my_service/services/auth.py"]
+    )
+    assert "from my_service.models import Base" in files["tests/conftest.py"]
+
+    config = files["src/my_service/core/config.py"]
+    assert 'secret_key: str = "dev-secret-change-me-32-bytes-minimum"' in config
+    assert "access_token_expire_minutes: int = 30" in config
+    assert 'jwt_algorithm: str = "HS256"' in config
+    env = files[".env.example"]
+    assert "SECRET_KEY=change-me" in env
+    assert "ACCESS_TOKEN_EXPIRE_MINUTES=30" in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dependencies = data["project"]["dependencies"]
+    assert "pwdlib[argon2]>=0.3.1" in dependencies
+    assert "pyjwt>=2.15.1" in dependencies
+    assert "email-validator>=2.3.0" in dependencies
+
+
+def test_auth_feature_is_absent_without_auth_jwt() -> None:
+    files = render_project(ProjectSpec(name="my-service", dependencies=frozenset({"sqlalchemy"})))
+
+    assert "src/my_service/models/user.py" not in files
+    assert "src/my_service/core/security.py" not in files
+    assert "src/my_service/api/routes/auth.py" not in files
+    assert "tests/test_auth.py" not in files
+    assert (
+        "from my_service.models.user import User" not in files["src/my_service/models/__init__.py"]
+    )
+
+
 def test_pyproject_parses_and_contains_selected_packages() -> None:
     spec = ProjectSpec(
         name="my-service",

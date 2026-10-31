@@ -1,0 +1,37 @@
+"""User and authentication schemas."""
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class UserCreate(BaseModel):
+    """Fields accepted when registering a user."""
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserRead(BaseModel):
+    """A user returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: EmailStr
+    is_active: bool
+    created_at: datetime
+
+
+class Token(BaseModel):
+    """An access token response."""
+
+    access_token: str
+    token_type: str = Field(default="bearer")
+
+
+class TokenPayload(BaseModel):
+    """Decoded access token claims."""
+
+    sub: str
+    exp: int

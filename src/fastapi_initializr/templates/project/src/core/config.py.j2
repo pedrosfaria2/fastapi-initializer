@@ -23,6 +23,11 @@ class Settings(BaseSettings):
 {% if spec.has("cors") %}
     cors_origins: list[str] = {{ spec.cors_origins | tojson }}
 {% endif %}
+{% if spec.has("auth-jwt") %}
+    secret_key: str = "dev-secret-change-me-32-bytes-minimum"  # noqa: S105 - local placeholder
+    access_token_expire_minutes: int = 30
+    jwt_algorithm: str = "HS256"
+{% endif %}
 
 
 @lru_cache

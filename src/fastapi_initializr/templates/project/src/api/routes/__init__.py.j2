@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter
 
-{% if spec.has("sqlalchemy") %}
+{% if spec.has("sqlalchemy") and spec.has("auth-jwt") %}
+from {{ spec.package }}.api.routes import auth, health, items
+{% elif spec.has("sqlalchemy") %}
 from {{ spec.package }}.api.routes import health, items
 {% else %}
 from {{ spec.package }}.api.routes import health
@@ -12,4 +14,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 {% if spec.has("sqlalchemy") %}
 api_router.include_router(items.router)
+{% endif %}
+{% if spec.has("auth-jwt") %}
+api_router.include_router(auth.router)
 {% endif %}

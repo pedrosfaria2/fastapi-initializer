@@ -72,6 +72,36 @@ curl -X POST "http://127.0.0.1:8000/items" \
   -d '{"name": "first", "description": "example"}'
 ```
 {% endif %}
+{% if spec.has("auth-jwt") %}
+
+## Authentication endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Register a user and return it with status `201`. |
+| `POST` | `/auth/login` | Accept form fields `username` and `password` and return a bearer token. |
+| `GET` | `/auth/me` | Return the authenticated user or `401`. |
+
+The application reads the JWT signing key from `SECRET_KEY`. The value in
+`.env.example` is only a placeholder; replace it with your own secret before
+deploying. `ACCESS_TOKEN_EXPIRE_MINUTES` controls the token lifetime and defaults
+to `30`.
+
+Register a user, request a token, and call the protected route:
+
+```sh
+curl -X POST "http://127.0.0.1:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "correct-horse-battery"}'
+
+curl -X POST "http://127.0.0.1:8000/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=correct-horse-battery"
+
+curl "http://127.0.0.1:8000/auth/me" \
+  -H "Authorization: Bearer <access_token>"
+```
+{% endif %}
 {% if spec.has_database %}
 
 ## Database setup
@@ -204,13 +234,23 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │       ├── __init__.py
 {% if spec.has("sqlalchemy") %}
 │   │       ├── health.py
+{% if spec.has("auth-jwt") %}
+│   │       ├── items.py
+│   │       └── auth.py
+{% else %}
 │   │       └── items.py
+{% endif %}
 {% else %}
 │   │       └── health.py
 {% endif %}
 │   ├── core/
 │   │   ├── __init__.py
+{% if spec.has("auth-jwt") %}
+│   │   ├── config.py
+│   │   └── security.py
+{% else %}
 │   │   └── config.py
+{% endif %}
 {% if spec.has_database %}
 │   ├── db/
 │   │   ├── __init__.py
@@ -220,19 +260,34 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("sqlalchemy") %}
 │   ├── models/
 │   │   ├── __init__.py
+{% if spec.has("auth-jwt") %}
+│   │   ├── item.py
+│   │   └── user.py
+{% else %}
 │   │   └── item.py
+{% endif %}
 {% endif %}
 │   ├── schemas/
 {% if spec.has("sqlalchemy") %}
 │   │   ├── __init__.py
+{% if spec.has("auth-jwt") %}
+│   │   ├── item.py
+│   │   └── user.py
+{% else %}
 │   │   └── item.py
+{% endif %}
 {% else %}
 │   │   └── __init__.py
 {% endif %}
 │   └── services/
 {% if spec.has("sqlalchemy") %}
 │       ├── __init__.py
+{% if spec.has("auth-jwt") %}
+│       ├── items.py
+│       └── auth.py
+{% else %}
 │       └── items.py
+{% endif %}
 {% else %}
 │       └── __init__.py
 {% endif %}
@@ -240,7 +295,12 @@ uv run alembic revision --autogenerate -m "describe the change"
     ├── conftest.py
 {% if spec.has("sqlalchemy") %}
     ├── test_health.py
+{% if spec.has("auth-jwt") %}
+    ├── test_items.py
+    └── test_auth.py
+{% else %}
     └── test_items.py
+{% endif %}
 {% else %}
     └── test_health.py
 {% endif %}

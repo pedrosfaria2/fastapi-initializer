@@ -1,0 +1,40 @@
+"""Authentication endpoints."""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, status
+from fastapi.security import OAuth2PasswordRequestForm
+
+from {{ spec.package }}.api.dependencies import SessionDep
+from {{ spec.package }}.schemas.user import Token, UserCreate, UserRead
+from {{ spec.package }}.services.auth import (
+    CurrentUser,
+    authenticate_user,
+    create_user,
+    issue_access_token,
+)
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def register(payload: UserCreate, session: SessionDep) -> UserRead:
+    """Register a new user."""
+    user = await create_user(session, payload)
+    return UserRead.model_validate(user)
+
+
+@router.post("/login", response_model=Token)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+) -> Token:
+    """Exchange username and password for an access token."""
+    user = await authenticate_user(session, form_data.username, form_data.password)
+    return Token(access_token=issue_access_token(user))
+
+
+@router.get("/me", response_model=UserRead)
+async def read_current_user(current_user: CurrentUser) -> UserRead:
+    """Return the authenticated user."""
+    return UserRead.model_validate(current_user)

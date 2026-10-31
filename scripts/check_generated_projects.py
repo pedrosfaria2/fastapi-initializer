@@ -19,6 +19,10 @@ CASES: dict[str, ProjectSpec] = {
         name="database-service",
         dependencies=frozenset({"sqlalchemy", "alembic"}),
     ),
+    "auth": ProjectSpec(
+        name="auth-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
+    ),
     "full": ProjectSpec(
         name="full-service",
         dependencies=frozenset(

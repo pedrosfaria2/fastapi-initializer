@@ -20,9 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 {% if spec.has("sqlalchemy") %}
 from {{ spec.package }}.core.config import get_settings
-from {{ spec.package }}.db.base import Base
-{% endif %}
 from {{ spec.package }}.main import create_app
+from {{ spec.package }}.models import Base
+{% else %}
+from {{ spec.package }}.main import create_app
+{% endif %}
 
 {% if spec.has("sqlalchemy") %}
 

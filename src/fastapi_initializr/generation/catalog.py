@@ -96,6 +96,29 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="FastAPI CORS",
         reference="https://fastapi.tiangolo.com/tutorial/cors/",
     ),
+    "auth-jwt": Dependency(
+        id="auth-jwt",
+        name="JWT Authentication",
+        description="JWT login, password hashing, and a protected route.",
+        group="Security",
+        requires=("sqlalchemy",),
+        packages=(
+            "pwdlib[argon2]>=0.3.1",
+            "pyjwt>=2.15.1",
+            "email-validator>=2.3.0",
+        ),
+        files=(
+            "src/{package}/models/user.py",
+            "src/{package}/schemas/user.py",
+            "src/{package}/core/security.py",
+            "src/{package}/services/auth.py",
+            "src/{package}/api/routes/auth.py",
+            "tests/test_auth.py",
+        ),
+        guide="https://frankie567.github.io/pwdlib/",
+        guide_title="pwdlib password hashing",
+        reference="https://pyjwt.readthedocs.io/",
+    ),
     "docker": Dependency(
         id="docker",
         name="Docker",
@@ -129,7 +152,7 @@ DEPENDENCIES: dict[str, Dependency] = {
     ),
 }
 
-GROUP_ORDER: tuple[str, ...] = ("Database", "Web", "Operations")
+GROUP_ORDER: tuple[str, ...] = ("Database", "Web", "Security", "Operations")
 
 _GENERATION_PARAMS = (
     "name,package,description,version,author,python,fastapi,baseDir,applicationName,dependencies"

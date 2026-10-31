@@ -100,11 +100,21 @@ FILES: tuple[FileSpec, ...] = (
         "src/{{ spec.package }}/api/routes/items.py",
         _has("sqlalchemy"),
     ),
+    FileSpec(
+        "src/api/routes/auth.py.j2",
+        "src/{{ spec.package }}/api/routes/auth.py",
+        _has("auth-jwt"),
+    ),
     FileSpec("src/core/__init__.py.j2", "src/{{ spec.package }}/core/__init__.py"),
     FileSpec("src/core/config.py.j2", "src/{{ spec.package }}/core/config.py"),
     FileSpec("src/core/errors.py.j2", "src/{{ spec.package }}/core/errors.py"),
     FileSpec("src/core/logging.py.j2", "src/{{ spec.package }}/core/logging.py"),
     FileSpec("src/core/middleware.py.j2", "src/{{ spec.package }}/core/middleware.py"),
+    FileSpec(
+        "src/core/security.py.j2",
+        "src/{{ spec.package }}/core/security.py",
+        _has("auth-jwt"),
+    ),
     FileSpec(
         "src/db/__init__.py.j2",
         "src/{{ spec.package }}/db/__init__.py",
@@ -131,6 +141,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("sqlalchemy"),
     ),
     FileSpec(
+        "src/models/user.py.j2",
+        "src/{{ spec.package }}/models/user.py",
+        _has("auth-jwt"),
+    ),
+    FileSpec(
         "src/schemas/__init__.py.j2",
         "src/{{ spec.package }}/schemas/__init__.py",
     ),
@@ -138,6 +153,11 @@ FILES: tuple[FileSpec, ...] = (
         "src/schemas/item.py.j2",
         "src/{{ spec.package }}/schemas/item.py",
         _has("sqlalchemy"),
+    ),
+    FileSpec(
+        "src/schemas/user.py.j2",
+        "src/{{ spec.package }}/schemas/user.py",
+        _has("auth-jwt"),
     ),
     FileSpec(
         "src/services/__init__.py.j2",
@@ -148,9 +168,15 @@ FILES: tuple[FileSpec, ...] = (
         "src/{{ spec.package }}/services/items.py",
         _has("sqlalchemy"),
     ),
+    FileSpec(
+        "src/services/auth.py.j2",
+        "src/{{ spec.package }}/services/auth.py",
+        _has("auth-jwt"),
+    ),
     FileSpec("tests/conftest.py.j2", "tests/conftest.py"),
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
+    FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
 )
 
 

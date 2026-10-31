@@ -1,6 +1,11 @@
 """Database models."""
 
 from {{ spec.package }}.db.base import Base
+{% if spec.has("sqlalchemy") %}
 from {{ spec.package }}.models.item import Item
+{% endif %}
+{% if spec.has("auth-jwt") %}
+from {{ spec.package }}.models.user import User
+{% endif %}
 
-__all__ = ["Base", "Item"]
+__all__ = [{% if spec.has("sqlalchemy") %}"Base", "Item"{% endif %}{% if spec.has("auth-jwt") %}, "User"{% endif %}]
