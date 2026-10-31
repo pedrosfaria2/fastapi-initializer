@@ -146,7 +146,7 @@ a {
 }
 
 .wrap {
-  width: min(100% - 2.5rem, 1280px);
+  width: min(100% - 2.5rem, 1560px);
   margin-inline: auto;
 }
 
@@ -285,7 +285,7 @@ a {
   display: grid;
   align-items: start;
   gap: 1.1rem;
-  grid-template-columns: minmax(0, 1fr) 23rem;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
 }
 
 .panel {
@@ -717,7 +717,8 @@ select:focus-visible {
 
 .preview-panel {
   display: flex;
-  min-height: 30rem;
+  min-width: 0;
+  min-height: 36rem;
   flex-direction: column;
   overflow: hidden;
 }
@@ -755,9 +756,9 @@ select:focus-visible {
 .preview-body {
   display: grid;
   min-height: 0;
-  max-height: 62vh;
+  max-height: 72vh;
   flex: 1;
-  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+  grid-template-columns: minmax(8.5rem, 11rem) minmax(0, 1fr);
 }
 
 .file-tree {
@@ -872,16 +873,19 @@ select:focus-visible {
 }
 
 .file-content {
-  min-height: 16rem;
+  min-width: 0;
+  min-height: 18rem;
   flex: 1;
   margin: 0;
-  padding: 0.9rem;
+  padding: 1rem 1.1rem;
   background: var(--code);
   color: var(--code-text);
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  line-height: 1.55;
+  font-size: 0.76rem;
+  line-height: 1.6;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   tab-size: 2;
   white-space: pre;
 }

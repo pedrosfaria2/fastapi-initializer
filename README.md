@@ -20,6 +20,12 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
   generated code.
 
+## UI layout
+
+The workspace uses a wide form/preview split. The file tree is a narrow sidebar
+and the code pane takes the remaining width. Long file lines scroll horizontally
+without wrapping, and the panels stack on narrow screens.
+
 ## Quick start
 
 Requires Python 3.12+ and uv 0.13.6 (0.13.x).
