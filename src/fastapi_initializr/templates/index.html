@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>FastAPI Initializr</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}" />
+  </head>
+  <body>
+    <a class="skip-link" href="#preview">Skip to preview</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <div>
+          <h1>FastAPI Initializr</h1>
+          <p class="tagline">
+            Describe your project, pick the features you need, and download a
+            ready-to-run FastAPI service.
+          </p>
+        </div>
+        <p class="header-badge">uv + Ruff + mypy + pyright + pytest</p>
+      </div>
+    </header>
+
+    <main class="wrap layout">
+      <section class="panel form-panel" aria-labelledby="form-heading">
+        <h2 id="form-heading" class="visually-hidden">Project options</h2>
+
+        <div id="error" class="error" role="alert" aria-live="assertive" hidden></div>
+
+        <form id="project-form" action="/api/generate" method="get">
+          <div class="field">
+            <label for="project-name">Project name</label>
+            <input
+              id="project-name"
+              name="name"
+              type="text"
+              value="my-service"
+              maxlength="64"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="name-hint"
+              required
+            />
+            <p id="name-hint" class="hint">
+              Lowercase letters, digits, hyphens, or underscores. Must start
+              with a letter.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="package">Package name</label>
+            <input
+              id="package"
+              name="package"
+              type="text"
+              value="my_service"
+              maxlength="64"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="package-hint"
+            />
+            <p id="package-hint" class="hint">
+              Python import package. Use lowercase letters, digits, and
+              underscores.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="description">Description</label>
+            <input
+              id="description"
+              name="description"
+              type="text"
+              value="A FastAPI service"
+              maxlength="200"
+              autocomplete="off"
+              aria-describedby="description-hint"
+            />
+            <p id="description-hint" class="hint">
+              A short summary for the generated project metadata.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="python">Python version</label>
+            <select id="python" name="python" aria-describedby="python-hint">
+              <option value="3.13">Python 3.13</option>
+            </select>
+            <p id="python-hint" class="hint">
+              Additional versions load from the server metadata.
+            </p>
+          </div>
+
+          <fieldset class="field dependency-field">
+            <legend>Optional features</legend>
+            <p class="hint">
+              Features add dependencies, configuration, and project files.
+              Required features are selected automatically.
+            </p>
+            <div id="dependency-groups" class="dependency-groups" aria-live="polite">
+              <p class="loading-note">Loading dependency options…</p>
+            </div>
+          </fieldset>
+
+          <div class="actions">
+            <button id="generate" class="button button-primary" type="submit">
+              Download ZIP
+            </button>
+            <button
+              id="refresh-preview"
+              class="button button-secondary"
+              type="button"
+            >
+              Refresh preview
+            </button>
+          </div>
+
+          <p class="hint">
+            Downloads use the same options as the preview. Add
+            <code>?dependencies=sqlalchemy</code> style parameters to share a
+            configuration.
+          </p>
+        </form>
+
+        <noscript>
+          <p class="notice">
+            JavaScript adds the full Python version and feature catalog. Without
+            it, the form still generates the base project with the selected
+            Python version shown above.
+          </p>
+        </noscript>
+      </section>
+
+      <section
+        id="preview"
+        class="panel preview-panel"
+        aria-labelledby="preview-heading"
+      >
+        <div class="preview-header">
+          <div>
+            <h2 id="preview-heading">Preview</h2>
+            <p id="preview-status" class="subtle" aria-live="polite">
+              Loading project options…
+            </p>
+          </div>
+          <span id="project-label" class="project-label">my-service</span>
+        </div>
+
+        <div class="preview-body">
+          <nav class="file-tree" aria-label="Generated files">
+            <p id="tree-empty" class="subtle tree-empty">
+              The generated file tree will appear here.
+            </p>
+            <ul id="file-list" class="file-list" hidden></ul>
+          </nav>
+
+          <div class="file-view">
+            <div class="file-meta">
+              <span id="selected-file" class="selected-file">No file selected</span>
+              <span id="file-size" class="file-size"></span>
+            </div>
+            <pre id="file-content" class="file-content" tabindex="0"><code>Choose a file to inspect its rendered content.</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <p>
+        Deterministic output. No accounts, no database, no server-side execution
+        of generated code.
+      </p>
+    </footer>
+
+    <script src="{{ url_for('static', path='app.js') }}" defer></script>
+  </body>
+</html>
