@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -45,6 +48,11 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
         "--force",
         action="store_true",
         help="Overwrite an existing project directory.",
+    )
+    parser.add_argument(
+        "--lock",
+        action="store_true",
+        help="Run `uv lock` after writing the project.",
     )
 
 
@@ -96,6 +104,24 @@ def _new(args: argparse.Namespace) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
+    if args.lock:
+        environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
+        environment["UV_NO_PROGRESS"] = "1"
+        uv = shutil.which("uv")
+        if uv is None:
+            print("uv was not found in PATH", file=sys.stderr)
+            return 1
+        try:
+            subprocess.run(  # noqa: S603 - fixed uv executable, not user input
+                [uv, "lock"],
+                cwd=target,
+                check=True,
+                env=environment,
+            )
+        except subprocess.CalledProcessError:
+            print("uv lock failed", file=sys.stderr)
+            return 1
+
     print(target)
     return 0
 
@@ -124,4 +150,4 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _list()
     if args.command == "metadata":
         return _metadata()
-    parser.error(f"Unknown command: {args.command}")
+    raise AssertionError(f"Unknown command: {args.command}")

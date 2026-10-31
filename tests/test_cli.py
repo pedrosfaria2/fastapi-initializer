@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from fastapi_initializr.cli import main
 
 
@@ -61,3 +63,29 @@ def test_new_rejects_invalid_dependency(tmp_path: Path) -> None:
 
     assert exit_code == 2
     assert not (tmp_path / "my-service").exists()
+
+
+def test_new_with_lock_invokes_uv_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        check: bool,
+        env: dict[str, str],
+    ) -> None:
+        _ = (cwd, check, env)
+        calls.append(command)
+
+    monkeypatch.setattr("fastapi_initializr.cli.subprocess.run", fake_run)
+
+    exit_code = main(["new", "my-service", "--output", str(tmp_path), "--lock"])
+
+    assert exit_code == 0
+    assert len(calls) == 1
+    assert Path(calls[0][0]).name == "uv"
+    assert calls[0][1:] == ["lock"]
