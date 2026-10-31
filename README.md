@@ -321,6 +321,20 @@ uv run fastapi-initializr completion zsh > ~/.zfunc/_fastapi-initializr
 uv run fastapi-initializr completion fish | source
 ```
 
+## Docker
+
+Build and run the generator locally:
+
+```sh
+docker build -t fastapi-initializr .
+docker run --rm -p 8000:8000 fastapi-initializr
+```
+
+The image uses `python:3.13-slim-trixie` with a pinned uv 0.13.6 binary,
+installs the project non-editable from `uv.lock`, runs as the unprivileged
+`app` user, and exposes `/health` for its healthcheck. CI builds the image,
+records its size, and smoke-tests `/health`.
+
 ## Development
 
 ```sh

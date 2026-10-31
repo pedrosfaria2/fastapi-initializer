@@ -1,0 +1,12 @@
+.git
+.github
+.venv
+.agents
+agent-reports
+.mypy_cache
+.pytest_cache
+.ruff_cache
+dist
+tests
+scripts
+opencode.json
