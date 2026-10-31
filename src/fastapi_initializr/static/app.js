@@ -108,7 +108,7 @@
   const notesById = new Map();
   /** @type {string[]} */
   let dependencyOrder = [];
-  /** @type {Array<{path: string, content: string, size: number}>} */
+  /** @type {Array<{path: string, content: string, size: number, language: string, highlighted: string}>} */
   let files = [];
   /** @type {string | null} */
   let selectedPath = null;
@@ -731,10 +731,16 @@
       return;
     }
     selectedFileLabel.textContent = file.path;
-    fileLanguageLabel.textContent = languageForPath(file.path);
+    fileLanguageLabel.textContent = file.language || languageForPath(file.path);
     fileSizeLabel.textContent = formatBytes(file.size);
-    fileContent.textContent =
-      file.content === "" ? "(empty file)" : file.content;
+    if (file.content === "") {
+      fileContent.textContent = "(empty file)";
+    } else if (file.highlighted !== "") {
+      // Pygments escapes the source server-side; never inject raw content here.
+      fileContent.innerHTML = file.highlighted;
+    } else {
+      fileContent.textContent = file.content;
+    }
     updatePreviewSelection();
   }
 
@@ -803,6 +809,9 @@
           path: file.path,
           content: typeof file.content === "string" ? file.content : "",
           size: Number.isFinite(size) && size >= 0 ? size : 0,
+          language: typeof file.language === "string" ? file.language : "",
+          highlighted:
+            typeof file.highlighted === "string" ? file.highlighted : "",
         };
       });
   }

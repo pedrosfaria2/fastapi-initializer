@@ -1,9 +1,21 @@
 """Build previews from rendered project files."""
 
 from fastapi_initializr.core.config import get_settings
+from fastapi_initializr.generation.highlight import highlight_file
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
 from fastapi_initializr.schemas.preview import Preview, PreviewFile
+
+
+def _preview_file(path: str, content: str) -> PreviewFile:
+    highlighted = highlight_file(path, content)
+    return PreviewFile(
+        path=path,
+        content=content,
+        size=len(content.encode("utf-8")),
+        language=highlighted.language,
+        highlighted=highlighted.html,
+    )
 
 
 def build_preview(spec: ProjectSpec) -> Preview:
@@ -14,8 +26,5 @@ def build_preview(spec: ProjectSpec) -> Preview:
 
     return Preview(
         name=spec.name,
-        files=[
-            PreviewFile(path=path, content=content, size=len(content.encode("utf-8")))
-            for path, content in files.items()
-        ],
+        files=[_preview_file(path, content) for path, content in files.items()],
     )

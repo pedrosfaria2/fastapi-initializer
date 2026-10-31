@@ -9,6 +9,8 @@ class PreviewFile(BaseModel):
     path: str
     content: str
     size: int
+    language: str
+    highlighted: str
 
 
 class Preview(BaseModel):

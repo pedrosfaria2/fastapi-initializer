@@ -10,6 +10,7 @@
     />
     <title>FastAPI Initializr</title>
     <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='pygments.css') }}" />
   </head>
   <body>
     <a class="skip-link" href="#project-name">Skip to project options</a>
@@ -467,7 +468,7 @@
                     <span id="file-size" class="file-size"></span>
                   </span>
                 </div>
-                <pre id="file-content" class="file-content" tabindex="0">Choose a file to inspect its rendered content.</pre>
+                <pre id="file-content" class="file-content highlight" tabindex="0">Choose a file to inspect its rendered content.</pre>
               </div>
             </div>
         </section>

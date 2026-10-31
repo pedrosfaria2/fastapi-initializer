@@ -10,6 +10,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml`.
 - Searchable catalog with 30 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
+- Explore preview with server-side Pygments highlighting, language labels, file
+  sizes, and an empty-file marker.
 - Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
   request IDs, logging, error handlers, and tests.

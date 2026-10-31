@@ -15,7 +15,8 @@ def test_app_js_contains_parity_behaviors() -> None:
     assert "dependency-search" in script
     assert "selected-count" in script
     assert "textContent" in script
-    assert "innerHTML" not in script
+    assert "fileContent.innerHTML = file.highlighted" in script
+    assert "Pygments escapes the source server-side" in script
 
 
 def test_app_css_is_self_contained_and_responsive() -> None:
@@ -25,3 +26,12 @@ def test_app_css_is_self_contained_and_responsive() -> None:
     assert "@media" in stylesheet
     assert "@import" not in stylesheet
     assert "url(http" not in stylesheet
+
+
+def test_pygments_stylesheet_has_light_and_dark_tokens() -> None:
+    stylesheet = (ASSETS / "pygments.css").read_text(encoding="utf-8")
+
+    assert ".highlight .k" in stylesheet
+    assert "prefers-color-scheme: dark" in stylesheet
+    assert "@import" not in stylesheet
+    assert "url(" not in stylesheet

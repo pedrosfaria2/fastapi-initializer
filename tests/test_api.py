@@ -43,6 +43,9 @@ def test_preview_returns_rendered_files(client: TestClient) -> None:
     assert body["name"] == "my-service"
     assert "pyproject.toml" in paths
     assert "src/my_service/main.py" in paths
+    main_file = next(file for file in body["files"] if file["path"] == "src/my_service/main.py")
+    assert main_file["language"] == "Python"
+    assert "<span" in main_file["highlighted"]
 
 
 def test_preview_rejects_invalid_input(client: TestClient) -> None:
