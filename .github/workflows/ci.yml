@@ -23,4 +23,5 @@ jobs:
         with:
           version: "0.13.6"
           enable-cache: true
+      - run: uv run python scripts/check_all_combinations.py
       - run: uv run python scripts/check_generated_projects.py --case all
