@@ -30,6 +30,9 @@ dev = [
 [project.scripts]
 {{ spec.name }} = "{{ spec.package }}.main:main"
 
+[tool.fastapi]
+entrypoint = "{{ spec.package }}.main:app"
+
 [build-system]
 requires = ["uv_build>={{ uv_build_version }},<0.14.0"]
 build-backend = "uv_build"

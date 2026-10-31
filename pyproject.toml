@@ -16,6 +16,9 @@ dependencies = [
 [project.scripts]
 fastapi-initializr = "fastapi_initializr.main:main"
 
+[tool.fastapi]
+entrypoint = "fastapi_initializr.main:app"
+
 [dependency-groups]
 dev = [
     "httpx2>=2.16.0",
