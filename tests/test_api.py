@@ -55,6 +55,59 @@ def test_preview_rejects_invalid_input(client: TestClient) -> None:
     assert isinstance(response.json()["detail"], list)
 
 
+def test_metadata_exposes_presets(client: TestClient) -> None:
+    response = client.get("/api/metadata")
+
+    assert response.status_code == 200
+    presets = response.json()["preset"]
+    assert presets["default"] == "custom"
+    assert [value["id"] for value in presets["values"]] == [
+        "custom",
+        "api",
+        "db-auth",
+        "worker",
+        "full",
+    ]
+    full = next(value for value in presets["values"] if value["id"] == "full")
+    assert "sqlalchemy" in full["dependencies"]
+    assert "mongodb" not in full["dependencies"]
+
+
+def test_generate_expands_a_preset(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "preset": "db-auth"},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        names = archive.namelist()
+        assert "my-service/alembic.ini" in names
+        assert "my-service/src/my_service/api/routes/auth.py" in names
+
+
+def test_preview_expands_a_preset(client: TestClient) -> None:
+    response = client.get(
+        "/api/preview",
+        params={"name": "my-service", "preset": "worker"},
+    )
+
+    assert response.status_code == 200
+    paths = [file["path"] for file in response.json()["files"]]
+    assert "src/my_service/worker.py" in paths
+    assert "src/my_service/core/cache_helpers.py" in paths
+
+
+def test_generate_rejects_an_unknown_preset(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "preset": "unknown"},
+    )
+
+    assert response.status_code == 422
+    assert "Preset" in str(response.json())
+
+
 def test_generate_returns_zip(client: TestClient) -> None:
     response = client.get("/api/generate", params={"name": "my-service"})
 
@@ -141,6 +194,8 @@ def test_index_server_renders_options_without_javascript(client: TestClient) -> 
     assert 'id="output"' in response.text
     assert 'value="requirements"' in response.text
     assert 'id="fastapi"' in response.text
+    assert 'id="preset"' in response.text
+    assert 'name="preset"' in response.text
 
 
 def test_metadata_supports_versioned_media_type(client: TestClient) -> None:

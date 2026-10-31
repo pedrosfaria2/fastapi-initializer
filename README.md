@@ -11,6 +11,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   `requirements.txt` outputs.
 - Searchable catalog with 30 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
+- Presets for API only, database + auth, Redis worker, and full stack.
 - Explore preview with server-side Pygments highlighting, language labels, file
   sizes, and an empty-file marker.
 - Safe project, package, version, and baseDir validation.
@@ -117,9 +118,27 @@ Parameters:
 - `author`: optional author name.
 - `python` / `pythonVersion`: `3.11`, `3.12`, `3.13`, or `3.14`.
 - `fastapi` / `fastapiVersion`: supported FastAPI version.
+- `preset`: `custom` (default), `api`, `db-auth`, `worker`, or `full`.
 - `baseDir`: root directory inside the archive (defaults to `name`).
 - `applicationName`: OpenAPI application title (defaults to `name`).
 - `dependencies`: repeated ids or a comma-separated list.
+
+## Presets
+
+A preset is a named dependency selection. Combine it with individual
+`dependencies`; the server takes the union.
+
+| Preset | Selects |
+| --- | --- |
+| `custom` | Nothing; choose dependencies manually. |
+| `api` | Core service only. |
+| `db-auth` | `sqlalchemy`, `alembic`, `auth-jwt`, `cors`. |
+| `worker` | `redis`, `cache`, `arq`. |
+| `full` | Every compatible feature. MongoDB is excluded because it conflicts with SQLAlchemy. |
+
+```sh
+curl -OJ 'http://127.0.0.1:8000/starter.zip?name=my-service&preset=db-auth'
+```
 
 ## Options
 
@@ -222,8 +241,8 @@ Generate a project directory without the web server:
 
 ```sh
 uv run fastapi-initializr new my-service \
-  --dependency sqlalchemy \
-  --dependency alembic \
+  --preset db-auth \
+  --dependency redis \
   --output .
 ```
 

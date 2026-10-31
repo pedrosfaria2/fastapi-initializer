@@ -92,6 +92,20 @@ class ProjectOptions(BaseModel):
     author: TextOption
 
 
+class PresetValue(SelectValue):
+    """One preset and the dependencies it selects."""
+
+    dependencies: list[str]
+
+
+class PresetOption(BaseModel):
+    """A single-select preset option."""
+
+    type: Literal["single-select"] = "single-select"
+    default: str
+    values: list[PresetValue]
+
+
 class Metadata(BaseModel):
     """The complete option catalog."""
 
@@ -100,6 +114,7 @@ class Metadata(BaseModel):
     language: SelectOption
     fastapi: SelectOption
     python: SelectOption
+    preset: PresetOption
     base_dir: TextOption = Field(serialization_alias="baseDir")
     application_name: TextOption = Field(serialization_alias="applicationName")
     project: ProjectOptions

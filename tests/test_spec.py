@@ -155,3 +155,43 @@ def test_rejects_control_characters_in_author() -> None:
 def test_rejects_control_characters_in_application_name() -> None:
     with pytest.raises(ValidationError, match="applicationName"):
         ProjectSpec(name="my-service", application_name="bad\x00name")
+
+
+def test_preset_expands_its_dependencies() -> None:
+    spec = ProjectSpec(name="my-service", preset="db-auth")
+
+    assert {"sqlalchemy", "alembic", "auth-jwt", "cors"} <= spec.dependencies
+
+
+def test_preset_unions_explicit_dependencies() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        preset="api",
+        dependencies=frozenset({"redis"}),
+    )
+
+    assert spec.dependencies == frozenset({"redis"})
+
+
+def test_full_preset_selects_every_compatible_feature() -> None:
+    spec = ProjectSpec(name="my-service", preset="full")
+
+    assert spec.has("sqlalchemy")
+    assert spec.has("arq")
+    assert spec.has("testcontainers")
+    assert not spec.has("mongodb")
+
+
+def test_full_preset_accepts_python_314() -> None:
+    spec = ProjectSpec(name="my-service", preset="full", python="3.14")
+
+    assert spec.python == "3.14"
+
+
+def test_custom_preset_selects_nothing() -> None:
+    assert ProjectSpec(name="my-service").dependencies == frozenset()
+
+
+def test_rejects_unknown_preset() -> None:
+    with pytest.raises(ValidationError, match="Preset"):
+        ProjectSpec(name="my-service", preset="unknown")

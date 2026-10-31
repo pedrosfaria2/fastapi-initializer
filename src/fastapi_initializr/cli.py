@@ -29,6 +29,11 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--author", default="", help="Optional author name.")
     parser.add_argument("--python", default=DEFAULT_PYTHON_VERSION)
     parser.add_argument("--fastapi", default=DEFAULT_FASTAPI_VERSION)
+    parser.add_argument(
+        "--preset",
+        default="custom",
+        help="Preset id: api, db-auth, worker, full, or custom.",
+    )
     parser.add_argument("--base-dir", default=None, dest="base_dir")
     parser.add_argument("--application-name", default=None, dest="application_name")
     parser.add_argument(
@@ -82,6 +87,7 @@ def _new(args: argparse.Namespace) -> int:
             author=args.author,
             python=args.python,
             fastapi=args.fastapi,
+            preset=args.preset,
             base_dir=args.base_dir,
             application_name=args.application_name,
             dependencies=frozenset(args.dependencies),

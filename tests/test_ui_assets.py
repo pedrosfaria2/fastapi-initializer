@@ -18,6 +18,8 @@ def test_app_js_contains_parity_behaviors() -> None:
     assert "fileContent.innerHTML = file.highlighted" in script
     assert "Pygments escapes the source server-side" in script
     assert "/requirements.txt" in script
+    assert "presetDependencies" in script
+    assert 'params.set("preset", state.preset)' in script
 
 
 def test_app_css_is_self_contained_and_responsive() -> None:

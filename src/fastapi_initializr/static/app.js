@@ -11,6 +11,7 @@
   const applicationNameInput = document.getElementById("application-name");
   const pythonSelect = document.getElementById("python");
   const fastapiSelect = document.getElementById("fastapi");
+  const presetSelect = document.getElementById("preset");
   const dependencyGroups = document.getElementById("dependency-groups");
   const dependencySearch = document.getElementById("dependency-search");
   const clearSearchButton = document.getElementById("clear-search");
@@ -43,6 +44,7 @@
     !applicationNameInput ||
     !pythonSelect ||
     !fastapiSelect ||
+    !presetSelect ||
     !dependencyGroups ||
     !dependencySearch ||
     !clearSearchButton ||
@@ -113,6 +115,8 @@
   const dependenciesById = new Map();
   /** @type {Map<string, Set<string>>} */
   const conflictsById = new Map();
+  /** @type {Map<string, string[]>} */
+  const presetDependenciesById = new Map();
   /** @type {Map<string, HTMLElement>} */
   const notesById = new Map();
   /** @type {string[]} */
@@ -213,6 +217,7 @@
       author: authorInput.value,
       python: pythonSelect.value,
       fastapi: fastapiSelect.value,
+      preset: presetSelect.value,
       baseDir: baseDirInput.value,
       applicationName: applicationNameInput.value,
       dependencies: getCheckedIds(),
@@ -228,6 +233,7 @@
     params.set("author", state.author);
     params.set("python", state.python);
     params.set("fastapi", state.fastapi);
+    params.set("preset", state.preset);
     params.set("baseDir", state.baseDir);
     params.set("applicationName", state.applicationName);
     for (const dependencyId of [...state.dependencies].sort()) {
@@ -589,6 +595,7 @@
   function buildDependencyTables() {
     dependenciesById.clear();
     conflictsById.clear();
+    presetDependenciesById.clear();
     dependencyOrder = [];
     for (const group of metadata.dependencies.groups) {
       for (const dependency of group.values) {
@@ -612,6 +619,16 @@
         }
       }
     }
+    for (const preset of metadata.preset?.values ?? []) {
+      presetDependenciesById.set(
+        preset.id,
+        Array.isArray(preset.dependencies) ? preset.dependencies : [],
+      );
+    }
+  }
+
+  function presetDependencies(presetId) {
+    return presetDependenciesById.get(presetId) ?? [];
   }
 
   function configureMetadata(nextMetadata, params) {
@@ -677,9 +694,17 @@
         metadata.fastapi,
       ),
     );
+    renderSelect(
+      presetSelect,
+      metadata.preset.values,
+      initialSelectValue(params, ["preset"], metadata.preset),
+    );
 
     ensureDependencyDom();
     const initial = initialDependencies(params);
+    for (const dependencyId of presetDependencies(presetSelect.value)) {
+      initial.selected.add(dependencyId);
+    }
     applySelection(reconcileSelection(initial.selected, initial.preferredId));
     syncDependencyState();
     applyFilter();
@@ -1070,6 +1095,7 @@
     applicationNameInput.value = metadata.applicationName.default;
     pythonSelect.value = metadata.python.default;
     fastapiSelect.value = metadata.fastapi.default;
+    presetSelect.value = metadata.preset.default;
     packageTouched = false;
     dependencySearch.value = "";
     applySelection(new Set());
@@ -1109,12 +1135,21 @@
       return;
     }
     const target = event.target;
+    if (target === presetSelect) {
+      applySelection(
+        reconcileSelection(new Set(presetDependencies(presetSelect.value)), null),
+      );
+      syncDependencyState();
+      stateChanged();
+      return;
+    }
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
     if (target.name !== "dependencies") {
       return;
     }
+    presetSelect.value = "custom";
     lastDependencyId = target.value;
     const selected = new Set(getCheckedIds());
     const nextSelected = target.checked
@@ -1177,6 +1212,7 @@
     );
     applySelection(nextSelected);
     syncDependencyState();
+    presetSelect.value = "custom";
     lastDependencyId = target.value;
     stateChanged();
   });
@@ -1240,6 +1276,8 @@
         !Array.isArray(payload.python.values) ||
         !payload.fastapi ||
         !Array.isArray(payload.fastapi.values) ||
+        !payload.preset ||
+        !Array.isArray(payload.preset.values) ||
         !payload.dependencies ||
         !Array.isArray(payload.dependencies.groups)
       ) {

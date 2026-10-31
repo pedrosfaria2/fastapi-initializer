@@ -89,3 +89,28 @@ def test_new_with_lock_invokes_uv_lock(
     assert len(calls) == 1
     assert Path(calls[0][0]).name == "uv"
     assert calls[0][1:] == ["lock"]
+
+
+def test_new_with_preset_writes_the_preset_features(tmp_path: Path) -> None:
+    exit_code = main(
+        [
+            "new",
+            "my-service",
+            "--output",
+            str(tmp_path),
+            "--preset",
+            "worker",
+        ]
+    )
+
+    assert exit_code == 0
+    project = tmp_path / "my-service"
+    assert (project / "src" / "my_service" / "worker.py").exists()
+    assert (project / "src" / "my_service" / "core" / "cache_helpers.py").exists()
+
+
+def test_new_rejects_an_unknown_preset(tmp_path: Path) -> None:
+    exit_code = main(["new", "my-service", "--output", str(tmp_path), "--preset", "unknown"])
+
+    assert exit_code == 2
+    assert not (tmp_path / "my-service").exists()

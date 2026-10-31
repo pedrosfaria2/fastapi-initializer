@@ -16,6 +16,8 @@ from fastapi_initializr.schemas.metadata import (
     Link,
     Metadata,
     MultiSelectOption,
+    PresetOption,
+    PresetValue,
     ProjectOptions,
     SelectOption,
     SelectValue,
@@ -479,9 +481,57 @@ GROUP_ORDER: tuple[str, ...] = (
     "Testing",
 )
 
-_GENERATION_PARAMS = (
-    "name,package,description,version,author,python,fastapi,baseDir,applicationName,dependencies"
+
+@dataclass(frozen=True, slots=True)
+class Preset:
+    """A named dependency selection."""
+
+    id: str
+    name: str
+    description: str
+    dependencies: tuple[str, ...]
+
+
+_FULL_PRESET_IDS = tuple(
+    dependency_id for dependency_id in DEPENDENCIES if dependency_id != "mongodb"
 )
+
+PRESETS: tuple[Preset, ...] = (
+    Preset(
+        id="custom",
+        name="Custom",
+        description="Choose dependencies individually.",
+        dependencies=(),
+    ),
+    Preset(
+        id="api",
+        name="API only",
+        description="Core FastAPI service with health, readiness, and request IDs.",
+        dependencies=(),
+    ),
+    Preset(
+        id="db-auth",
+        name="Database + auth",
+        description="SQLAlchemy CRUD, Alembic migrations, JWT auth, and CORS.",
+        dependencies=("sqlalchemy", "alembic", "auth-jwt", "cors"),
+    ),
+    Preset(
+        id="worker",
+        name="Redis worker",
+        description="Redis client, cache helpers, and an ARQ background worker.",
+        dependencies=("redis", "cache", "arq"),
+    ),
+    Preset(
+        id="full",
+        name="Full stack",
+        description="Every compatible feature; MongoDB is excluded because it conflicts.",
+        dependencies=_FULL_PRESET_IDS,
+    ),
+)
+
+PRESETS_BY_ID: dict[str, Preset] = {preset.id: preset for preset in PRESETS}
+
+_GENERATION_PARAMS = "name,package,description,version,author,python,fastapi,preset,baseDir,applicationName,dependencies"
 
 
 def _dependency_links(dependency: Dependency) -> dict[str, Link]:
@@ -578,6 +628,17 @@ def metadata() -> Metadata:
         ),
         base_dir=TextOption(default="", max_length=64),
         application_name=TextOption(default="", max_length=100),
+        preset=PresetOption(
+            default="custom",
+            values=[
+                PresetValue(
+                    id=preset.id,
+                    name=preset.name,
+                    dependencies=list(preset.dependencies),
+                )
+                for preset in PRESETS
+            ],
+        ),
         project=ProjectOptions(
             name=TextOption(default="my-service", max_length=64),
             package=TextOption(default="my_service", max_length=64),

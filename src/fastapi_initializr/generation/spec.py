@@ -9,7 +9,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from fastapi_initializr.generation.catalog import DEPENDENCIES
+from fastapi_initializr.generation.catalog import DEPENDENCIES, PRESETS, PRESETS_BY_ID
 from fastapi_initializr.generation.constants import (
     DEFAULT_FASTAPI_VERSION,
     DEFAULT_PYTHON_VERSION,
@@ -56,6 +56,7 @@ class ProjectSpec(BaseModel):
     fastapi: str = Field(default=DEFAULT_FASTAPI_VERSION)
     base_dir: str | None = Field(default=None, max_length=64)
     application_name: str | None = Field(default=None, max_length=100)
+    preset: str = Field(default="custom", max_length=32)
     dependencies: frozenset[str] = Field(default_factory=frozenset)
 
     @field_validator("name")
@@ -119,6 +120,15 @@ class ProjectSpec(BaseModel):
         if self.fastapi not in SUPPORTED_FASTAPI_VERSIONS:
             allowed = ", ".join(SUPPORTED_FASTAPI_VERSIONS)
             raise ValueError(f"FastAPI version must be one of: {allowed}.")
+
+        preset = PRESETS_BY_ID.get(self.preset)
+        if preset is None:
+            allowed = ", ".join(p.id for p in PRESETS)
+            raise ValueError(f"Preset must be one of: {allowed}.")
+
+        dependencies = self.dependencies | frozenset(preset.dependencies)
+        if dependencies != self.dependencies:
+            object.__setattr__(self, "dependencies", dependencies)
 
         if self.has("mongodb") and self.python == "3.14":
             raise ValueError(
