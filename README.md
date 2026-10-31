@@ -172,7 +172,8 @@ Each `*.json` file defines one feature:
 Plugin files render with the same Jinja context as built-in templates. Generated
 Python and TOML are validated before an archive is returned. Plugin directories
 are trusted local input and are never fetched from the network; the plugin id
-must not collide with the built-in catalog.
+must not collide with the built-in catalog. The `full` preset covers built-in
+features only, so select plugin features explicitly.
 
 ## Options
 
