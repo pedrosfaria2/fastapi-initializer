@@ -21,6 +21,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>={{ pytest_version }}",
+    "pytest-cov>=7.1.0",
     "httpx2>={{ httpx2_version }}",
     "ruff>={{ ruff_version }}",
     "mypy>={{ mypy_version }}",
@@ -74,3 +75,10 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/{{ spec.package }}"]
+
+[tool.coverage.report]
+show_missing = true
