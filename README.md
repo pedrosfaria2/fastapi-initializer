@@ -210,14 +210,15 @@ bash scripts/check.sh
 `scripts/check.sh` runs the lockfile check, Ruff, mypy, pyright, pytest, and
 `uv build`.
 
-Validate the generated-project matrix:
+When templates or generated-project behavior change, run the combined gate:
 
 ```sh
-uv run python scripts/check_generated_projects.py --case all
+bash scripts/check-all.sh
 ```
 
-This generates minimal, database, auth, and full-feature projects in a temporary
-directory and runs each project's real `uv sync`, Ruff, mypy, pyright, and pytest
+This runs the generator gate and the complete generated-project matrix:
+minimal, database, auth, web, operations, and full-feature projects. Each
+generated project runs its real `uv sync`, Ruff, mypy, pyright, and pytest
 commands. Generated projects also include coverage configuration and run it in
 their CI workflow.
 
