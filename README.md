@@ -8,12 +8,14 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 - Metadata-driven web UI and HTTP API.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml`.
-- Searchable dependency catalog with docs links and compatibility rules.
+- Searchable dependency catalog with docs links, compatibility rules, shift-click
+  selection, Share, Reset, and keyboard generation.
 - Safe project, package, version, and baseDir validation.
-- Generated projects with `src/` layout, FastAPI app factory, health endpoint,
-  and tests.
-- Optional SQLAlchemy, Alembic, PostgreSQL, CORS, Docker, GitHub Actions, and
-  pre-commit.
+- Generated projects with `src/` layout, FastAPI app factory, health/readiness,
+  request IDs, logging, error handlers, and tests.
+- Optional SQLAlchemy CRUD, Alembic, PostgreSQL, JWT authentication, CORS,
+  Docker/Compose, GitHub Actions, pre-commit, and coverage.
+- Local CLI: `fastapi-initializr new`, `list`, `metadata`, and `--lock`.
 - Generated projects pass Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
   generated code.
@@ -36,6 +38,7 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | --- | --- | --- |
 | `GET` | `/` | Web UI |
 | `GET` | `/health` | Liveness |
+| `GET` | `/ready` | Readiness |
 | `GET` | `/metadata` | Capability document |
 | `GET` | `/api/metadata` | Option catalog alias |
 | `GET` | `/dependencies` | Resolved dependency coordinates |
@@ -108,6 +111,7 @@ Parameters:
 | `sqlalchemy` | Async SQLAlchemy session and SQLite driver | — |
 | `alembic` | Alembic configuration and migrations | `sqlalchemy` |
 | `postgres` | Async PostgreSQL driver | `sqlalchemy` |
+| `auth-jwt` | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
 | `cors` | CORS middleware and settings | — |
 | `docker` | Dockerfile and .dockerignore | — |
 | `ci` | GitHub Actions workflow | — |
@@ -127,12 +131,20 @@ my-service/
 ├── src/my_service/
 │   ├── main.py
 │   ├── api/
-│   ├── core/config.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── errors.py
+│   │   ├── logging.py
+│   │   └── middleware.py
+│   ├── db/
+│   ├── models/
 │   ├── schemas/
 │   └── services/
 └── tests/
     ├── conftest.py
-    └── test_health.py
+    ├── test_health.py
+    ├── test_items.py
+    └── test_auth.py
 ```
 
 Run it:
@@ -161,6 +173,10 @@ If the project includes a database, copy `.env.example` to `.env` and adjust
 uv run alembic upgrade head
 ```
 
+If it includes JWT authentication, change `SECRET_KEY` in `.env` before using it
+outside local development. The generated endpoints are `/auth/register`,
+`/auth/login`, and `/auth/me`.
+
 ## CLI
 
 Generate a project directory without the web server:
@@ -178,9 +194,11 @@ Useful commands:
 uv run fastapi-initializr list
 uv run fastapi-initializr metadata
 uv run fastapi-initializr new my-service --force
+uv run fastapi-initializr new my-service --lock
 ```
 
-The CLI uses the same validation and templates as the API.
+The CLI uses the same validation and templates as the API. `--lock` runs
+`uv lock` in the generated project.
 
 ## Development
 
@@ -198,9 +216,10 @@ Validate the generated-project matrix:
 uv run python scripts/check_generated_projects.py --case all
 ```
 
-This generates minimal, database, and full-feature projects in a temporary
+This generates minimal, database, auth, and full-feature projects in a temporary
 directory and runs each project's real `uv sync`, Ruff, mypy, pyright, and pytest
-commands.
+commands. Generated projects also include coverage configuration and run it in
+their CI workflow.
 
 ## Project layout
 
