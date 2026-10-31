@@ -13,6 +13,7 @@ from fastapi_initializr.generation.constants import (
 )
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
+from fastapi_initializr.generation.requirements import render_requirements
 from fastapi_initializr.generation.spec import ProjectSpec
 from fastapi_initializr.schemas.preview import Preview
 from fastapi_initializr.services.generator import (
@@ -122,6 +123,17 @@ def _pyproject_response(spec: ProjectSpec) -> Response:
     )
 
 
+def _requirements_response(spec: ProjectSpec) -> Response:
+    return Response(
+        content=render_requirements(spec),
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": 'attachment; filename="requirements.txt"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/api/preview", response_model=Preview)
 def preview_get(spec: SpecDep) -> Preview:
     """Preview the files for a query-string project spec."""
@@ -192,3 +204,15 @@ def pyproject_toml(spec: SpecDep) -> Response:
 def pyproject_toml_post(spec: ProjectSpec) -> Response:
     """Return only the generated pyproject.toml from a JSON body."""
     return _pyproject_response(spec)
+
+
+@router.get("/requirements.txt", include_in_schema=False)
+def requirements_txt(spec: SpecDep) -> Response:
+    """Return runtime requirements for the selected options."""
+    return _requirements_response(spec)
+
+
+@router.post("/requirements.txt", include_in_schema=False)
+def requirements_txt_post(spec: ProjectSpec) -> Response:
+    """Return runtime requirements from a JSON body."""
+    return _requirements_response(spec)

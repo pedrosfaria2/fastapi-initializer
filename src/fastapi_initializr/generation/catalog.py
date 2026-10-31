@@ -534,6 +534,10 @@ def metadata() -> Metadata:
                 href=f"/pyproject.toml{{?{_GENERATION_PARAMS}}}",
                 templated=True,
             ),
+            "requirements.txt": Link(
+                href=f"/requirements.txt{{?{_GENERATION_PARAMS}}}",
+                templated=True,
+            ),
             "preview": Link(
                 href=f"/preview{{?{_GENERATION_PARAMS}}}",
                 templated=True,

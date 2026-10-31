@@ -8,11 +8,9 @@ requires-python = ">={{ spec.python }}"
 authors = [{ name = "{{ author | replace('\\', '\\\\') | replace('"', '\\"') }}" }]
 {% endif %}
 dependencies = [
-    "fastapi{{ fastapi_range }}",
-    "fastapi-cli>=0.0.32",
-    "uvicorn[standard]>={{ uvicorn_version }}",
-    "pydantic-settings>={{ pydantic_settings_version }}",
-    "python-multipart>={{ python_multipart_version }}",
+{% for package in core_packages %}
+    "{{ package }}",
+{% endfor %}
 {% for package in packages %}
     "{{ package }}",
 {% endfor %}

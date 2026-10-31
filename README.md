@@ -7,7 +7,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 ## Features
 
 - Metadata-driven web UI and HTTP API.
-- Deterministic zip and tar.gz archives, plus standalone `pyproject.toml`.
+- Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
+  `requirements.txt` outputs.
 - Searchable catalog with 30 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
 - Explore preview with server-side Pygments highlighting, language labels, file
@@ -56,6 +57,7 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | `GET` | `/starter.zip` | Download a zip |
 | `GET` | `/starter.tgz` | Download a tar.gz |
 | `GET` | `/pyproject.toml` | Download only the build file |
+| `GET` | `/requirements.txt` | Download runtime requirements |
 | `POST` | `/starter.zip` | Download a zip from JSON |
 | `POST` | `/preview` | Preview from JSON |
 
@@ -67,12 +69,17 @@ Download a project:
 curl -OJ 'http://127.0.0.1:8000/starter.zip?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
 ```
 
-Download a tar.gz or the build file:
+Download a tar.gz or a build file:
 
 ```sh
 curl -OJ 'http://127.0.0.1:8000/starter.tgz?name=my-service'
 curl 'http://127.0.0.1:8000/pyproject.toml?name=my-service'
+curl 'http://127.0.0.1:8000/requirements.txt?name=my-service&dependencies=sqlalchemy'
 ```
+
+`requirements.txt` lists the same runtime specs declared in the generated
+`pyproject.toml`; it is a standalone output and is not written into the
+generated project.
 
 Preview the same project:
 

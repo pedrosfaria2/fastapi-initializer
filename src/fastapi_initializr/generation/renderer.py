@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from fastapi_initializr.generation.catalog import resolve_packages
+from fastapi_initializr.generation.constants import core_packages
 from fastapi_initializr.generation.spec import ProjectSpec
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "project"
@@ -454,18 +455,13 @@ def build_context(spec: ProjectSpec) -> dict[str, object]:
     packages, dev_packages = resolve_packages(spec.dependencies)
     return {
         "spec": spec,
+        "core_packages": core_packages(spec.fastapi_range),
         "packages": packages,
         "dev_packages": dev_packages,
-        "fastapi_version": spec.fastapi,
-        "fastapi_range": spec.fastapi_range,
         "project_version": spec.version,
         "author": spec.author,
         "app_title": spec.app_title,
         "base_dir": spec.archive_root,
-        "uvicorn_version": "0.54.0",
-        "pydantic_settings_version": "2.16.2",
-        "jinja2_version": "3.1.6",
-        "python_multipart_version": "0.0.32",
         "supports_pep695": tuple(int(part) for part in spec.python.split(".")) >= (3, 12),
         "pytest_version": "9.2.0",
         "httpx2_version": "2.16.0",

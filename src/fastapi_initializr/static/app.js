@@ -73,9 +73,18 @@
   const NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
   const PACKAGE_PATTERN = /^[a-z_][a-z0-9_]*$/;
   const OUTPUTS = {
-    zip: { path: "/starter.zip", fallbackName: ".zip" },
-    tgz: { path: "/starter.tgz", fallbackName: ".tar.gz" },
-    pyproject: { path: "/pyproject.toml", fallbackName: null },
+    zip: { path: "/starter.zip", extension: ".zip", filename: null },
+    tgz: { path: "/starter.tgz", extension: ".tar.gz", filename: null },
+    pyproject: {
+      path: "/pyproject.toml",
+      extension: "",
+      filename: "pyproject.toml",
+    },
+    requirements: {
+      path: "/requirements.txt",
+      extension: "",
+      filename: "requirements.txt",
+    },
   };
   const LANGUAGE_BY_EXTENSION = {
     cfg: "Config",
@@ -970,10 +979,11 @@
       return plain[1].trim();
     }
     const safeName = projectName.replace(/[^a-z0-9._-]+/gi, "-") || "project";
-    if (output === "pyproject") {
-      return "pyproject.toml";
+    const selected = OUTPUTS[output] ?? OUTPUTS.zip;
+    if (selected.filename !== null) {
+      return selected.filename;
     }
-    return `${safeName}${OUTPUTS[output]?.fallbackName ?? ".zip"}`;
+    return `${safeName}${selected.extension}`;
   }
 
   async function downloadProject() {
