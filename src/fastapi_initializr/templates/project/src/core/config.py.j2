@@ -20,6 +20,13 @@ class Settings(BaseSettings):
 {% if spec.has_database %}
     database_url: str = "{{ spec.database_url }}"
 {% endif %}
+{% if spec.has("redis") %}
+    redis_url: str = "redis://localhost:6379/0"
+{% endif %}
+{% if spec.has("sentry") %}
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+{% endif %}
 {% if spec.has("cors") %}
     cors_origins: list[str] = {{ spec.cors_origins | tojson }}
 {% endif %}

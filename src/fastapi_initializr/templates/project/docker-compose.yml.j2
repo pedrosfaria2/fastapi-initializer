@@ -1,4 +1,26 @@
 services:
+{% if spec.has("docker") or spec.has("compose") %}
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+{% if spec.has_database or spec.has("cors") or spec.has("redis") or spec.has("sentry") %}
+    env_file:
+      - .env
+{% endif %}
+{% if spec.has("postgres") or spec.has("redis") %}
+    depends_on:
+{% if spec.has("postgres") %}
+      db:
+        condition: service_healthy
+{% endif %}
+{% if spec.has("redis") %}
+      redis:
+        condition: service_healthy
+{% endif %}
+{% endif %}
+{% endif %}
+{% if spec.has("postgres") %}
   db:
     image: postgres:17
     environment:
@@ -14,6 +36,27 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+{% endif %}
+{% if spec.has("redis") %}
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+{% endif %}
+{% if spec.has("postgres") or spec.has("redis") %}
 
 volumes:
+{% if spec.has("postgres") %}
   postgres-data:
+{% endif %}
+{% if spec.has("redis") %}
+  redis-data:
+{% endif %}
+{% endif %}

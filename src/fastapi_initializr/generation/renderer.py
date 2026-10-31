@@ -48,15 +48,28 @@ def _has_database(spec: ProjectSpec) -> bool:
     return spec.has_database
 
 
+def _has_any(*features: str) -> Callable[[ProjectSpec], bool]:
+    return lambda spec: any(spec.has(feature) for feature in features)
+
+
+def _needs_env(spec: ProjectSpec) -> bool:
+    return spec.has_environment or spec.has("redis") or spec.has("sentry")
+
+
 FILES: tuple[FileSpec, ...] = (
     FileSpec("pyproject.toml.j2", "pyproject.toml"),
     FileSpec("README.md.j2", "README.md"),
     FileSpec("gitignore.j2", ".gitignore"),
     FileSpec("python-version.j2", ".python-version"),
-    FileSpec("env.example.j2", ".env.example", lambda spec: spec.has_environment),
-    FileSpec("Dockerfile.j2", "Dockerfile", _has("docker")),
-    FileSpec("dockerignore.j2", ".dockerignore", _has("docker")),
-    FileSpec("docker-compose.yml.j2", "docker-compose.yml", _has("postgres")),
+    FileSpec("env.example.j2", ".env.example", _needs_env),
+    FileSpec("Dockerfile.j2", "Dockerfile", _has_any("docker", "compose")),
+    FileSpec("dockerignore.j2", ".dockerignore", _has_any("docker", "compose")),
+    FileSpec(
+        "docker-compose.yml.j2",
+        "docker-compose.yml",
+        _has_any("docker", "compose", "postgres", "redis"),
+    ),
+    FileSpec("Makefile.j2", "Makefile", _has("makefile")),
     FileSpec("ci.yml.j2", ".github/workflows/ci.yml", _has("ci")),
     FileSpec(
         "pre-commit-config.yaml.j2",
@@ -105,11 +118,41 @@ FILES: tuple[FileSpec, ...] = (
         "src/{{ spec.package }}/api/routes/auth.py",
         _has("auth-jwt"),
     ),
+    FileSpec(
+        "src/api/routes/pages.py.j2",
+        "src/{{ spec.package }}/api/routes/pages.py",
+        _has("static-templates"),
+    ),
+    FileSpec(
+        "src/api/routes/ws.py.j2",
+        "src/{{ spec.package }}/api/routes/ws.py",
+        _has("websockets"),
+    ),
+    FileSpec(
+        "src/api/routes/limited.py.j2",
+        "src/{{ spec.package }}/api/routes/limited.py",
+        _has("rate-limit"),
+    ),
     FileSpec("src/core/__init__.py.j2", "src/{{ spec.package }}/core/__init__.py"),
     FileSpec("src/core/config.py.j2", "src/{{ spec.package }}/core/config.py"),
     FileSpec("src/core/errors.py.j2", "src/{{ spec.package }}/core/errors.py"),
     FileSpec("src/core/logging.py.j2", "src/{{ spec.package }}/core/logging.py"),
     FileSpec("src/core/middleware.py.j2", "src/{{ spec.package }}/core/middleware.py"),
+    FileSpec(
+        "src/core/cache.py.j2",
+        "src/{{ spec.package }}/core/cache.py",
+        _has("redis"),
+    ),
+    FileSpec(
+        "src/core/observability.py.j2",
+        "src/{{ spec.package }}/core/observability.py",
+        _has("sentry"),
+    ),
+    FileSpec(
+        "src/core/rate_limit.py.j2",
+        "src/{{ spec.package }}/core/rate_limit.py",
+        _has("rate-limit"),
+    ),
     FileSpec(
         "src/core/security.py.j2",
         "src/{{ spec.package }}/core/security.py",
@@ -173,10 +216,43 @@ FILES: tuple[FileSpec, ...] = (
         "src/{{ spec.package }}/services/auth.py",
         _has("auth-jwt"),
     ),
+    FileSpec(
+        "templates/index.html.j2",
+        "templates/index.html",
+        _has("static-templates"),
+    ),
+    FileSpec(
+        "static/style.css.j2",
+        "static/style.css",
+        _has("static-templates"),
+    ),
     FileSpec("tests/conftest.py.j2", "tests/conftest.py"),
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
+    FileSpec("tests/test_cache.py.j2", "tests/test_cache.py", _has("redis")),
+    FileSpec("tests/test_sentry.py.j2", "tests/test_sentry.py", _has("sentry")),
+    FileSpec(
+        "tests/test_prometheus.py.j2",
+        "tests/test_prometheus.py",
+        _has("prometheus"),
+    ),
+    FileSpec(
+        "tests/test_pages.py.j2",
+        "tests/test_pages.py",
+        _has("static-templates"),
+    ),
+    FileSpec(
+        "tests/test_websockets.py.j2",
+        "tests/test_websockets.py",
+        _has("websockets"),
+    ),
+    FileSpec(
+        "tests/test_rate_limit.py.j2",
+        "tests/test_rate_limit.py",
+        _has("rate-limit"),
+    ),
+    FileSpec("tests/test_makefile.py.j2", "tests/test_makefile.py", _has("makefile")),
 )
 
 

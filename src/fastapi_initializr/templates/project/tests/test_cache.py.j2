@@ -1,0 +1,14 @@
+"""Redis cache configuration."""
+
+from {{ spec.package }}.core.cache import create_redis_client
+from {{ spec.package }}.core.config import Settings
+
+
+def test_redis_settings_default() -> None:
+    assert Settings().redis_url == "redis://localhost:6379/0"
+
+
+def test_redis_client_factory_does_not_connect() -> None:
+    client = create_redis_client()
+
+    assert client.connection_pool.connection_kwargs["host"] == "localhost"

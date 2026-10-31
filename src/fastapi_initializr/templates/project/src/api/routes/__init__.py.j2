@@ -2,13 +2,24 @@
 
 from fastapi import APIRouter
 
-{% if spec.has("sqlalchemy") and spec.has("auth-jwt") %}
-from {{ spec.package }}.api.routes import auth, health, items
-{% elif spec.has("sqlalchemy") %}
-from {{ spec.package }}.api.routes import health, items
-{% else %}
-from {{ spec.package }}.api.routes import health
+from {{ spec.package }}.api.routes import (
+{% if spec.has("auth-jwt") %}
+    auth,
 {% endif %}
+    health,
+{% if spec.has("sqlalchemy") %}
+    items,
+{% endif %}
+{% if spec.has("rate-limit") %}
+    limited,
+{% endif %}
+{% if spec.has("static-templates") %}
+    pages,
+{% endif %}
+{% if spec.has("websockets") %}
+    ws,
+{% endif %}
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -17,4 +28,13 @@ api_router.include_router(items.router)
 {% endif %}
 {% if spec.has("auth-jwt") %}
 api_router.include_router(auth.router)
+{% endif %}
+{% if spec.has("rate-limit") %}
+api_router.include_router(limited.router)
+{% endif %}
+{% if spec.has("static-templates") %}
+api_router.include_router(pages.router)
+{% endif %}
+{% if spec.has("websockets") %}
+api_router.include_router(ws.router)
 {% endif %}

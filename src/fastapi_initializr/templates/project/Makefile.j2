@@ -1,0 +1,21 @@
+.PHONY: sync run test lint typecheck format
+
+sync:
+	uv sync
+
+run:
+	uv run fastapi dev src/{{ spec.package }}/main.py
+
+test:
+	uv run pytest
+
+lint:
+	uv run ruff check .
+
+typecheck:
+	uv run mypy src
+	uv run pyright src
+
+format:
+	uv run ruff format .
+	uv run ruff check --fix .

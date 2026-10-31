@@ -87,6 +87,17 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="asyncpg usage",
         reference="https://magicstack.github.io/asyncpg/current/",
     ),
+    "redis": Dependency(
+        id="redis",
+        name="Redis",
+        description="Async Redis client and cache settings.",
+        group="Database",
+        packages=("redis>=8.1.0",),
+        files=("src/{package}/core/cache.py",),
+        guide="https://redis.readthedocs.io/en/stable/",
+        guide_title="Redis Python client",
+        reference="https://redis.io/docs/latest/develop/clients/redis-py/",
+    ),
     "cors": Dependency(
         id="cors",
         name="CORS",
@@ -95,6 +106,45 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide="https://fastapi.tiangolo.com/tutorial/cors/",
         guide_title="FastAPI CORS",
         reference="https://fastapi.tiangolo.com/tutorial/cors/",
+    ),
+    "static-templates": Dependency(
+        id="static-templates",
+        name="Static files and templates",
+        description="Jinja2 templates, static assets, and a welcome page.",
+        group="Web",
+        packages=("jinja2>=3.1.6",),
+        files=(
+            "src/{package}/api/routes/pages.py",
+            "templates/index.html",
+            "static/style.css",
+        ),
+        guide="https://fastapi.tiangolo.com/advanced/templates/",
+        guide_title="FastAPI templates",
+        reference="https://www.starlette.io/templates/",
+    ),
+    "websockets": Dependency(
+        id="websockets",
+        name="WebSockets",
+        description="WebSocket echo endpoint.",
+        group="Web",
+        files=("src/{package}/api/routes/ws.py",),
+        guide="https://fastapi.tiangolo.com/advanced/websockets/",
+        guide_title="FastAPI WebSockets",
+        reference="https://fastapi.tiangolo.com/advanced/websockets/",
+    ),
+    "rate-limit": Dependency(
+        id="rate-limit",
+        name="Rate limiting",
+        description="SlowAPI limiter middleware and an example route.",
+        group="Web",
+        packages=("slowapi>=0.1.10",),
+        files=(
+            "src/{package}/core/rate_limit.py",
+            "src/{package}/api/routes/limited.py",
+        ),
+        guide="https://slowapi.readthedocs.io/en/latest/",
+        guide_title="SlowAPI documentation",
+        reference="https://slowapi.readthedocs.io/en/latest/",
     ),
     "auth-jwt": Dependency(
         id="auth-jwt",
@@ -119,6 +169,27 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="pwdlib password hashing",
         reference="https://pyjwt.readthedocs.io/",
     ),
+    "sentry": Dependency(
+        id="sentry",
+        name="Sentry",
+        description="Sentry error reporting, disabled without a DSN.",
+        group="Observability",
+        packages=("sentry-sdk[fastapi]>=2.73.0",),
+        files=("src/{package}/core/observability.py",),
+        guide="https://docs.sentry.io/platforms/python/integrations/fastapi/",
+        guide_title="Sentry FastAPI integration",
+        reference="https://docs.sentry.io/platforms/python/",
+    ),
+    "prometheus": Dependency(
+        id="prometheus",
+        name="Prometheus metrics",
+        description="Prometheus instrumentation and a /metrics endpoint.",
+        group="Observability",
+        packages=("prometheus-fastapi-instrumentator>=8.1.0",),
+        guide="https://github.com/trallnag/prometheus-fastapi-instrumentator",
+        guide_title="Prometheus FastAPI instrumentator",
+        reference="https://prometheus.io/docs/introduction/overview/",
+    ),
     "docker": Dependency(
         id="docker",
         name="Docker",
@@ -128,6 +199,26 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide="https://docs.docker.com/language/python/",
         guide_title="Docker for Python",
         reference="https://docs.docker.com/language/python/",
+    ),
+    "compose": Dependency(
+        id="compose",
+        name="Docker Compose",
+        description="Compose stack with PostgreSQL and Redis where selected.",
+        group="Operations",
+        files=("docker-compose.yml", "Dockerfile", ".dockerignore"),
+        guide="https://docs.docker.com/compose/",
+        guide_title="Docker Compose",
+        reference="https://docs.docker.com/compose/",
+    ),
+    "makefile": Dependency(
+        id="makefile",
+        name="Makefile",
+        description="Common sync, run, test, lint, typecheck, and format targets.",
+        group="Operations",
+        files=("Makefile",),
+        guide="https://www.gnu.org/software/make/manual/make.html",
+        guide_title="GNU Make manual",
+        reference="https://www.gnu.org/software/make/",
     ),
     "ci": Dependency(
         id="ci",
@@ -152,7 +243,13 @@ DEPENDENCIES: dict[str, Dependency] = {
     ),
 }
 
-GROUP_ORDER: tuple[str, ...] = ("Database", "Web", "Security", "Operations")
+GROUP_ORDER: tuple[str, ...] = (
+    "Database",
+    "Web",
+    "Security",
+    "Observability",
+    "Operations",
+)
 
 _GENERATION_PARAMS = (
     "name,package,description,version,author,python,fastapi,baseDir,applicationName,dependencies"

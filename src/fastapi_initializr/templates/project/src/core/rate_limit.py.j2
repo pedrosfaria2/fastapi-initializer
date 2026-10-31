@@ -1,0 +1,14 @@
+"""Shared rate limiter configuration."""
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
+
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return a stable response when a client exceeds a limit."""
+    _ = (request, exc)
+    return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})

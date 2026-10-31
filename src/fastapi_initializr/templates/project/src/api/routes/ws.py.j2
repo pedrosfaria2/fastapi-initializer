@@ -1,0 +1,17 @@
+"""WebSocket echo endpoint."""
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+router = APIRouter(tags=["websocket"])
+
+
+@router.websocket("/ws")
+async def websocket_echo(websocket: WebSocket) -> None:
+    """Echo every received text message back to the client."""
+    await websocket.accept()
+    try:
+        while True:
+            message = await websocket.receive_text()
+            await websocket.send_text(message)
+    except WebSocketDisconnect:
+        return

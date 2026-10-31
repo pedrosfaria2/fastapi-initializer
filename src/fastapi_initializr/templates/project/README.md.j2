@@ -14,7 +14,7 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
-{% if spec.has_environment %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %}
 
 Copy the example environment file and adjust it for your machine:
 
@@ -22,17 +22,29 @@ Copy the example environment file and adjust it for your machine:
 cp .env.example .env
 ```
 {% endif %}
-{% if spec.has("postgres") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("redis") %}
 
-Start PostgreSQL with Docker Compose:
+## Docker Compose
+
+The generated `docker-compose.yml` uses local placeholder credentials and
+includes only the selected services:
+
+- The application image when Docker or Compose is selected.
+- PostgreSQL 17 when PostgreSQL is selected, with database `app` and the
+  credentials `postgres` / `postgres`.
+- Redis 7 when Redis is selected, with a persistent volume.
+
+Every service has a healthcheck. Start the stack with:
 
 ```sh
-docker compose up -d db
+docker compose up -d
 ```
 
-The generated `docker-compose.yml` starts PostgreSQL 17 on port 5432 with the
-database `app` and the credentials `postgres` / `postgres`. It is generated
-whenever PostgreSQL is selected, even if the application Dockerfile is not.
+Check the service health with:
+
+```sh
+docker compose ps
+```
 {% endif %}
 
 ## Run
@@ -121,6 +133,67 @@ With PostgreSQL selected, the default points at the `db` service described in
 SQLite is used by default and the database file is created on first use.
 {% endif %}
 {% endif %}
+{% if spec.has("redis") %}
+
+## Redis
+
+The application reads the Redis connection URL from `REDIS_URL`. The default is:
+
+```text
+redis://localhost:6379/0
+```
+
+`create_redis_client()` builds the async client without connecting at import
+time. Start Redis with `docker compose up -d redis` when the Compose stack is
+selected.
+{% endif %}
+{% if spec.has("static-templates") %}
+
+## Static files and templates
+
+The welcome page is available at <http://127.0.0.1:8000/> and is rendered from
+`templates/index.html`. Files under `static/` are served at `/static`.
+{% endif %}
+{% if spec.has("websockets") %}
+
+## WebSockets
+
+The `/ws` endpoint echoes every text message it receives:
+
+```python
+from websockets.sync.client import connect
+
+with connect("ws://127.0.0.1:8000/ws") as websocket:
+    websocket.send("hello")
+    print(websocket.recv())
+```
+{% endif %}
+{% if spec.has("rate-limit") %}
+
+## Rate limiting
+
+The application installs a SlowAPI limiter as `app.state.limiter` with a default
+limit of 100 requests per minute. The `/limited` endpoint demonstrates a tighter
+limit of 5 requests per minute. Exceeding a limit returns `429` with a JSON
+`detail` field.
+{% endif %}
+{% if spec.has("sentry") %}
+
+## Error reporting
+
+Sentry is initialized at startup only when `SENTRY_DSN` is set. Leave it empty to
+disable reporting. `SENTRY_ENVIRONMENT` controls the environment label.
+{% endif %}
+{% if spec.has("prometheus") %}
+
+## Metrics
+
+Prometheus instrumentation is enabled in `main.py`. Scrape metrics from:
+
+```sh
+curl "http://127.0.0.1:8000/metrics"
+```
+{% endif %}
 
 ## Test
 
@@ -148,6 +221,21 @@ Apply formatting and safe lint fixes with:
 uv run ruff format .
 uv run ruff check --fix .
 ```
+{% if spec.has("makefile") %}
+
+## Make targets
+
+The generated `Makefile` wraps the common commands:
+
+```sh
+make sync
+make run
+make test
+make lint
+make typecheck
+make format
+```
+{% endif %}
 {% if spec.has("pre-commit") %}
 
 ## Pre-commit hooks
@@ -164,7 +252,7 @@ Run all hooks manually:
 uv run pre-commit run --all-files
 ```
 {% endif %}
-{% if spec.has("docker") %}
+{% if spec.has("docker") or spec.has("compose") %}
 
 ## Docker
 
@@ -172,7 +260,7 @@ Build and run the container:
 
 ```sh
 docker build -t {{ spec.name }} .
-docker run --rm -p 8000:8000{% if spec.has_environment %} --env-file .env{% endif %} {{ spec.name }}
+docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %} --env-file .env{% endif %} {{ spec.name }}
 ```
 {% endif %}
 {% if spec.has("alembic") %}
@@ -200,15 +288,18 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── README.md
 ├── .gitignore
 ├── .python-version
-{% if spec.has_environment %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") %}
 ├── .env.example
 {% endif %}
-{% if spec.has("postgres") %}
-├── docker-compose.yml
-{% endif %}
-{% if spec.has("docker") %}
+{% if spec.has("docker") or spec.has("compose") %}
 ├── Dockerfile
 ├── .dockerignore
+{% endif %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("redis") %}
+├── docker-compose.yml
+{% endif %}
+{% if spec.has("makefile") %}
+├── Makefile
 {% endif %}
 {% if spec.has("ci") %}
 ├── .github/workflows/ci.yml
@@ -224,6 +315,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   └── versions/
 │       └── 0001_create_items.py
 {% endif %}
+{% if spec.has("static-templates") %}
+├── static/
+│   └── style.css
+├── templates/
+│   └── index.html
+{% endif %}
 ├── src/{{ spec.package }}/
 │   ├── __init__.py
 │   ├── main.py
@@ -232,24 +329,39 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │   ├── dependencies.py
 │   │   └── routes/
 │   │       ├── __init__.py
-{% if spec.has("sqlalchemy") %}
-│   │       ├── health.py
 {% if spec.has("auth-jwt") %}
-│   │       ├── items.py
-│   │       └── auth.py
-{% else %}
-│   │       └── items.py
+│   │       ├── auth.py
 {% endif %}
-{% else %}
-│   │       └── health.py
+│   │       ├── health.py
+{% if spec.has("sqlalchemy") %}
+│   │       ├── items.py
+{% endif %}
+{% if spec.has("rate-limit") %}
+│   │       ├── limited.py
+{% endif %}
+{% if spec.has("static-templates") %}
+│   │       ├── pages.py
+{% endif %}
+{% if spec.has("websockets") %}
+│   │       ├── ws.py
 {% endif %}
 │   ├── core/
 │   │   ├── __init__.py
-{% if spec.has("auth-jwt") %}
+{% if spec.has("redis") %}
+│   │   ├── cache.py
+{% endif %}
 │   │   ├── config.py
+│   │   ├── errors.py
+│   │   ├── logging.py
+│   │   ├── middleware.py
+{% if spec.has("sentry") %}
+│   │   ├── observability.py
+{% endif %}
+{% if spec.has("rate-limit") %}
+│   │   ├── rate_limit.py
+{% endif %}
+{% if spec.has("auth-jwt") %}
 │   │   └── security.py
-{% else %}
-│   │   └── config.py
 {% endif %}
 {% if spec.has_database %}
 │   ├── db/
@@ -260,21 +372,17 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("sqlalchemy") %}
 │   ├── models/
 │   │   ├── __init__.py
-{% if spec.has("auth-jwt") %}
 │   │   ├── item.py
+{% if spec.has("auth-jwt") %}
 │   │   └── user.py
-{% else %}
-│   │   └── item.py
 {% endif %}
 {% endif %}
 │   ├── schemas/
 {% if spec.has("sqlalchemy") %}
 │   │   ├── __init__.py
-{% if spec.has("auth-jwt") %}
 │   │   ├── item.py
+{% if spec.has("auth-jwt") %}
 │   │   └── user.py
-{% else %}
-│   │   └── item.py
 {% endif %}
 {% else %}
 │   │   └── __init__.py
@@ -282,26 +390,41 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   └── services/
 {% if spec.has("sqlalchemy") %}
 │       ├── __init__.py
-{% if spec.has("auth-jwt") %}
 │       ├── items.py
+{% if spec.has("auth-jwt") %}
 │       └── auth.py
-{% else %}
-│       └── items.py
 {% endif %}
 {% else %}
 │       └── __init__.py
 {% endif %}
 └── tests/
     ├── conftest.py
-{% if spec.has("sqlalchemy") %}
-    ├── test_health.py
 {% if spec.has("auth-jwt") %}
-    ├── test_items.py
-    └── test_auth.py
-{% else %}
-    └── test_items.py
+    ├── test_auth.py
 {% endif %}
-{% else %}
-    └── test_health.py
+{% if spec.has("redis") %}
+    ├── test_cache.py
+{% endif %}
+{% if spec.has("makefile") %}
+    ├── test_makefile.py
+{% endif %}
+    ├── test_health.py
+{% if spec.has("sqlalchemy") %}
+    ├── test_items.py
+{% endif %}
+{% if spec.has("static-templates") %}
+    ├── test_pages.py
+{% endif %}
+{% if spec.has("prometheus") %}
+    ├── test_prometheus.py
+{% endif %}
+{% if spec.has("rate-limit") %}
+    ├── test_rate_limit.py
+{% endif %}
+{% if spec.has("sentry") %}
+    ├── test_sentry.py
+{% endif %}
+{% if spec.has("websockets") %}
+    └── test_websockets.py
 {% endif %}
 ```

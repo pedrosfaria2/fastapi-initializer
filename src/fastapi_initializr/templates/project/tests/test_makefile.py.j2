@@ -1,0 +1,10 @@
+"""Makefile command targets."""
+
+from pathlib import Path
+
+
+def test_makefile_has_expected_targets() -> None:
+    makefile = (Path(__file__).resolve().parents[1] / "Makefile").read_text(encoding="utf-8")
+
+    for target in ("sync", "run", "test", "lint", "typecheck", "format"):
+        assert f"{target}:" in makefile

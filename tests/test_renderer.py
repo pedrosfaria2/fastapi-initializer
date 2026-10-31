@@ -54,6 +54,133 @@ def test_all_features_include_conditional_files() -> None:
     assert ".env.example" in files
 
 
+def test_extended_web_features_render_files_and_settings() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset(
+            {
+                "cors",
+                "static-templates",
+                "websockets",
+                "prometheus",
+                "sentry",
+                "rate-limit",
+                "redis",
+            }
+        ),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/cache.py" in files
+    assert "src/my_service/core/observability.py" in files
+    assert "src/my_service/core/rate_limit.py" in files
+    assert "src/my_service/api/routes/pages.py" in files
+    assert "src/my_service/api/routes/ws.py" in files
+    assert "src/my_service/api/routes/limited.py" in files
+    assert "templates/index.html" in files
+    assert "static/style.css" in files
+    assert "tests/test_cache.py" in files
+    assert "tests/test_sentry.py" in files
+    assert "tests/test_prometheus.py" in files
+    assert "tests/test_pages.py" in files
+    assert "tests/test_websockets.py" in files
+    assert "tests/test_rate_limit.py" in files
+
+    config = files["src/my_service/core/config.py"]
+    assert 'redis_url: str = "redis://localhost:6379/0"' in config
+    assert 'sentry_dsn: str = ""' in config
+    assert 'sentry_environment: str = "development"' in config
+
+    main = files["src/my_service/main.py"]
+    assert "init_sentry(settings)" in main
+    assert "Instrumentator().instrument(app).expose(app)" in main
+    assert "app.state.limiter = limiter" in main
+    assert "StaticFiles" in main
+
+    env = files[".env.example"]
+    assert "REDIS_URL=redis://localhost:6379/0" in env
+    assert "SENTRY_DSN=" in env
+    assert "SENTRY_ENVIRONMENT=development" in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dependencies = data["project"]["dependencies"]
+    for package in (
+        "redis>=8.1.0",
+        "sentry-sdk[fastapi]>=2.73.0",
+        "prometheus-fastapi-instrumentator>=8.1.0",
+        "slowapi>=0.1.10",
+        "jinja2>=3.1.6",
+    ):
+        assert package in dependencies
+
+
+def test_extended_web_features_are_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/core/cache.py" not in files
+    assert "src/my_service/core/observability.py" not in files
+    assert "src/my_service/core/rate_limit.py" not in files
+    assert "src/my_service/api/routes/pages.py" not in files
+    assert "src/my_service/api/routes/ws.py" not in files
+    assert "src/my_service/api/routes/limited.py" not in files
+    assert "templates/index.html" not in files
+    assert "Makefile" not in files
+    assert "docker-compose.yml" not in files
+
+
+def test_operations_features_render_makefile_and_compose() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"docker", "compose", "ci", "pre-commit", "makefile"}),
+    )
+
+    files = render_project(spec)
+
+    assert "Dockerfile" in files
+    assert ".dockerignore" in files
+    assert "docker-compose.yml" in files
+    assert "Makefile" in files
+    assert "tests/test_makefile.py" in files
+
+    makefile = files["Makefile"]
+    for target in ("sync", "run", "test", "lint", "typecheck", "format"):
+        assert f"{target}:" in makefile
+
+    compose = files["docker-compose.yml"]
+    assert "  app:" in compose
+    assert "  db:" not in compose
+    assert "  redis:" not in compose
+
+
+def test_compose_includes_postgres_and_redis_healthchecks() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "postgres", "redis"}),
+    )
+
+    compose = render_project(spec)["docker-compose.yml"]
+
+    assert "docker-compose.yml" in render_project(spec)
+    assert "  db:" in compose
+    assert "pg_isready" in compose
+    assert "  redis:" in compose
+    assert "redis-cli" in compose
+    assert "postgres" in compose
+
+
+def test_compose_is_generated_for_postgres_without_docker() -> None:
+    files = render_project(
+        ProjectSpec(
+            name="my-service",
+            dependencies=frozenset({"sqlalchemy", "postgres"}),
+        )
+    )
+
+    assert "docker-compose.yml" in files
+    assert "Dockerfile" not in files
+
+
 def test_auth_feature_renders_security_slice() -> None:
     spec = ProjectSpec(
         name="my-service",
@@ -73,7 +200,9 @@ def test_auth_feature_renders_security_slice() -> None:
     assert "from my_service.models.item import Item" in files["src/my_service/models/__init__.py"]
     assert "from my_service.models.user import User" in files["src/my_service/models/__init__.py"]
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "from my_service.api.routes import auth, health, items" in routes
+    assert "    auth," in routes
+    assert "    health," in routes
+    assert "    items," in routes
     assert "api_router.include_router(auth.router)" in routes
     assert (
         'OAuth2PasswordBearer(tokenUrl="/auth/login")' in files["src/my_service/services/auth.py"]
@@ -135,7 +264,25 @@ def test_pyproject_parses_and_contains_selected_packages() -> None:
 def test_generated_python_parses() -> None:
     spec = ProjectSpec(
         name="my-service",
-        dependencies=frozenset({"sqlalchemy", "alembic", "postgres", "cors"}),
+        dependencies=frozenset(
+            {
+                "sqlalchemy",
+                "alembic",
+                "postgres",
+                "cors",
+                "redis",
+                "sentry",
+                "prometheus",
+                "static-templates",
+                "websockets",
+                "rate-limit",
+                "makefile",
+                "compose",
+                "docker",
+                "ci",
+                "pre-commit",
+            }
+        ),
     )
 
     for path, content in render_project(spec).items():
@@ -146,7 +293,24 @@ def test_generated_python_parses() -> None:
 def test_no_unresolved_template_markers() -> None:
     spec = ProjectSpec(
         name="my-service",
-        dependencies=frozenset({"sqlalchemy", "alembic", "docker", "ci"}),
+        dependencies=frozenset(
+            {
+                "sqlalchemy",
+                "alembic",
+                "postgres",
+                "redis",
+                "sentry",
+                "prometheus",
+                "static-templates",
+                "websockets",
+                "rate-limit",
+                "docker",
+                "compose",
+                "makefile",
+                "ci",
+                "pre-commit",
+            }
+        ),
     )
 
     for path, content in render_project(spec).items():

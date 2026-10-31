@@ -23,10 +23,45 @@ CASES: dict[str, ProjectSpec] = {
         name="auth-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
     ),
+    "web": ProjectSpec(
+        name="web-service",
+        dependencies=frozenset(
+            {
+                "cors",
+                "static-templates",
+                "websockets",
+                "prometheus",
+                "sentry",
+                "rate-limit",
+                "redis",
+            }
+        ),
+    ),
+    "operations": ProjectSpec(
+        name="operations-service",
+        dependencies=frozenset({"docker", "compose", "ci", "pre-commit", "makefile"}),
+    ),
     "full": ProjectSpec(
         name="full-service",
         dependencies=frozenset(
-            {"sqlalchemy", "alembic", "postgres", "cors", "docker", "ci", "pre-commit"}
+            {
+                "sqlalchemy",
+                "alembic",
+                "postgres",
+                "cors",
+                "auth-jwt",
+                "redis",
+                "sentry",
+                "prometheus",
+                "static-templates",
+                "websockets",
+                "rate-limit",
+                "docker",
+                "compose",
+                "ci",
+                "pre-commit",
+                "makefile",
+            }
         ),
     ),
 }

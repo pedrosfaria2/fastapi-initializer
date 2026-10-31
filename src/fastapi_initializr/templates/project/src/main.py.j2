@@ -1,13 +1,28 @@
 """Application entry point."""
+{% if spec.has_database or spec.has("static-templates") %}
 
 {% if spec.has_database %}
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-
 {% endif %}
+{% if spec.has("static-templates") %}
+from pathlib import Path
+{% endif %}
+{% endif %}
+
 from fastapi import FastAPI
 {% if spec.has("cors") %}
 from fastapi.middleware.cors import CORSMiddleware
+{% endif %}
+{% if spec.has("static-templates") %}
+from fastapi.staticfiles import StaticFiles
+{% endif %}
+{% if spec.has("prometheus") %}
+from prometheus_fastapi_instrumentator import Instrumentator
+{% endif %}
+{% if spec.has("rate-limit") %}
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 {% endif %}
 {% if spec.has_database %}
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -19,6 +34,12 @@ from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.errors import install_error_handlers
 from {{ spec.package }}.core.logging import configure_logging
 from {{ spec.package }}.core.middleware import RequestIdMiddleware
+{% if spec.has("sentry") %}
+from {{ spec.package }}.core.observability import init_sentry
+{% endif %}
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import limiter, rate_limit_exceeded_handler
+{% endif %}
 {% if spec.has_database %}
 from {{ spec.package }}.db.session import SessionFactory
 {% endif %}
@@ -43,6 +64,9 @@ def create_app() -> FastAPI:
     """Build the FastAPI application."""
     settings = get_settings()
     configure_logging(settings.log_level)
+{% if spec.has("sentry") %}
+    init_sentry(settings)
+{% endif %}
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
@@ -59,9 +83,24 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 {% endif %}
+{% if spec.has("rate-limit") %}
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+{% endif %}
     app.add_middleware(RequestIdMiddleware)
     install_error_handlers(app)
     app.include_router(api_router)
+{% if spec.has("static-templates") %}
+    app.mount(
+        "/static",
+        StaticFiles(directory=Path(__file__).resolve().parents[2] / "static"),
+        name="static",
+    )
+{% endif %}
+{% if spec.has("prometheus") %}
+    Instrumentator().instrument(app).expose(app)
+{% endif %}
     return app
 
 

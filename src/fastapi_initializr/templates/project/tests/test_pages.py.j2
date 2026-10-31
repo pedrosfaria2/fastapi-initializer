@@ -1,0 +1,11 @@
+"""Server-rendered welcome page."""
+
+from fastapi.testclient import TestClient
+
+
+def test_index_renders_template(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "FastAPI service is running" in response.text
+    assert "/static/style.css" in response.text

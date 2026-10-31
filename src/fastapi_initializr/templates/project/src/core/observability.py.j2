@@ -1,0 +1,16 @@
+"""Optional Sentry error reporting."""
+
+import sentry_sdk
+
+from {{ spec.package }}.core.config import Settings
+
+
+def init_sentry(settings: Settings) -> None:
+    """Initialize Sentry when a DSN is configured."""
+    if not settings.sentry_dsn:
+        return
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.sentry_environment,
+        traces_sample_rate=0.0,
+    )

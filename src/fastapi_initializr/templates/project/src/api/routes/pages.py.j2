@@ -1,0 +1,24 @@
+"""Server-rendered pages."""
+
+from pathlib import Path
+
+from fastapi import APIRouter, Request
+from fastapi.responses import Response
+from fastapi.templating import Jinja2Templates
+
+from {{ spec.package }}.core.config import get_settings
+
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+templates = Jinja2Templates(directory=PROJECT_ROOT / "templates")
+
+router = APIRouter(tags=["pages"])
+
+
+@router.get("/", include_in_schema=False)
+async def index(request: Request) -> Response:
+    """Render the welcome page."""
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {"app_name": get_settings().app_name},
+    )

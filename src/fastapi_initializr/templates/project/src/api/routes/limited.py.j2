@@ -1,0 +1,11 @@
+"""Example endpoint covered by the default rate limiter."""
+
+from fastapi import APIRouter
+
+router = APIRouter(tags=["rate-limit"])
+
+
+@router.get("/limited")
+async def limited() -> dict[str, str]:
+    """Return a response subject to the configured rate limit."""
+    return {"status": "limited"}
