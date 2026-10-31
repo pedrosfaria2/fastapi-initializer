@@ -105,6 +105,14 @@ def test_explicit_package_is_used_in_paths() -> None:
     assert "src/my_service/main.py" not in files
 
 
+def test_description_with_quotes_is_escaped_in_toml() -> None:
+    description = 'A "quoted" \\ service'
+    files = render_project(ProjectSpec(name="my-service", description=description))
+    data = tomllib.loads(files["pyproject.toml"])
+
+    assert data["project"]["description"] == description
+
+
 def test_python_version_changes_requires_python_and_ruff_target() -> None:
     files = render_project(ProjectSpec(name="my-service", python="3.11"))
     data = tomllib.loads(files["pyproject.toml"])
