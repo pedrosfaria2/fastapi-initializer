@@ -153,6 +153,13 @@ def test_metadata_supports_versioned_media_type(client: TestClient) -> None:
     assert body["fastapi"]["default"] == "0.162.0"
 
 
+def test_metadata_defaults_to_json(client: TestClient) -> None:
+    response = client.get("/metadata")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+
+
 def test_dependencies_returns_resolved_coordinates(client: TestClient) -> None:
     response = client.get("/dependencies", params={"fastapiVersion": "0.161.1"})
 
