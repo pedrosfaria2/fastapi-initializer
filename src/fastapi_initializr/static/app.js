@@ -59,6 +59,7 @@
   let previewToken = 0;
   /** @type {AbortController | null} */
   let previewController = null;
+  let packageTouched = false;
 
   function setError(message) {
     errorBox.textContent = message;
@@ -448,6 +449,7 @@
       "package",
       metadata.project.package.default,
     );
+    packageTouched = params.has("package");
     descriptionInput.value = initialValue(
       params,
       "description",
@@ -670,6 +672,12 @@
     }
     if (target === nameInput) {
       projectLabel.textContent = nameInput.value;
+      if (!packageTouched) {
+        packageInput.value = nameInput.value.toLowerCase().replace(/-/g, "_");
+      }
+    }
+    if (target === packageInput) {
+      packageTouched = true;
     }
     stateChanged();
   });
