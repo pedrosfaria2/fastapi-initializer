@@ -1,5 +1,6 @@
 """CLI contract."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -114,3 +115,87 @@ def test_new_rejects_an_unknown_preset(tmp_path: Path) -> None:
 
     assert exit_code == 2
     assert not (tmp_path / "my-service").exists()
+
+
+def _generated_project(tmp_path: Path) -> Path:
+    assert main(["new", "my-service", "--output", str(tmp_path)]) == 0
+    return tmp_path / "my-service"
+
+
+def _manifest(project: Path) -> dict[str, object]:
+    data = json.loads((project / ".fastapi-initializr.json").read_text())
+    assert isinstance(data, dict)
+    return data
+
+
+def test_update_reports_no_changes(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+
+    assert main(["update", str(project)]) == 0
+
+
+def test_update_restores_missing_files(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    readme = project / "README.md"
+    readme.unlink()
+
+    assert main(["update", str(project)]) == 0
+    assert readme.exists()
+
+
+def test_update_requires_a_manifest(tmp_path: Path) -> None:
+    assert main(["update", str(tmp_path)]) == 1
+
+
+def test_update_applies_manifest_spec_changes(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    data = _manifest(project)
+    spec = data["spec"]
+    assert isinstance(spec, dict)
+    spec["description"] = "Updated description"
+    (project / ".fastapi-initializr.json").write_text(json.dumps(data))
+
+    assert main(["update", str(project)]) == 0
+    assert 'description = "Updated description"' in (project / "pyproject.toml").read_text()
+    assert _manifest(project)["spec"]["description"] == "Updated description"
+
+
+def test_update_stops_on_local_changes(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text("local notes\n")
+    data = _manifest(project)
+    spec = data["spec"]
+    assert isinstance(spec, dict)
+    spec["description"] = "Updated description"
+    (project / ".fastapi-initializr.json").write_text(json.dumps(data))
+
+    assert main(["update", str(project)]) == 3
+    assert pyproject.read_text() == "local notes\n"
+
+
+def test_update_force_overwrites_local_changes(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text("local notes\n")
+    data = _manifest(project)
+    spec = data["spec"]
+    assert isinstance(spec, dict)
+    spec["description"] = "Updated description"
+    (project / ".fastapi-initializr.json").write_text(json.dumps(data))
+
+    assert main(["update", str(project), "--force"]) == 0
+    assert 'description = "Updated description"' in pyproject.read_text()
+
+
+def test_update_dry_run_writes_nothing(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    data = _manifest(project)
+    spec = data["spec"]
+    assert isinstance(spec, dict)
+    spec["description"] = "Updated description"
+    (project / ".fastapi-initializr.json").write_text(json.dumps(data))
+    before = (project / "pyproject.toml").read_text()
+
+    assert main(["update", str(project), "--dry-run"]) == 0
+    assert (project / "pyproject.toml").read_text() == before

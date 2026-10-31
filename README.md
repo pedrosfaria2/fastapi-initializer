@@ -258,10 +258,16 @@ uv run fastapi-initializr list
 uv run fastapi-initializr metadata
 uv run fastapi-initializr new my-service --force
 uv run fastapi-initializr new my-service --lock
+uv run fastapi-initializr update ./my-service
 ```
 
 The CLI uses the same validation and templates as the API. `--lock` runs
 `uv lock` in the generated project.
+
+`update` re-renders the project from `.fastapi-initializr.json` and writes files
+that still match the recorded digests. It aborts with exit code `3` when a file
+was edited locally; rerun with `--force` to overwrite those files. `--dry-run`
+prints the plan without writing.
 
 ## Development
 

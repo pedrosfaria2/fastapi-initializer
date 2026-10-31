@@ -3,12 +3,16 @@
 import hashlib
 import io
 import json
+from pathlib import Path
 from zipfile import ZipFile
+
+import pytest
 
 from fastapi_initializr import __version__
 from fastapi_initializr.generation.manifest import MANIFEST_NAME, TEMPLATE_VERSION
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
+from fastapi_initializr.generation.update import UpdateError, plan_update
 from fastapi_initializr.services.generator import generate_project
 
 
@@ -64,3 +68,53 @@ def test_archive_contains_the_manifest() -> None:
 
     with ZipFile(io.BytesIO(project.content)) as archive:
         assert "my-service/.fastapi-initializr.json" in archive.namelist()
+
+
+def _write_project(root: Path, spec: ProjectSpec) -> dict[str, str]:
+    files = render_project(spec)
+    for path, content in files.items():
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    return files
+
+
+def test_update_plan_has_no_changes_for_a_fresh_project(tmp_path: Path) -> None:
+    _write_project(tmp_path, ProjectSpec(name="my-service"))
+
+    plan = plan_update(tmp_path)
+
+    assert plan.added == ()
+    assert plan.updated == ()
+    assert plan.conflicted == ()
+    assert plan.obsolete == ()
+
+
+def test_update_plan_detects_local_edits(tmp_path: Path) -> None:
+    _write_project(tmp_path, ProjectSpec(name="my-service"))
+    (tmp_path / "README.md").write_text("local notes\n", encoding="utf-8")
+
+    plan = plan_update(tmp_path)
+
+    assert "README.md" in plan.conflicted
+
+
+def test_update_plan_ignores_unsafe_manifest_paths(tmp_path: Path) -> None:
+    files = _write_project(tmp_path, ProjectSpec(name="my-service"))
+    manifest = json.loads(files[MANIFEST_NAME])
+    manifest["files"]["../escape.txt"] = "0" * 64
+    (tmp_path / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+
+    plan = plan_update(tmp_path)
+
+    assert "../escape.txt" not in plan.obsolete
+
+
+def test_update_plan_rejects_unknown_template_versions(tmp_path: Path) -> None:
+    files = _write_project(tmp_path, ProjectSpec(name="my-service"))
+    manifest = json.loads(files[MANIFEST_NAME])
+    manifest["templateVersion"] = "999"
+    (tmp_path / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(UpdateError, match="Unsupported template version"):
+        plan_update(tmp_path)

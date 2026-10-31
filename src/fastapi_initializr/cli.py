@@ -19,6 +19,7 @@ from fastapi_initializr.generation.constants import (
 )
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
+from fastapi_initializr.generation.update import UpdateError, apply_update, plan_update
 
 
 def _add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -71,6 +72,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     new_parser = subparsers.add_parser("new", help="Generate a project directory.")
     _add_common_options(new_parser)
+
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Update a generated project from its manifest.",
+    )
+    update_parser.add_argument("project", type=Path, nargs="?", default=Path())
+    update_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Report planned changes without writing files.",
+    )
+    update_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite files that changed since generation.",
+    )
 
     subparsers.add_parser("list", help="List dependency ids and groups.")
     subparsers.add_parser("metadata", help="Print the metadata document as JSON.")
@@ -132,6 +150,38 @@ def _new(args: argparse.Namespace) -> int:
     return 0
 
 
+def _update(args: argparse.Namespace) -> int:
+    try:
+        plan = plan_update(args.project)
+    except UpdateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    prefix = "would " if args.dry_run else ""
+    for path in plan.added:
+        print(f"{prefix}add {path}")
+    for path in plan.updated:
+        print(f"{prefix}update {path}")
+    for path in plan.conflicted:
+        print(f"keep {path} (locally modified)")
+    for path in plan.obsolete:
+        print(f"obsolete {path} (left in place)")
+
+    if plan.has_conflicts and not args.force:
+        print(
+            "Local changes block the update; rerun with --force to overwrite them.",
+            file=sys.stderr,
+        )
+        return 3
+    if args.dry_run:
+        print(f"{len(plan.unchanged)} unchanged")
+        return 0
+
+    apply_update(plan, args.project, force=args.force)
+    print(f"Updated {args.project} ({len(plan.unchanged)} unchanged)")
+    return 0
+
+
 def _list() -> int:
     catalog = metadata()
     for group in catalog.dependencies.groups:
@@ -152,6 +202,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "new":
         return _new(args)
+    if args.command == "update":
+        return _update(args)
     if args.command == "list":
         return _list()
     if args.command == "metadata":
