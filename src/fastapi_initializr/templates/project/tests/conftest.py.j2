@@ -1,15 +1,60 @@
 """Shared test fixtures."""
 
+{% if spec.has("sqlalchemy") %}
+import asyncio
 from collections.abc import Iterator
+from pathlib import Path
+from typing import cast
+{% else %}
+from collections.abc import Iterator
+{% endif %}
 
 import pytest
+{% if spec.has("sqlalchemy") %}
+from fastapi import FastAPI
+{% endif %}
 from fastapi.testclient import TestClient
+{% if spec.has("sqlalchemy") %}
+from sqlalchemy.ext.asyncio import AsyncEngine
+{% endif %}
 
+{% if spec.has("sqlalchemy") %}
+from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.db.base import Base
+{% endif %}
 from {{ spec.package }}.main import create_app
 
+{% if spec.has("sqlalchemy") %}
+
+def _create_tables(client: TestClient) -> None:
+    """Create the schema on the application's test database."""
+    app = cast(FastAPI, client.app)
+    engine = cast(AsyncEngine, app.state.engine)
+
+    async def create_schema() -> None:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+    asyncio.run(create_schema())
+
+
+@pytest.fixture
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """Return a client bound to a fresh application and SQLite database."""
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    try:
+        with TestClient(create_app()) as test_client:
+            _create_tables(test_client)
+            yield test_client
+    finally:
+        get_settings.cache_clear()
+{% else %}
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     """Return a client bound to a fresh application."""
     with TestClient(create_app()) as test_client:
         yield test_client
+{% endif %}

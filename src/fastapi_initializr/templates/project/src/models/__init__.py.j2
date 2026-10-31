@@ -1,0 +1,6 @@
+"""Database models."""
+
+from {{ spec.package }}.db.base import Base
+from {{ spec.package }}.models.item import Item
+
+__all__ = ["Base", "Item"]

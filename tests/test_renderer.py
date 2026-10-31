@@ -21,6 +21,9 @@ def test_minimal_project_contains_core_files() -> None:
     assert "Dockerfile" not in files
     assert "alembic.ini" not in files
     assert ".env.example" not in files
+    assert "docker-compose.yml" not in files
+    assert "src/my_service/models/item.py" not in files
+    assert "tests/test_items.py" not in files
 
 
 def test_all_features_include_conditional_files() -> None:
@@ -40,7 +43,14 @@ def test_all_features_include_conditional_files() -> None:
     assert "alembic.ini" in files
     assert "migrations/env.py" in files
     assert "migrations/versions/.gitkeep" in files
+    assert "migrations/versions/0001_create_items.py" in files
+    assert "docker-compose.yml" in files
     assert "src/my_service/db/session.py" in files
+    assert "src/my_service/models/item.py" in files
+    assert "src/my_service/schemas/item.py" in files
+    assert "src/my_service/services/items.py" in files
+    assert "src/my_service/api/routes/items.py" in files
+    assert "tests/test_items.py" in files
     assert ".env.example" in files
 
 

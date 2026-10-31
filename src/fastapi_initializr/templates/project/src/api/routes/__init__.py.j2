@@ -2,7 +2,14 @@
 
 from fastapi import APIRouter
 
+{% if spec.has("sqlalchemy") %}
+from {{ spec.package }}.api.routes import health, items
+{% else %}
 from {{ spec.package }}.api.routes import health
+{% endif %}
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+{% if spec.has("sqlalchemy") %}
+api_router.include_router(items.router)
+{% endif %}

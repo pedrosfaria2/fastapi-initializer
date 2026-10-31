@@ -22,6 +22,18 @@ Copy the example environment file and adjust it for your machine:
 cp .env.example .env
 ```
 {% endif %}
+{% if spec.has("postgres") %}
+
+Start PostgreSQL with Docker Compose:
+
+```sh
+docker compose up -d db
+```
+
+The generated `docker-compose.yml` starts PostgreSQL 17 on port 5432 with the
+database `app` and the credentials `postgres` / `postgres`. It is generated
+whenever PostgreSQL is selected, even if the application Dockerfile is not.
+{% endif %}
 
 ## Run
 
@@ -33,12 +45,63 @@ uv run fastapi dev src/{{ spec.package }}/main.py
 
 The API is available at <http://127.0.0.1:8000>. Interactive documentation is
 served at <http://127.0.0.1:8000/docs>.
+{% if spec.has("sqlalchemy") %}
+
+## Item endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/items` | Create an item and return it with status `201`. |
+| `GET` | `/items` | List items ordered by id. |
+| `GET` | `/items/{item_id}` | Return one item or `404`. |
+| `PATCH` | `/items/{item_id}` | Update the provided fields or return `404`. |
+| `DELETE` | `/items/{item_id}` | Delete one item and return `204`, or `404`. |
+
+List requests accept `limit` (1 to 100, default 50) and `offset` (0 or greater,
+default 0):
+
+```sh
+curl "http://127.0.0.1:8000/items?limit=20&offset=0"
+```
+
+Create and update requests use JSON bodies:
+
+```sh
+curl -X POST "http://127.0.0.1:8000/items" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "first", "description": "example"}'
+```
+{% endif %}
+{% if spec.has_database %}
+
+## Database setup
+
+The application reads the database URL from the `DATABASE_URL` environment
+variable. The generated default is:
+
+```text
+{{ spec.database_url }}
+```
+{% if spec.has("postgres") %}
+
+With PostgreSQL selected, the default points at the `db` service described in
+`docker-compose.yml`. Set `DATABASE_URL` in `.env` to use a different database.
+{% else %}
+
+SQLite is used by default and the database file is created on first use.
+{% endif %}
+{% endif %}
 
 ## Test
 
 ```sh
 uv run pytest
 ```
+{% if spec.has("sqlalchemy") %}
+
+Database tests override `DATABASE_URL` with a temporary SQLite file, so they run
+without a PostgreSQL server even when PostgreSQL is selected.
+{% endif %}
 
 ## Lint and type-check
 
@@ -86,16 +149,16 @@ docker run --rm -p 8000:8000{% if spec.has_environment %} --env-file .env{% endi
 
 ## Database migrations
 
+The initial migration creates the `items` table. Apply the pending migrations:
+
+```sh
+uv run alembic upgrade head
+```
+
 Create a migration after changing the SQLAlchemy models:
 
 ```sh
 uv run alembic revision --autogenerate -m "describe the change"
-```
-
-Apply the pending migrations:
-
-```sh
-uv run alembic upgrade head
 ```
 {% endif %}
 
@@ -109,6 +172,9 @@ uv run alembic upgrade head
 ├── .python-version
 {% if spec.has_environment %}
 ├── .env.example
+{% endif %}
+{% if spec.has("postgres") %}
+├── docker-compose.yml
 {% endif %}
 {% if spec.has("docker") %}
 ├── Dockerfile
@@ -126,6 +192,7 @@ uv run alembic upgrade head
 │   ├── env.py
 │   ├── script.py.mako
 │   └── versions/
+│       └── 0001_create_items.py
 {% endif %}
 ├── src/{{ spec.package }}/
 │   ├── __init__.py
@@ -135,7 +202,12 @@ uv run alembic upgrade head
 │   │   ├── dependencies.py
 │   │   └── routes/
 │   │       ├── __init__.py
+{% if spec.has("sqlalchemy") %}
+│   │       ├── health.py
+│   │       └── items.py
+{% else %}
 │   │       └── health.py
+{% endif %}
 │   ├── core/
 │   │   ├── __init__.py
 │   │   └── config.py
@@ -145,11 +217,31 @@ uv run alembic upgrade head
 │   │   ├── base.py
 │   │   └── session.py
 {% endif %}
+{% if spec.has("sqlalchemy") %}
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── item.py
+{% endif %}
 │   ├── schemas/
+{% if spec.has("sqlalchemy") %}
+│   │   ├── __init__.py
+│   │   └── item.py
+{% else %}
 │   │   └── __init__.py
+{% endif %}
 │   └── services/
+{% if spec.has("sqlalchemy") %}
+│       ├── __init__.py
+│       └── items.py
+{% else %}
 │       └── __init__.py
+{% endif %}
 └── tests/
     ├── conftest.py
+{% if spec.has("sqlalchemy") %}
+    ├── test_health.py
+    └── test_items.py
+{% else %}
     └── test_health.py
+{% endif %}
 ```

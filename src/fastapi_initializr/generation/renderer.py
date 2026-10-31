@@ -56,6 +56,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("env.example.j2", ".env.example", lambda spec: spec.has_environment),
     FileSpec("Dockerfile.j2", "Dockerfile", _has("docker")),
     FileSpec("dockerignore.j2", ".dockerignore", _has("docker")),
+    FileSpec("docker-compose.yml.j2", "docker-compose.yml", _has("postgres")),
     FileSpec("ci.yml.j2", ".github/workflows/ci.yml", _has("ci")),
     FileSpec(
         "pre-commit-config.yaml.j2",
@@ -74,6 +75,11 @@ FILES: tuple[FileSpec, ...] = (
         "migrations/versions/.gitkeep",
         _has("alembic"),
     ),
+    FileSpec(
+        "migrations/versions/0001_create_items.py.j2",
+        "migrations/versions/0001_create_items.py",
+        _has("alembic"),
+    ),
     FileSpec("src/__init__.py.j2", "src/{{ spec.package }}/__init__.py"),
     FileSpec("src/main.py.j2", "src/{{ spec.package }}/main.py"),
     FileSpec("src/api/__init__.py.j2", "src/{{ spec.package }}/api/__init__.py"),
@@ -88,6 +94,11 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/api/routes/health.py.j2",
         "src/{{ spec.package }}/api/routes/health.py",
+    ),
+    FileSpec(
+        "src/api/routes/items.py.j2",
+        "src/{{ spec.package }}/api/routes/items.py",
+        _has("sqlalchemy"),
     ),
     FileSpec("src/core/__init__.py.j2", "src/{{ spec.package }}/core/__init__.py"),
     FileSpec("src/core/config.py.j2", "src/{{ spec.package }}/core/config.py"),
@@ -107,15 +118,36 @@ FILES: tuple[FileSpec, ...] = (
         _has_database,
     ),
     FileSpec(
+        "src/models/__init__.py.j2",
+        "src/{{ spec.package }}/models/__init__.py",
+        _has("sqlalchemy"),
+    ),
+    FileSpec(
+        "src/models/item.py.j2",
+        "src/{{ spec.package }}/models/item.py",
+        _has("sqlalchemy"),
+    ),
+    FileSpec(
         "src/schemas/__init__.py.j2",
         "src/{{ spec.package }}/schemas/__init__.py",
+    ),
+    FileSpec(
+        "src/schemas/item.py.j2",
+        "src/{{ spec.package }}/schemas/item.py",
+        _has("sqlalchemy"),
     ),
     FileSpec(
         "src/services/__init__.py.j2",
         "src/{{ spec.package }}/services/__init__.py",
     ),
+    FileSpec(
+        "src/services/items.py.j2",
+        "src/{{ spec.package }}/services/items.py",
+        _has("sqlalchemy"),
+    ),
     FileSpec("tests/conftest.py.j2", "tests/conftest.py"),
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
+    FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
 )
 
 
