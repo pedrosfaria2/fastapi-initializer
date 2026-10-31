@@ -1,0 +1,70 @@
+[project]
+name = "{{ spec.name }}"
+version = "0.1.0"
+description = "{{ spec.description | replace('\\', '\\\\') | replace('"', '\\"') }}"
+readme = "README.md"
+requires-python = ">={{ spec.python }}"
+dependencies = [
+    "fastapi>={{ fastapi_version }}",
+    "fastapi-cli>=0.0.32",
+    "uvicorn[standard]>={{ uvicorn_version }}",
+    "pydantic-settings>={{ pydantic_settings_version }}",
+    "python-multipart>={{ python_multipart_version }}",
+{% for package in packages %}
+    "{{ package }}",
+{% endfor %}
+]
+
+[dependency-groups]
+dev = [
+    "pytest>={{ pytest_version }}",
+    "httpx2>={{ httpx2_version }}",
+    "ruff>={{ ruff_version }}",
+    "mypy>={{ mypy_version }}",
+    "pyright>={{ pyright_version }}",
+{% for package in dev_packages %}
+    "{{ package }}",
+{% endfor %}
+]
+
+[project.scripts]
+{{ spec.name }} = "{{ spec.package }}.main:main"
+
+[build-system]
+requires = ["uv_build>={{ uv_build_version }},<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "{{ spec.package }}"
+module-root = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py{{ spec.python | replace('.', '') }}"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "ASYNC", "S", "PT", "RUF", "N", "A", "C4", "PTH", "RET", "ARG", "T20"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004"]
+
+[tool.mypy]
+python_version = "{{ spec.python }}"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+show_error_codes = true
+warn_unreachable = true
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "{{ spec.python }}"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "-ra"]

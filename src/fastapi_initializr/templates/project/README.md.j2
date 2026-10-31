@@ -1,0 +1,150 @@
+# {{ spec.name }}
+
+{{ spec.description }}
+
+## Requirements
+
+- Python {{ spec.python }}
+- [uv](https://docs.astral.sh/uv/)
+
+## Setup
+
+Create the virtual environment and install the dependencies:
+
+```sh
+uv sync
+```
+{% if spec.has_environment %}
+
+Copy the example environment file and adjust it for your machine:
+
+```sh
+cp .env.example .env
+```
+{% endif %}
+
+## Run
+
+Start the development server:
+
+```sh
+uv run fastapi dev src/{{ spec.package }}/main.py
+```
+
+The API is available at <http://127.0.0.1:8000>. Interactive documentation is
+served at <http://127.0.0.1:8000/docs>.
+
+## Test
+
+```sh
+uv run pytest
+```
+
+## Lint and type-check
+
+```sh
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src
+uv run pyright src
+```
+
+Apply formatting and safe lint fixes with:
+
+```sh
+uv run ruff format .
+uv run ruff check --fix .
+```
+{% if spec.has("pre-commit") %}
+
+## Pre-commit hooks
+
+Install the Git hooks once per clone:
+
+```sh
+uv run pre-commit install
+```
+
+Run all hooks manually:
+
+```sh
+uv run pre-commit run --all-files
+```
+{% endif %}
+{% if spec.has("docker") %}
+
+## Docker
+
+Build and run the container:
+
+```sh
+docker build -t {{ spec.name }} .
+docker run --rm -p 8000:8000{% if spec.has_environment %} --env-file .env{% endif %} {{ spec.name }}
+```
+{% endif %}
+{% if spec.has("alembic") %}
+
+## Database migrations
+
+Create a migration after changing the SQLAlchemy models:
+
+```sh
+uv run alembic revision --autogenerate -m "describe the change"
+```
+
+Apply the pending migrations:
+
+```sh
+uv run alembic upgrade head
+```
+{% endif %}
+
+## Project structure
+
+```text
+.
+├── pyproject.toml
+├── README.md
+{% if spec.has("docker") %}
+├── Dockerfile
+├── .dockerignore
+{% endif %}
+{% if spec.has("ci") %}
+├── .github/workflows/ci.yml
+{% endif %}
+{% if spec.has("pre-commit") %}
+├── .pre-commit-config.yaml
+{% endif %}
+{% if spec.has("alembic") %}
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
+{% endif %}
+├── src/{{ spec.package }}/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── dependencies.py
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       └── health.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── config.py
+{% if spec.has_database %}
+│   ├── db/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── session.py
+{% endif %}
+│   ├── schemas/
+│   │   └── __init__.py
+│   └── services/
+│       └── __init__.py
+└── tests/
+    ├── conftest.py
+    └── test_health.py
+```

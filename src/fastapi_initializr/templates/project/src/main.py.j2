@@ -1,0 +1,67 @@
+"""Application entry point."""
+
+{% if spec.has_database %}
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+{% endif %}
+from fastapi import FastAPI
+{% if spec.has("cors") %}
+from fastapi.middleware.cors import CORSMiddleware
+{% endif %}
+{% if spec.has_database %}
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+{% endif %}
+
+from {{ spec.package }}.api.routes import api_router
+from {{ spec.package }}.core.config import get_settings
+{% if spec.has_database %}
+from {{ spec.package }}.db.session import SessionFactory
+{% endif %}
+
+
+{% if spec.has_database %}
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+    """Create the database engine for the application lifetime."""
+    engine = create_async_engine(get_settings().database_url)
+    session_factory: SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
+    app.state.engine = engine
+    app.state.session_factory = session_factory
+    try:
+        yield
+    finally:
+        await engine.dispose()
+
+
+{% endif %}
+def create_app() -> FastAPI:
+    """Build the FastAPI application."""
+    settings = get_settings()
+    app = FastAPI(
+        title=settings.app_name,
+{% if spec.has_database %}
+        lifespan=lifespan,
+{% endif %}
+    )
+{% if spec.has("cors") %}
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+{% endif %}
+    app.include_router(api_router)
+    return app
+
+
+app = create_app()
+
+
+def main() -> None:
+    """Run the development server."""
+    import uvicorn
+
+    uvicorn.run("{{ spec.package }}.main:app", host="127.0.0.1", port=8000)

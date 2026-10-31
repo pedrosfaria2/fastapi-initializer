@@ -1,0 +1,30 @@
+"""Application settings."""
+
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Runtime settings loaded from the environment."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    app_name: str = "{{ spec.name }}"
+    environment: str = "development"
+{% if spec.has_database %}
+    database_url: str = "{{ spec.database_url }}"
+{% endif %}
+{% if spec.has("cors") %}
+    cors_origins: list[str] = {{ spec.cors_origins | tojson }}
+{% endif %}
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Return the cached application settings."""
+    return Settings()

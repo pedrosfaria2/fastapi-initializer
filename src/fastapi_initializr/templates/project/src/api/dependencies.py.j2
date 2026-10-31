@@ -1,0 +1,21 @@
+"""Shared API dependencies."""
+{% if spec.has("sqlalchemy") %}
+
+from collections.abc import AsyncIterator
+from typing import Annotated, cast
+
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from {{ spec.package }}.db.session import SessionFactory
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """Yield a database session scoped to the request."""
+    session_factory = cast(SessionFactory, request.app.state.session_factory)
+    async with session_factory() as session:
+        yield session
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+{% endif %}
