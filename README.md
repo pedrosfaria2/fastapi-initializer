@@ -368,7 +368,8 @@ src/fastapi_initializr/
 ├── main.py
 ├── api/routes/          # metadata, preview, generate
 ├── core/config.py
-├── generation/          # spec, catalog, renderer, archive, preview
+├── generation/          # spec, catalog, plugins, renderer, archive, preview,
+│                        # highlight, requirements, manifest, update
 ├── schemas/
 ├── services/
 ├── static/
