@@ -14,6 +14,7 @@ from fastapi import FastAPI
 {% if spec.has("cors") %}
 from fastapi.middleware.cors import CORSMiddleware
 {% endif %}
+from fastapi.middleware.gzip import GZipMiddleware
 {% if spec.has("static-templates") %}
 from fastapi.staticfiles import StaticFiles
 {% endif %}
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.add_middleware(SlowAPIMiddleware)
 {% endif %}
     app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     install_error_handlers(app)
     app.include_router(api_router)
 {% if spec.has("graphql") %}

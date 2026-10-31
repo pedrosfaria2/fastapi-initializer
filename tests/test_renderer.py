@@ -1104,6 +1104,15 @@ def test_graphql_is_absent_by_default() -> None:
     assert "## GraphQL" not in files["README.md"]
 
 
+def test_generated_app_compresses_large_responses() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    main = files["src/my_service/main.py"]
+    assert "from fastapi.middleware.gzip import GZipMiddleware" in main
+    assert "app.add_middleware(GZipMiddleware, minimum_size=1024)" in main
+    assert "content-encoding" in files["tests/test_health.py"]
+
+
 def test_preview_lists_rendered_files() -> None:
     preview = build_preview(ProjectSpec(name="my-service"))
 

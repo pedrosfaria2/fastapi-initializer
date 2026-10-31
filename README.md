@@ -15,7 +15,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   sizes, and an empty-file marker.
 - Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
-  request IDs, logging, error handlers, and tests.
+  request IDs, gzip compression, logging, error handlers, and tests.
 - Optional SQLAlchemy CRUD, Alembic, PostgreSQL, JWT authentication, CORS,
   Docker/Compose, GitHub Actions, pre-commit, and coverage.
 - Local CLI: `fastapi-initializr new`, `list`, `metadata`, and `--lock`.

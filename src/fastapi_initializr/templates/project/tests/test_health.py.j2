@@ -21,6 +21,13 @@ def test_request_id_header(client: TestClient) -> None:
     response = client.get("/health")
 
     assert response.headers["x-request-id"]
+
+
+def test_large_responses_are_gzipped(client: TestClient) -> None:
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    assert response.headers["content-encoding"] == "gzip"
 {% if spec.has("cors") %}
 
 
