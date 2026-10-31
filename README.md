@@ -161,6 +161,27 @@ If the project includes a database, copy `.env.example` to `.env` and adjust
 uv run alembic upgrade head
 ```
 
+## CLI
+
+Generate a project directory without the web server:
+
+```sh
+uv run fastapi-initializr new my-service \
+  --dependency sqlalchemy \
+  --dependency alembic \
+  --output .
+```
+
+Useful commands:
+
+```sh
+uv run fastapi-initializr list
+uv run fastapi-initializr metadata
+uv run fastapi-initializr new my-service --force
+```
+
+The CLI uses the same validation and templates as the API.
+
 ## Development
 
 ```sh
