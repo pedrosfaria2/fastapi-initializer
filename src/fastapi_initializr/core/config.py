@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     app_name: str = "FastAPI Initializr"
     environment: str = "development"
+    plugin_dir: str = ""
     max_generated_files: int = 200
     max_zip_bytes: int = 5_000_000
 

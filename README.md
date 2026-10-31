@@ -19,7 +19,9 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   request IDs, gzip compression, logging, error handlers, and tests.
 - Optional SQLAlchemy CRUD, Alembic, PostgreSQL, JWT authentication, CORS,
   Docker/Compose, GitHub Actions, pre-commit, and coverage.
-- Local CLI: `fastapi-initializr new`, `list`, `metadata`, and `--lock`.
+- Local CLI: `fastapi-initializr new`, `update`, `list`, `metadata`,
+  `completion`, `--lock`, `--dry-run`, `--json`, and `--preset`.
+- Local JSON plugins can add catalog features without changing the generator.
 - Generated projects pass Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
   generated code.
@@ -139,6 +141,38 @@ A preset is a named dependency selection. Combine it with individual
 ```sh
 curl -OJ 'http://127.0.0.1:8000/starter.zip?name=my-service&preset=db-auth'
 ```
+
+## Plugins
+
+A plugin directory adds local features without changing the generator. Point the
+server at it with `FASTAPI_INITIALIZR_PLUGIN_DIR=./plugins`, or pass
+`--plugin-dir ./plugins` to `new` and `update`.
+
+Each `*.json` file defines one feature:
+
+```json
+{
+  "id": "custom-feature",
+  "name": "Custom feature",
+  "description": "Adds a custom module and dependency.",
+  "group": "Custom",
+  "packages": ["example-lib>=1.0"],
+  "devPackages": [],
+  "requires": [],
+  "conflicts": [],
+  "files": [
+    {
+      "path": "src/{{ spec.package }}/custom.py",
+      "template": "FEATURE = \"{{ spec.name }}\"\n"
+    }
+  ]
+}
+```
+
+Plugin files render with the same Jinja context as built-in templates. Generated
+Python and TOML are validated before an archive is returned. Plugin directories
+are trusted local input and are never fetched from the network; the plugin id
+must not collide with the built-in catalog.
 
 ## Options
 

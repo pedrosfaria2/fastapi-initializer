@@ -25,6 +25,7 @@ from fastapi_initializr.generation.constants import (
     SUPPORTED_FASTAPI_VERSIONS,
     SUPPORTED_PYTHON_VERSIONS,
 )
+from fastapi_initializr.generation.plugins import install_plugins
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
 from fastapi_initializr.generation.update import UpdateError, apply_update, plan_update
@@ -111,6 +112,13 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
         dest="list_dependencies",
         help="List dependency ids and exit.",
     )
+    parser.add_argument(
+        "--plugin-dir",
+        type=Path,
+        default=None,
+        dest="plugin_dir",
+        help="Directory of local JSON plugin features.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -139,6 +147,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="Overwrite files that changed since generation.",
+    )
+    update_parser.add_argument(
+        "--plugin-dir",
+        type=Path,
+        default=None,
+        dest="plugin_dir",
+        help="Directory of local JSON plugin features.",
     )
 
     list_parser = subparsers.add_parser("list", help="List dependency ids and groups.")
@@ -180,12 +195,26 @@ def _list_dependencies(as_json: bool) -> int:
     return 0
 
 
+def _install_plugin_dir(directory: Path | None) -> int | None:
+    if directory is None:
+        return None
+    try:
+        install_plugins(directory)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return None
+
+
 def _new(args: argparse.Namespace) -> int:
     if args.list_dependencies:
         return _list_dependencies(args.as_json)
     if args.name is None:
         print("A project name is required.", file=sys.stderr)
         return 2
+    plugin_error = _install_plugin_dir(args.plugin_dir)
+    if plugin_error is not None:
+        return plugin_error
     try:
         spec = ProjectSpec(
             name=args.name,
@@ -268,6 +297,9 @@ def _new(args: argparse.Namespace) -> int:
 
 
 def _update(args: argparse.Namespace) -> int:
+    plugin_error = _install_plugin_dir(args.plugin_dir)
+    if plugin_error is not None:
+        return plugin_error
     try:
         plan = plan_update(args.project)
     except UpdateError as exc:

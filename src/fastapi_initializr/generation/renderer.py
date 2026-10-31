@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from fastapi_initializr.generation.catalog import resolve_packages
+from fastapi_initializr.generation.catalog import plugin_files, resolve_packages
 from fastapi_initializr.generation.constants import core_packages
 from fastapi_initializr.generation.manifest import MANIFEST_NAME, render_manifest
 from fastapi_initializr.generation.spec import ProjectSpec
@@ -30,6 +30,14 @@ _PATH_ENVIRONMENT = Environment(
     undefined=StrictUndefined,
     autoescape=False,  # noqa: S701 - renders relative paths only
     keep_trailing_newline=True,
+)
+
+_INLINE_ENVIRONMENT = Environment(
+    undefined=StrictUndefined,
+    autoescape=False,  # noqa: S701 - plugin code templates, never HTML
+    keep_trailing_newline=True,
+    trim_blocks=True,
+    lstrip_blocks=True,
 )
 
 
@@ -514,6 +522,16 @@ def render_project(spec: ProjectSpec) -> dict[str, str]:
             content,
             allow_template_markers=file_spec.runtime_template,
         )
+        rendered[output] = content
+    for plugin_file in plugin_files():
+        if not spec.has(plugin_file.feature_id):
+            continue
+        output = _PATH_ENVIRONMENT.from_string(plugin_file.path).render(context)
+        output = _validate_output_path(output)
+        if output in rendered:
+            raise ValueError(f"Duplicate output path: {output}")
+        content = _INLINE_ENVIRONMENT.from_string(plugin_file.template).render(context)
+        _validate_content(output, content)
         rendered[output] = content
     rendered[MANIFEST_NAME] = render_manifest(spec, rendered)
     return dict(sorted(rendered.items()))

@@ -43,6 +43,7 @@ class Dependency:
     guide_title: str | None = None
     reference: str | None = None
     home: str | None = None
+    plugin: bool = False
 
 
 DEPENDENCIES: dict[str, Dependency] = {
@@ -483,6 +484,49 @@ GROUP_ORDER: tuple[str, ...] = (
 
 
 @dataclass(frozen=True, slots=True)
+class PluginFile:
+    """An inline template contributed by a plugin feature."""
+
+    feature_id: str
+    path: str
+    template: str
+
+
+_PLUGIN_FILES: list[PluginFile] = []
+
+
+def register_plugin(dependency: Dependency, files: tuple[PluginFile, ...]) -> None:
+    """Register a validated third-party feature in the active catalog."""
+    if dependency.id in DEPENDENCIES:
+        raise ValueError(f"Dependency id '{dependency.id}' already exists.")
+    if any(file.feature_id != dependency.id for file in files):
+        raise ValueError("Plugin files must belong to their feature.")
+    DEPENDENCIES[dependency.id] = dependency
+    _PLUGIN_FILES.extend(files)
+
+
+def plugin_files() -> tuple[PluginFile, ...]:
+    """Return the registered plugin templates."""
+    return tuple(_PLUGIN_FILES)
+
+
+def clear_plugins() -> None:
+    """Remove every registered plugin feature."""
+    for dependency in [item for item in DEPENDENCIES.values() if item.plugin]:
+        del DEPENDENCIES[dependency.id]
+    _PLUGIN_FILES.clear()
+
+
+def plugin_group_names() -> tuple[str, ...]:
+    """Return plugin groups in registration order."""
+    names: list[str] = []
+    for dependency in DEPENDENCIES.values():
+        if dependency.group not in GROUP_ORDER and dependency.group not in names:
+            names.append(dependency.group)
+    return tuple(names)
+
+
+@dataclass(frozen=True, slots=True)
 class Preset:
     """A named dependency selection."""
 
@@ -551,7 +595,7 @@ def _dependency_links(dependency: Dependency) -> dict[str, Link]:
 def metadata() -> Metadata:
     """Return the option catalog used by the API and UI."""
     groups: list[DependencyGroup] = []
-    for group_name in GROUP_ORDER:
+    for group_name in (*GROUP_ORDER, *plugin_group_names()):
         values = [
             DependencyValue(
                 id=dependency.id,
