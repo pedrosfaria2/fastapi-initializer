@@ -178,6 +178,6 @@ src/fastapi_initializr/
 
 ## Status
 
-MVP. The generator is stateless and intended to run locally or behind a trusted
-reverse proxy. Add rate limiting and deployment hardening before exposing it
-publicly.
+Local-first MVP. The generator is stateless and intended to run on your machine
+or a trusted local network. Public deployment is not a goal. If you expose it
+beyond localhost, add rate limiting and hardening first.
