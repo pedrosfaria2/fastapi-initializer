@@ -22,9 +22,11 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 ## UI layout
 
-The workspace uses a wide form/preview split. The file tree is a narrow sidebar
-and the code pane takes the remaining width. Long file lines scroll horizontally
-without wrapping, and the panels stack on narrow screens.
+The project form and generation actions occupy the first row. The Generate
+panel scrolls with the form and cannot overlap Explore. Explore is a full-width
+panel below, with its own scrollable file tree and code pane. The code pane takes
+the remaining width, long lines scroll horizontally without wrapping, and the
+panels stack on narrow screens.
 
 ## Quick start
 

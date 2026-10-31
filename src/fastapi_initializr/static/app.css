@@ -285,7 +285,22 @@ a {
   display: grid;
   align-items: start;
   gap: 1.1rem;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+}
+
+.settings-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.sidebar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.preview-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .panel {
@@ -620,8 +635,7 @@ select:focus-visible {
 }
 
 .sidebar {
-  position: sticky;
-  top: 1rem;
+  position: static;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -719,6 +733,7 @@ select:focus-visible {
   display: flex;
   min-width: 0;
   min-height: 36rem;
+  height: min(78vh, 52rem);
   flex-direction: column;
   overflow: hidden;
 }
@@ -756,17 +771,22 @@ select:focus-visible {
 .preview-body {
   display: grid;
   min-height: 0;
-  max-height: 72vh;
   flex: 1;
-  grid-template-columns: minmax(8.5rem, 11rem) minmax(0, 1fr);
+  overflow: hidden;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
 }
 
 .file-tree {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   padding: 0.6rem;
   border-right: 1px solid var(--border);
   background: var(--surface-muted);
   overflow: auto;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .tree-empty {
@@ -831,6 +851,7 @@ select:focus-visible {
   display: flex;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   flex-direction: column;
 }
 
@@ -874,7 +895,7 @@ select:focus-visible {
 
 .file-content {
   min-width: 0;
-  min-height: 18rem;
+  min-height: 0;
   flex: 1;
   margin: 0;
   padding: 1rem 1.1rem;
@@ -885,9 +906,30 @@ select:focus-visible {
   line-height: 1.6;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-color: var(--border-strong) transparent;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
   tab-size: 2;
   white-space: pre;
+}
+
+.file-tree::-webkit-scrollbar,
+.file-content::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.file-tree::-webkit-scrollbar-track,
+.file-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-tree::-webkit-scrollbar-thumb,
+.file-content::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--border-strong);
+  background-clip: padding-box;
 }
 
 .site-footer {
@@ -901,11 +943,20 @@ select:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .settings-panel,
+  .sidebar,
+  .preview-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
   .sidebar {
     position: static;
-    display: grid;
-    align-items: start;
-    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+    display: block;
+  }
+
+  .action-panel {
+    max-width: 40rem;
   }
 
   .preview-panel {
@@ -918,8 +969,14 @@ select:focus-visible {
     display: flex;
   }
 
+  .preview-panel {
+    height: auto;
+  }
+
   .preview-body {
+    height: auto;
     max-height: none;
+    overflow: visible;
     grid-template-columns: 1fr;
     grid-template-rows: minmax(6rem, 12rem) minmax(18rem, 1fr);
   }
