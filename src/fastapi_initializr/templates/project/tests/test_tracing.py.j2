@@ -1,0 +1,19 @@
+"""OpenTelemetry tracing stays disabled without an exporter endpoint."""
+
+from fastapi.testclient import TestClient
+
+from {{ spec.package }}.core.config import Settings
+from {{ spec.package }}.core.tracing import configure_tracing
+from {{ spec.package }}.main import create_app
+
+
+def test_tracing_is_a_no_op_without_endpoint() -> None:
+    app = create_app()
+
+    configure_tracing(app, Settings(otel_exporter_otlp_endpoint=""))
+
+
+def test_app_starts_without_otlp_endpoint(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200

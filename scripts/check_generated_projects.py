@@ -27,6 +27,14 @@ CASES: dict[str, ProjectSpec] = {
         name="email-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt", "email"}),
     ),
+    "oauth": ProjectSpec(
+        name="oauth-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "oauth2"}),
+    ),
+    "otel": ProjectSpec(
+        name="otel-service",
+        dependencies=frozenset({"sqlalchemy", "redis", "opentelemetry"}),
+    ),
     "web": ProjectSpec(
         name="web-service",
         dependencies=frozenset(
@@ -67,11 +75,13 @@ CASES: dict[str, ProjectSpec] = {
                 "cors",
                 "auth-jwt",
                 "email",
+                "oauth2",
                 "redis",
                 "cache",
                 "arq",
                 "sentry",
                 "prometheus",
+                "opentelemetry",
                 "static-templates",
                 "websockets",
                 "rate-limit",

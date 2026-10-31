@@ -14,7 +14,7 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %}
 
 Copy the example environment file and adjust it for your machine:
 
@@ -152,6 +152,33 @@ Configure SMTP with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
 `SMTP_FROM`, and `SMTP_STARTTLS`. The values in `.env.example` are local
 placeholders; replace them before deploying. Set `EMAIL_BACKEND=smtp` to use
 the SMTP backend.
+{% endif %}
+{% if spec.has("oauth2") %}
+
+## OAuth2 and OIDC login
+
+Social login uses Authlib with Google (OIDC discovery) and GitHub. Register the
+callback URL `OAUTH_REDIRECT_BASE_URL/auth/oauth/<provider>/callback` with each
+provider, then set the matching client id and secret.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/auth/oauth/{provider}/login` | Redirect to Google or GitHub. |
+| `GET` | `/auth/oauth/{provider}/callback` | Exchange the provider callback for a bearer token. |
+
+Supported providers are `google` and `github`; any other value returns `400`.
+OAuth accounts are linked by verified email address. A new local account gets
+an unusable random password, so social-only accounts cannot use the password
+login form until a password is set separately.
+
+```sh
+curl -L "http://127.0.0.1:8000/auth/oauth/google/login"
+```
+
+Configure `OAUTH_REDIRECT_BASE_URL` (default `http://localhost:8000`),
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, and
+`GITHUB_CLIENT_SECRET`. The application stores OAuth state in a signed session
+cookie using `SECRET_KEY`, so keep that value stable across restarts.
 {% endif %}
 {% if spec.has_database %}
 
@@ -316,6 +343,20 @@ Prometheus instrumentation is enabled in `main.py`. Scrape metrics from:
 curl "http://127.0.0.1:8000/metrics"
 ```
 {% endif %}
+{% if spec.has("opentelemetry") %}
+
+## Tracing
+
+OpenTelemetry runs at startup when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Leave
+it empty to disable tracing without contacting an exporter. `OTEL_SERVICE_NAME`
+and `OTEL_ENVIRONMENT` label the exported spans. FastAPI requests are
+instrumented, and SQLAlchemy and Redis calls are instrumented when those
+features are selected.
+
+```sh
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces uv run fastapi dev src/{{ spec.package }}/main.py
+```
+{% endif %}
 
 ## Test
 
@@ -398,7 +439,7 @@ Build and run the container:
 
 ```sh
 docker build -t {{ spec.name }} .
-docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %} --env-file .env{% endif %} {{ spec.name }}
+docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %} --env-file .env{% endif %} {{ spec.name }}
 ```
 {% endif %}
 {% if spec.has("alembic") %}
@@ -426,7 +467,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── README.md
 ├── .gitignore
 ├── .python-version
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") %}
 ├── .env.example
 {% endif %}
 {% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
@@ -498,6 +539,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("rate-limit") %}
 │   │       ├── limited.py
 {% endif %}
+{% if spec.has("oauth2") %}
+│   │       ├── oauth.py
+{% endif %}
 {% if spec.has("static-templates") %}
 │   │       ├── pages.py
 {% endif %}
@@ -522,8 +566,14 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("sentry") %}
 │   │   ├── observability.py
 {% endif %}
+{% if spec.has("oauth2") %}
+│   │   ├── oauth.py
+{% endif %}
 {% if spec.has("rate-limit") %}
 │   │   ├── rate_limit.py
+{% endif %}
+{% if spec.has("opentelemetry") %}
+│   │   ├── tracing.py
 {% endif %}
 {% if spec.has("email") %}
 │   │   ├── email.py
@@ -574,6 +624,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("email") %}
 │       ├── auth_email.py
 {% endif %}
+{% if spec.has("oauth2") %}
+│       ├── oauth.py
+{% endif %}
 {% if spec.has("auth-jwt") %}
 │       └── auth.py
 {% endif %}
@@ -587,6 +640,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("email") %}
     ├── test_email_auth.py
+{% endif %}
+{% if spec.has("oauth2") %}
+    ├── test_oauth.py
+{% endif %}
+{% if spec.has("opentelemetry") %}
+    ├── test_tracing.py
 {% endif %}
 {% if spec.has("redis") %}
     ├── test_cache.py

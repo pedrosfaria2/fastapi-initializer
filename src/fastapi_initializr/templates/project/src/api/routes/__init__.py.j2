@@ -16,6 +16,9 @@ from {{ spec.package }}.api.routes import (
 {% if spec.has("rate-limit") %}
     limited,
 {% endif %}
+{% if spec.has("oauth2") %}
+    oauth,
+{% endif %}
 {% if spec.has("static-templates") %}
     pages,
 {% endif %}
@@ -40,6 +43,9 @@ api_router.include_router(auth_email.router)
 {% endif %}
 {% if spec.has("rate-limit") %}
 api_router.include_router(limited.router)
+{% endif %}
+{% if spec.has("oauth2") %}
+api_router.include_router(oauth.router)
 {% endif %}
 {% if spec.has("static-templates") %}
 api_router.include_router(pages.router)

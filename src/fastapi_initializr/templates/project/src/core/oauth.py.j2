@@ -1,0 +1,120 @@
+"""OAuth2 and OIDC provider configuration."""
+
+from collections.abc import Callable, Mapping
+from importlib import import_module
+from typing import Protocol, cast
+
+from fastapi import HTTPException, status
+from starlette.requests import Request
+from starlette.responses import Response
+
+from {{ spec.package }}.core.config import get_settings
+
+PROVIDERS: frozenset[str] = frozenset({"google", "github"})
+GOOGLE_METADATA_URL = "https://accounts.google.com/.well-known/openid-configuration"
+GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
+GITHUB_OAUTH_ACCESS_URL = "https://github.com/login/oauth/access_token"
+GITHUB_API_BASE_URL = "https://api.github.com/"
+
+
+class _OAuthResponse(Protocol):
+    """A provider API response that exposes decoded JSON."""
+
+    async def json(self) -> object: ...
+
+
+class _AuthlibClient(Protocol):
+    """The Authlib client operations used by the adapter."""
+
+    async def authorize_redirect(self, request: Request, redirect_uri: str) -> Response: ...
+
+    async def authorize_access_token(self, request: Request) -> Mapping[str, object]: ...
+
+    async def get(self, path: str, *, token: Mapping[str, object]) -> _OAuthResponse: ...
+
+
+class _OAuthRegistry(Protocol):
+    """The Authlib registry operations used at startup."""
+
+    def register(self, name: str, **kwargs: object) -> None: ...
+
+    def create_client(self, name: str) -> _AuthlibClient | None: ...
+
+
+class OAuthClient(Protocol):
+    """The typed provider operations used by the OAuth routes."""
+
+    async def authorize_redirect(self, request: Request, redirect_uri: str) -> Response: ...
+
+    async def authorize_access_token(self, request: Request) -> Mapping[str, object]: ...
+
+    async def get_json(self, path: str, token: Mapping[str, object]) -> object: ...
+
+
+class AuthlibOAuthClient:
+    """Adapt an Authlib client to the typed provider interface."""
+
+    def __init__(self, client: _AuthlibClient) -> None:
+        self._client = client
+
+    async def authorize_redirect(self, request: Request, redirect_uri: str) -> Response:
+        """Redirect the browser to the provider authorization page."""
+        return await self._client.authorize_redirect(request, redirect_uri)
+
+    async def authorize_access_token(self, request: Request) -> Mapping[str, object]:
+        """Exchange the callback request for an access token."""
+        return await self._client.authorize_access_token(request)
+
+    async def get_json(self, path: str, token: Mapping[str, object]) -> object:
+        """Call a provider API path and decode its JSON response."""
+        response = await self._client.get(path, token=token)
+        return await response.json()
+
+
+def _oauth_factory() -> Callable[[], _OAuthRegistry]:
+    # Authlib does not ship type information; the adapter above is the typed seam.
+    module = import_module("authlib.integrations.starlette_client")
+    return cast(Callable[[], _OAuthRegistry], module.OAuth)
+
+
+def _build_registry() -> _OAuthRegistry:
+    settings = get_settings()
+    registry = _oauth_factory()()
+    registry.register(
+        name="google",
+        client_id=settings.google_client_id,
+        client_secret=settings.google_client_secret,
+        server_metadata_url=GOOGLE_METADATA_URL,
+        client_kwargs={"scope": "openid email profile"},
+    )
+    registry.register(
+        name="github",
+        client_id=settings.github_client_id,
+        client_secret=settings.github_client_secret,
+        authorize_url=GITHUB_AUTHORIZE_URL,
+        access_token_url=GITHUB_OAUTH_ACCESS_URL,
+        api_base_url=GITHUB_API_BASE_URL,
+        client_kwargs={"scope": "user:email"},
+    )
+    return registry
+
+
+def ensure_supported_provider(provider: str) -> None:
+    """Reject providers outside the catalog with a 400 response."""
+    if provider not in PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unknown OAuth provider",
+        )
+
+
+def get_oauth_client(provider: str) -> OAuthClient:
+    """Return a configured client for a supported provider."""
+    ensure_supported_provider(provider)
+    client = _build_registry().create_client(provider)
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OAuth provider is not configured",
+        )
+    return AuthlibOAuthClient(client)

@@ -1,0 +1,77 @@
+"""OAuth account linking and provider profile helpers."""
+
+import secrets
+from collections.abc import Mapping
+from typing import cast
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from {{ spec.package }}.core.oauth import OAuthClient
+from {{ spec.package }}.core.security import hash_password
+from {{ spec.package }}.models.user import User
+from {{ spec.package }}.services.auth import get_user_by_email
+
+
+def _as_mapping(value: object) -> Mapping[str, object] | None:
+    if isinstance(value, Mapping):
+        return cast(Mapping[str, object], value)
+    return None
+
+
+def _email_from(value: object) -> str | None:
+    record = _as_mapping(value)
+    if record is None:
+        return None
+    email = record.get("email")
+    if isinstance(email, str) and email:
+        return email
+    return None
+
+
+def _primary_verified_email(value: object) -> str | None:
+    if not isinstance(value, list):
+        return None
+    for entry in cast(list[object], value):
+        record = _as_mapping(entry)
+        if record is None:
+            continue
+        if record.get("primary") is not True or record.get("verified") is not True:
+            continue
+        email = _email_from(record)
+        if email is not None:
+            return email
+    return None
+
+
+async def fetch_provider_email(
+    provider: str,
+    token: Mapping[str, object],
+    client: OAuthClient,
+) -> str | None:
+    """Return the verified email address reported by the provider."""
+    if provider == "google":
+        return _email_from(token.get("userinfo"))
+    if provider == "github":
+        email = _email_from(await client.get_json("user", token))
+        if email is not None:
+            return email
+        return _primary_verified_email(await client.get_json("user/emails", token))
+    return None
+
+
+async def get_or_create_oauth_user(session: AsyncSession, email: str) -> User:
+    """Return the user for an email, creating an unusable local password if needed."""
+    user = await get_user_by_email(session, email)
+    if user is not None:
+        return user
+    user = User(
+        email=email,
+        hashed_password=hash_password(secrets.token_urlsafe(32)),
+    )
+{% if spec.has("email") %}
+    user.is_verified = True
+{% endif %}
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user

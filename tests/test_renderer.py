@@ -364,6 +364,140 @@ def test_email_feature_is_absent_without_email() -> None:
     assert "auth_email" not in files["src/my_service/api/routes/__init__.py"]
 
 
+def test_oauth_feature_renders_provider_slice() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "oauth2"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/oauth.py" in files
+    assert "src/my_service/services/oauth.py" in files
+    assert "src/my_service/api/routes/oauth.py" in files
+    assert "tests/test_oauth.py" in files
+
+    routes = files["src/my_service/api/routes/__init__.py"]
+    assert "    oauth," in routes
+    assert "api_router.include_router(oauth.router)" in routes
+
+    oauth = files["src/my_service/core/oauth.py"]
+    assert "OAuthClient" in oauth
+    assert "authorize_redirect" in oauth
+    assert "server_metadata_url" in oauth
+    assert "api_base_url" in oauth
+    assert "get_oauth_client" in oauth
+
+    service = files["src/my_service/services/oauth.py"]
+    assert "fetch_provider_email" in service
+    assert "get_or_create_oauth_user" in service
+    assert "user/emails" in service
+
+    config = files["src/my_service/core/config.py"]
+    for setting in (
+        'oauth_redirect_base_url: str = "http://localhost:8000"',
+        'google_client_id: str = ""',
+        'google_client_secret: str = ""',
+        'github_client_id: str = ""',
+        'github_client_secret: str = ""',
+    ):
+        assert setting in config
+
+    env = files[".env.example"]
+    for setting in (
+        "OAUTH_REDIRECT_BASE_URL=http://localhost:8000",
+        "GOOGLE_CLIENT_ID=",
+        "GOOGLE_CLIENT_SECRET=",
+        "GITHUB_CLIENT_ID=",
+        "GITHUB_CLIENT_SECRET=",
+    ):
+        assert setting in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dependencies = data["project"]["dependencies"]
+    assert "authlib>=1.9.1" in dependencies
+    assert "itsdangerous>=2.2.0" in dependencies
+
+    readme = files["README.md"]
+    assert "## OAuth2 and OIDC login" in readme
+    assert "/auth/oauth/{provider}/login" in readme
+    assert "/auth/oauth/{provider}/callback" in readme
+    assert "OAUTH_REDIRECT_BASE_URL" in readme
+
+
+def test_oauth_feature_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/core/oauth.py" not in files
+    assert "src/my_service/services/oauth.py" not in files
+    assert "src/my_service/api/routes/oauth.py" not in files
+    assert "tests/test_oauth.py" not in files
+    assert "oauth" not in files["src/my_service/api/routes/__init__.py"]
+
+
+def test_opentelemetry_feature_renders_tracing_slice() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "redis", "opentelemetry"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/tracing.py" in files
+    assert "tests/test_tracing.py" in files
+
+    tracing = files["src/my_service/core/tracing.py"]
+    assert "def configure_tracing(" in tracing
+    assert "TracerProvider" in tracing
+    assert "OTLPSpanExporter" in tracing
+    assert "FastAPIInstrumentor" in tracing
+    assert "SQLAlchemyInstrumentor" in tracing
+    assert "RedisInstrumentor" in tracing
+
+    main = files["src/my_service/main.py"]
+    assert "from my_service.core.tracing import configure_tracing" in main
+    assert "configure_tracing(app, settings)" in main
+
+    config = files["src/my_service/core/config.py"]
+    for setting in (
+        'otel_exporter_otlp_endpoint: str = ""',
+        'otel_service_name: str = "my-service"',
+        'otel_environment: str = "development"',
+    ):
+        assert setting in config
+
+    env = files[".env.example"]
+    for setting in (
+        "OTEL_EXPORTER_OTLP_ENDPOINT=",
+        "OTEL_SERVICE_NAME=my-service",
+        "OTEL_ENVIRONMENT=development",
+    ):
+        assert setting in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dependencies = data["project"]["dependencies"]
+    for package in (
+        "opentelemetry-sdk>=1.45.2",
+        "opentelemetry-exporter-otlp>=1.45.2",
+        "opentelemetry-instrumentation-fastapi>=0.66b2",
+        "opentelemetry-instrumentation-sqlalchemy>=0.66b2",
+        "opentelemetry-instrumentation-redis>=0.66b2",
+    ):
+        assert package in dependencies
+
+    readme = files["README.md"]
+    assert "## Tracing" in readme
+    assert "OTEL_EXPORTER_OTLP_ENDPOINT" in readme
+
+
+def test_opentelemetry_feature_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/core/tracing.py" not in files
+    assert "tests/test_tracing.py" not in files
+    assert "configure_tracing" not in files["src/my_service/main.py"]
+
+
 def test_pyproject_parses_and_contains_selected_packages() -> None:
     spec = ProjectSpec(
         name="my-service",
@@ -400,11 +534,13 @@ def test_generated_python_parses() -> None:
                 "cors",
                 "auth-jwt",
                 "email",
+                "oauth2",
                 "redis",
                 "cache",
                 "arq",
                 "sentry",
                 "prometheus",
+                "opentelemetry",
                 "static-templates",
                 "websockets",
                 "rate-limit",
@@ -433,9 +569,12 @@ def test_no_unresolved_template_markers() -> None:
                 "sqlalchemy",
                 "alembic",
                 "postgres",
+                "auth-jwt",
+                "oauth2",
                 "redis",
                 "sentry",
                 "prometheus",
+                "opentelemetry",
                 "static-templates",
                 "websockets",
                 "rate-limit",

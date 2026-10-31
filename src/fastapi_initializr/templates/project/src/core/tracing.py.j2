@@ -1,0 +1,43 @@
+"""OpenTelemetry tracing setup."""
+
+from fastapi import FastAPI
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+{% if spec.has("redis") %}
+from opentelemetry.instrumentation.redis import RedisInstrumentor
+{% endif %}
+{% if spec.has("sqlalchemy") %}
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+{% endif %}
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from {{ spec.package }}.core.config import Settings
+
+
+def configure_tracing(app: FastAPI, settings: Settings) -> None:
+    """Configure OTLP trace export when an exporter endpoint is set."""
+    if not settings.otel_exporter_otlp_endpoint:
+        return
+    provider = TracerProvider(
+        resource=Resource.create(
+            {
+                "service.name": settings.otel_service_name,
+                "deployment.environment": settings.otel_environment,
+            }
+        )
+    )
+    provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint))
+    )
+    trace.set_tracer_provider(provider)
+    FastAPIInstrumentor.instrument_app(app)
+{% if spec.has("sqlalchemy") %}
+    SQLAlchemyInstrumentor().instrument()
+{% endif %}
+{% if spec.has("redis") %}
+    # The Redis instrumentor publishes untyped **kwargs, so its return type is partial.
+    RedisInstrumentor().instrument()  # pyright: ignore[reportUnknownMemberType]
+{% endif %}

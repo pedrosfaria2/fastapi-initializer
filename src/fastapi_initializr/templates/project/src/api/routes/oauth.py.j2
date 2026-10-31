@@ -1,0 +1,56 @@
+"""OAuth2 and OIDC login endpoints."""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from starlette.responses import Response
+
+from {{ spec.package }}.api.dependencies import SessionDep
+from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.core.oauth import (
+    OAuthClient,
+    ensure_supported_provider,
+    get_oauth_client,
+)
+from {{ spec.package }}.schemas.user import Token
+from {{ spec.package }}.services.auth import issue_access_token
+from {{ spec.package }}.services.oauth import (
+    fetch_provider_email,
+    get_or_create_oauth_user,
+)
+
+router = APIRouter(prefix="/auth/oauth", tags=["oauth"])
+
+OAuthClientDep = Annotated[OAuthClient, Depends(get_oauth_client)]
+
+
+def _callback_url(provider: str) -> str:
+    base_url = get_settings().oauth_redirect_base_url.rstrip("/")
+    return f"{base_url}/auth/oauth/{provider}/callback"
+
+
+@router.get("/{provider}/login")
+async def login(provider: str, request: Request, client: OAuthClientDep) -> Response:
+    """Redirect the browser to the provider authorization page."""
+    ensure_supported_provider(provider)
+    return await client.authorize_redirect(request, _callback_url(provider))
+
+
+@router.get("/{provider}/callback", response_model=Token)
+async def callback(
+    provider: str,
+    request: Request,
+    session: SessionDep,
+    client: OAuthClientDep,
+) -> Token:
+    """Exchange a provider callback for a local access token."""
+    ensure_supported_provider(provider)
+    token = await client.authorize_access_token(request)
+    email = await fetch_provider_email(provider, token, client)
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider did not return a verified email address",
+        )
+    user = await get_or_create_oauth_user(session, email)
+    return Token(access_token=issue_access_token(user))

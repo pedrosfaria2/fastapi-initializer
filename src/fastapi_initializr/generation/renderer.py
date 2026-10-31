@@ -60,6 +60,8 @@ def _needs_env(spec: ProjectSpec) -> bool:
         or spec.has("sentry")
         or spec.has("email")
         or spec.has("uploads")
+        or spec.has("oauth2")
+        or spec.has("opentelemetry")
     )
 
 
@@ -126,6 +128,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/api/routes/oauth.py.j2",
+        "src/{{ spec.package }}/api/routes/oauth.py",
+        _has("oauth2"),
+    ),
+    FileSpec(
         "src/api/routes/auth_email.py.j2",
         "src/{{ spec.package }}/api/routes/auth_email.py",
         _has("email"),
@@ -171,9 +178,19 @@ FILES: tuple[FileSpec, ...] = (
         _has("sentry"),
     ),
     FileSpec(
+        "src/core/oauth.py.j2",
+        "src/{{ spec.package }}/core/oauth.py",
+        _has("oauth2"),
+    ),
+    FileSpec(
         "src/core/rate_limit.py.j2",
         "src/{{ spec.package }}/core/rate_limit.py",
         _has("rate-limit"),
+    ),
+    FileSpec(
+        "src/core/tracing.py.j2",
+        "src/{{ spec.package }}/core/tracing.py",
+        _has("opentelemetry"),
     ),
     FileSpec(
         "src/core/security.py.j2",
@@ -254,6 +271,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/services/oauth.py.j2",
+        "src/{{ spec.package }}/services/oauth.py",
+        _has("oauth2"),
+    ),
+    FileSpec(
         "src/services/auth_email.py.j2",
         "src/{{ spec.package }}/services/auth_email.py",
         _has("email"),
@@ -300,6 +322,8 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),
     FileSpec("tests/test_email_auth.py.j2", "tests/test_email_auth.py", _has("email")),
+    FileSpec("tests/test_oauth.py.j2", "tests/test_oauth.py", _has("oauth2")),
+    FileSpec("tests/test_tracing.py.j2", "tests/test_tracing.py", _has("opentelemetry")),
     FileSpec("tests/test_cache.py.j2", "tests/test_cache.py", _has("redis")),
     FileSpec(
         "tests/test_cache_helpers.py.j2",
