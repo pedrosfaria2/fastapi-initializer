@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from fastapi_initializr import __version__
 from fastapi_initializr.api.routes import api_router
+from fastapi_initializr.generation.catalog import metadata
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -26,7 +27,11 @@ def create_app() -> FastAPI:
 
     @app.get("/", response_class=Response, include_in_schema=False)
     def index(request: Request) -> Response:
-        return templates.TemplateResponse(request=request, name="index.html")
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={"metadata": metadata()},
+        )
 
     return app
 
