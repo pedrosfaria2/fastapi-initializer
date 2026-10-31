@@ -8,6 +8,19 @@ def test_health(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_ready(client: TestClient) -> None:
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
+def test_request_id_header(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.headers["x-request-id"]
 {% if spec.has("cors") %}
 
 

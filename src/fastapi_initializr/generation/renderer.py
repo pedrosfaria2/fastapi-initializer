@@ -102,6 +102,9 @@ FILES: tuple[FileSpec, ...] = (
     ),
     FileSpec("src/core/__init__.py.j2", "src/{{ spec.package }}/core/__init__.py"),
     FileSpec("src/core/config.py.j2", "src/{{ spec.package }}/core/config.py"),
+    FileSpec("src/core/errors.py.j2", "src/{{ spec.package }}/core/errors.py"),
+    FileSpec("src/core/logging.py.j2", "src/{{ spec.package }}/core/logging.py"),
+    FileSpec("src/core/middleware.py.j2", "src/{{ spec.package }}/core/middleware.py"),
     FileSpec(
         "src/db/__init__.py.j2",
         "src/{{ spec.package }}/db/__init__.py",

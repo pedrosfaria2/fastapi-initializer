@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     app_name: str = "{{ app_title }}"
     environment: str = "development"
+    log_level: str = "INFO"
 {% if spec.has_database %}
     database_url: str = "{{ spec.database_url }}"
 {% endif %}

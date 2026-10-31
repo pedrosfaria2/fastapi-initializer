@@ -16,6 +16,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from {{ spec.package }} import __version__
 from {{ spec.package }}.api.routes import api_router
 from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.core.errors import install_error_handlers
+from {{ spec.package }}.core.logging import configure_logging
+from {{ spec.package }}.core.middleware import RequestIdMiddleware
 {% if spec.has_database %}
 from {{ spec.package }}.db.session import SessionFactory
 {% endif %}
@@ -39,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 def create_app() -> FastAPI:
     """Build the FastAPI application."""
     settings = get_settings()
+    configure_logging(settings.log_level)
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
@@ -55,6 +59,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 {% endif %}
+    app.add_middleware(RequestIdMiddleware)
+    install_error_handlers(app)
     app.include_router(api_router)
     return app
 
