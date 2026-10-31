@@ -1,0 +1,31 @@
+"""Integration test fixtures backed by Testcontainers."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+
+import pytest
+from testcontainers.community.postgres import PostgresContainer
+from testcontainers.community.redis import RedisContainer
+
+RUN_INTEGRATION = os.environ.get("RUN_INTEGRATION") == "1"
+SKIP_REASON = "Set RUN_INTEGRATION=1 to run Docker-backed integration tests."
+
+
+@pytest.fixture(scope="session")
+def postgres_container() -> Iterator[PostgresContainer]:
+    """Start a PostgreSQL container for integration tests."""
+    if not RUN_INTEGRATION:
+        pytest.skip(SKIP_REASON)
+    with PostgresContainer("postgres:17") as container:
+        yield container
+
+
+@pytest.fixture(scope="session")
+def redis_container() -> Iterator[RedisContainer]:
+    """Start a Redis container for integration tests."""
+    if not RUN_INTEGRATION:
+        pytest.skip(SKIP_REASON)
+    with RedisContainer("redis:7-alpine") as container:
+        yield container

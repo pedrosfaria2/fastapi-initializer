@@ -1,0 +1,42 @@
+"""S3 storage backend contract."""
+
+import asyncio
+from collections.abc import Iterator
+
+import boto3
+import pytest
+from moto import mock_aws
+
+from {{ spec.package }}.core.config import Settings
+from {{ spec.package }}.core.storage_s3 import S3Storage
+
+BUCKET = "test-bucket"
+
+
+@pytest.fixture
+def s3_storage(monkeypatch: pytest.MonkeyPatch) -> Iterator[S3Storage]:
+    """Create an in-memory bucket and a backend pointed at it."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    with mock_aws():
+        client = boto3.client(  # pyright: ignore[reportUnknownMemberType]
+            "s3",
+            region_name="us-east-1",
+        )
+        client.create_bucket(Bucket=BUCKET)
+        settings = Settings(
+            storage_backend="s3",
+            s3_bucket=BUCKET,
+            s3_region="us-east-1",
+        )
+        yield S3Storage(settings)
+
+
+def test_s3_storage_round_trip(s3_storage: S3Storage) -> None:
+    asyncio.run(s3_storage.save("key.txt", b"payload"))
+
+    assert asyncio.run(s3_storage.read("key.txt")) == b"payload"
+
+    asyncio.run(s3_storage.delete("key.txt"))
+
+    assert asyncio.run(s3_storage.read("key.txt")) is None

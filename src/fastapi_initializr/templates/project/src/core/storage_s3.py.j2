@@ -1,0 +1,58 @@
+"""S3-compatible storage backend."""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any, cast
+
+import boto3
+from botocore.exceptions import ClientError
+
+from {{ spec.package }}.core.config import Settings
+
+
+class S3Storage:
+    """Store uploaded files in an S3-compatible bucket."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._bucket = settings.s3_bucket
+        self._client: Any = boto3.client(  # pyright: ignore[reportUnknownMemberType]
+            "s3",
+            endpoint_url=settings.s3_endpoint_url or None,
+            region_name=settings.s3_region,
+            aws_access_key_id=settings.s3_access_key_id or None,
+            aws_secret_access_key=settings.s3_secret_access_key or None,
+        )
+
+    async def save(self, key: str, data: bytes) -> None:
+        """Upload bytes under a key."""
+        await asyncio.to_thread(
+            self._client.put_object,
+            Bucket=self._bucket,
+            Key=key,
+            Body=data,
+        )
+
+    async def read(self, key: str) -> bytes | None:
+        """Return stored bytes or ``None`` when the object is missing."""
+        try:
+            response = await asyncio.to_thread(
+                self._client.get_object,
+                Bucket=self._bucket,
+                Key=key,
+            )
+        except ClientError as error:
+            code = cast(dict[str, Any], error.response).get("Error", {}).get("Code")
+            if code in {"NoSuchKey", "404"}:
+                return None
+            raise
+        body = response["Body"]
+        return cast(bytes, await asyncio.to_thread(body.read))
+
+    async def delete(self, key: str) -> None:
+        """Delete an object."""
+        await asyncio.to_thread(
+            self._client.delete_object,
+            Bucket=self._bucket,
+            Key=key,
+        )

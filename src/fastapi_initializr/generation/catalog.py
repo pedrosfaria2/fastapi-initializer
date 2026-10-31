@@ -177,6 +177,20 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="SlowAPI documentation",
         reference="https://slowapi.readthedocs.io/en/latest/",
     ),
+    "uploads": Dependency(
+        id="uploads",
+        name="File uploads",
+        description="Local file storage and upload, download, and delete endpoints.",
+        group="Web",
+        files=(
+            "src/{package}/core/storage.py",
+            "src/{package}/api/routes/uploads.py",
+            "tests/test_uploads.py",
+        ),
+        guide="https://fastapi.tiangolo.com/tutorial/request-files/",
+        guide_title="FastAPI file uploads",
+        reference="https://fastapi.tiangolo.com/tutorial/request-files/",
+    ),
     "auth-jwt": Dependency(
         id="auth-jwt",
         name="JWT Authentication",
@@ -260,6 +274,22 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="Docker Compose",
         reference="https://docs.docker.com/compose/",
     ),
+    "s3": Dependency(
+        id="s3",
+        name="S3-compatible storage",
+        description="Store uploads in an S3-compatible bucket through boto3.",
+        group="Operations",
+        requires=("uploads",),
+        packages=("boto3>=1.43.123",),
+        dev_packages=("moto[s3]>=5.2.5",),
+        files=(
+            "src/{package}/core/storage_s3.py",
+            "tests/test_storage_s3.py",
+        ),
+        guide="https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3.html",
+        guide_title="boto3 S3 guide",
+        reference="https://boto3.amazonaws.com/v1/documentation/api/latest/index.html",
+    ),
     "makefile": Dependency(
         id="makefile",
         name="Makefile",
@@ -291,6 +321,23 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="pre-commit quick start",
         reference="https://pre-commit.com/",
     ),
+    "testcontainers": Dependency(
+        id="testcontainers",
+        name="Testcontainers integration tests",
+        description="Docker-backed PostgreSQL and Redis integration tests.",
+        group="Testing",
+        requires=("postgres", "redis"),
+        dev_packages=("testcontainers[postgres]>=4.15.0",),
+        files=(
+            "tests/integration/conftest.py",
+            "tests/integration/test_integration.py",
+            "scripts/run_integration.sh",
+            ".github/workflows/integration.yml",
+        ),
+        guide="https://testcontainers-python.readthedocs.io/en/latest/",
+        guide_title="Testcontainers for Python",
+        reference="https://testcontainers.com/",
+    ),
 }
 
 GROUP_ORDER: tuple[str, ...] = (
@@ -300,6 +347,7 @@ GROUP_ORDER: tuple[str, ...] = (
     "Security",
     "Observability",
     "Operations",
+    "Testing",
 )
 
 _GENERATION_PARAMS = (

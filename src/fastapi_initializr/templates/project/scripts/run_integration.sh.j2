@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+RUN_INTEGRATION=1 uv run pytest -m integration "$@"

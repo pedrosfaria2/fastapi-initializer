@@ -1,0 +1,26 @@
+"""Docker-backed integration checks."""
+
+from __future__ import annotations
+
+import pytest
+from redis import Redis
+from testcontainers.community.postgres import PostgresContainer
+from testcontainers.community.redis import RedisContainer
+
+pytestmark = pytest.mark.integration
+
+
+def test_postgres_connection_url(postgres_container: PostgresContainer) -> None:
+    url = postgres_container.get_connection_url()
+
+    assert url.startswith("postgresql")
+    assert "@" in url
+    assert url.rsplit("/", maxsplit=1)[-1]
+
+
+def test_redis_ping(redis_container: RedisContainer) -> None:
+    client = Redis.from_url(redis_container.get_connection_url())
+    try:
+        assert client.ping() is True
+    finally:
+        client.close()

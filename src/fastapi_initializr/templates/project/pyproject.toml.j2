@@ -63,6 +63,12 @@ files = ["src", "tests"]
 plugins = ["pydantic.mypy"]
 show_error_codes = true
 warn_unreachable = true
+{% if spec.has("s3") %}
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
+{% endif %}
 
 [tool.pyright]
 include = ["src", "tests"]
@@ -75,6 +81,7 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
+markers = ["integration"]
 
 [tool.coverage.run]
 branch = true

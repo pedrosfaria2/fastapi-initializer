@@ -413,6 +413,9 @@ def test_generated_python_parses() -> None:
                 "docker",
                 "ci",
                 "pre-commit",
+                "uploads",
+                "s3",
+                "testcontainers",
             }
         ),
     )
@@ -441,6 +444,9 @@ def test_no_unresolved_template_markers() -> None:
                 "makefile",
                 "ci",
                 "pre-commit",
+                "uploads",
+                "s3",
+                "testcontainers",
             }
         ),
     )
@@ -501,6 +507,157 @@ def test_python_version_changes_requires_python_and_ruff_target() -> None:
 
     assert data["project"]["requires-python"] == ">=3.11"
     assert data["tool"]["ruff"]["target-version"] == "py311"
+
+
+def test_uploads_feature_renders_storage_and_routes() -> None:
+    spec = ProjectSpec(name="my-service", dependencies=frozenset({"uploads"}))
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/storage.py" in files
+    assert "src/my_service/api/routes/uploads.py" in files
+    assert "tests/test_uploads.py" in files
+    assert ".env.example" in files
+
+    routes = files["src/my_service/api/routes/__init__.py"]
+    assert "    uploads," in routes
+    assert "api_router.include_router(uploads.router)" in routes
+
+    storage = files["src/my_service/core/storage.py"]
+    assert "class Storage(Protocol):" in storage
+    assert "class LocalStorage:" in storage
+    assert "def new_storage_key(filename: str) -> str:" in storage
+    assert "def get_storage(" in storage
+    assert "is_relative_to(root)" in storage
+
+    config = files["src/my_service/core/config.py"]
+    assert 'upload_dir: str = "uploads"' in config
+    assert "max_upload_bytes: int = 5_000_000" in config
+    assert '"image/png"' in config
+    assert '"application/pdf"' in config
+
+    env = files[".env.example"]
+    assert "UPLOAD_DIR=uploads" in env
+    assert "MAX_UPLOAD_BYTES=5000000" in env
+    assert "ALLOWED_UPLOAD_TYPES" in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert any(
+        dependency.startswith("python-multipart") for dependency in data["project"]["dependencies"]
+    )
+
+    readme = files["README.md"]
+    assert "## File uploads" in readme
+    assert "/uploads/{key}" in readme
+    assert "## S3-compatible storage" not in readme
+
+
+def test_s3_feature_renders_backend_and_test_dependencies() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"uploads", "s3"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/core/storage.py" in files
+    assert "src/my_service/core/storage_s3.py" in files
+    assert "tests/test_storage_s3.py" in files
+
+    storage = files["src/my_service/core/storage.py"]
+    assert "from my_service.core.storage_s3 import S3Storage" in storage
+    assert 'if settings.storage_backend == "s3":' in storage
+
+    s3_storage = files["src/my_service/core/storage_s3.py"]
+    assert "class S3Storage:" in s3_storage
+    assert "boto3.client(" in s3_storage
+    assert "asyncio.to_thread(" in s3_storage
+
+    config = files["src/my_service/core/config.py"]
+    for setting in (
+        'storage_backend: str = "local"',
+        's3_bucket: str = "uploads"',
+        's3_endpoint_url: str = ""',
+        's3_region: str = "us-east-1"',
+        's3_access_key_id: str = ""',
+        's3_secret_access_key: str = ""',
+    ):
+        assert setting in config
+
+    env = files[".env.example"]
+    assert "STORAGE_BACKEND=local" in env
+    assert "S3_BUCKET=uploads" in env
+    assert "S3_REGION=us-east-1" in env
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "boto3>=1.43.123" in data["project"]["dependencies"]
+    assert "moto[s3]>=5.2.5" in data["dependency-groups"]["dev"]
+    overrides = data["tool"]["mypy"]["overrides"]
+    assert any("boto3" in override["module"] for override in overrides)
+
+    readme = files["README.md"]
+    assert "## S3-compatible storage" in readme
+    assert "STORAGE_BACKEND=s3" in readme
+
+
+def test_uploads_and_s3_are_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/core/storage.py" not in files
+    assert "src/my_service/core/storage_s3.py" not in files
+    assert "src/my_service/api/routes/uploads.py" not in files
+    assert "tests/test_uploads.py" not in files
+    assert "tests/test_storage_s3.py" not in files
+    assert "uploads" not in files["src/my_service/api/routes/__init__.py"]
+
+
+def test_testcontainers_feature_renders_integration_suite() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "postgres", "redis", "testcontainers"}),
+    )
+
+    files = render_project(spec)
+
+    assert "tests/integration/conftest.py" in files
+    assert "tests/integration/test_integration.py" in files
+    assert "scripts/run_integration.sh" in files
+    assert ".github/workflows/integration.yml" in files
+
+    conftest = files["tests/integration/conftest.py"]
+    assert 'PostgresContainer("postgres:17")' in conftest
+    assert 'RedisContainer("redis:7-alpine")' in conftest
+    assert 'os.environ.get("RUN_INTEGRATION") == "1"' in conftest
+    assert "pytest.skip(SKIP_REASON)" in conftest
+
+    integration = files["tests/integration/test_integration.py"]
+    assert "pytestmark = pytest.mark.integration" in integration
+    assert "get_connection_url()" in integration
+    assert "client.ping() is True" in integration
+
+    script = files["scripts/run_integration.sh"]
+    assert "RUN_INTEGRATION=1 uv run pytest -m integration" in script
+
+    workflow = files[".github/workflows/integration.yml"]
+    assert "workflow_dispatch:" in workflow
+    assert "bash scripts/run_integration.sh" in workflow
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "testcontainers[postgres]>=4.15.0" in data["dependency-groups"]["dev"]
+    assert data["tool"]["pytest"]["ini_options"]["markers"] == ["integration"]
+
+    readme = files["README.md"]
+    assert "### Integration tests" in readme
+    assert "bash scripts/run_integration.sh" in readme
+
+
+def test_testcontainers_files_are_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "tests/integration/conftest.py" not in files
+    assert "tests/integration/test_integration.py" not in files
+    assert "scripts/run_integration.sh" not in files
+    assert ".github/workflows/integration.yml" not in files
 
 
 def test_preview_lists_rendered_files() -> None:

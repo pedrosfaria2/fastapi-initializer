@@ -14,7 +14,7 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %}
 
 Copy the example environment file and adjust it for your machine:
 
@@ -254,6 +254,51 @@ limit of 100 requests per minute. The `/limited` endpoint demonstrates a tighter
 limit of 5 requests per minute. Exceeding a limit returns `429` with a JSON
 `detail` field.
 {% endif %}
+{% if spec.has("uploads") %}
+
+## File uploads
+
+Uploads are stored through the `Storage` protocol in
+`{{ spec.package }}.core.storage`. The default `LocalStorage` backend writes to
+`UPLOAD_DIR` (`uploads` by default) and creates missing parent directories.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/uploads` | Store a file after checking its type and size and return `201` with a generated `key`. |
+| `GET` | `/uploads/{key}` | Download a stored file or return `404`. |
+| `DELETE` | `/uploads/{key}` | Delete a stored file and return `204`. |
+
+`MAX_UPLOAD_BYTES` defaults to `5000000`. `ALLOWED_UPLOAD_TYPES` lists the
+accepted media types and defaults to PNG, JPEG, PDF, and plain text. Rejected
+types return `415`; oversized files return `413`. Stored keys are generated on
+the server and resolved below the configured directory, so path traversal
+attempts are rejected.
+
+```sh
+curl -X POST "http://127.0.0.1:8000/uploads" \
+  -F "file=@example.png;type=image/png"
+
+curl "http://127.0.0.1:8000/uploads/<key>"
+
+curl -X DELETE "http://127.0.0.1:8000/uploads/<key>"
+```
+{% endif %}
+{% if spec.has("s3") %}
+
+## S3-compatible storage
+
+Set `STORAGE_BACKEND=s3` to use `S3Storage` instead of the local backend. The
+backend calls `boto3` in a worker thread so the event loop stays responsive.
+Configure the bucket with `S3_BUCKET`, the region with `S3_REGION`, and an
+optional custom endpoint with `S3_ENDPOINT_URL`. Leave the endpoint empty for
+AWS S3; set it for providers such as MinIO. `S3_ACCESS_KEY_ID` and
+`S3_SECRET_ACCESS_KEY` are empty by default, so the standard AWS credential
+chain is used when they are unset.
+
+```sh
+STORAGE_BACKEND=s3 S3_BUCKET=uploads S3_REGION=us-east-1 uv run fastapi dev src/{{ spec.package }}/main.py
+```
+{% endif %}
 {% if spec.has("sentry") %}
 
 ## Error reporting
@@ -281,6 +326,22 @@ uv run pytest
 
 Database tests override `DATABASE_URL` with a temporary SQLite file, so they run
 without a PostgreSQL server even when PostgreSQL is selected.
+{% endif %}
+{% if spec.has("testcontainers") %}
+
+### Integration tests
+
+`tests/integration/` uses Testcontainers to start PostgreSQL 17 and Redis 7. The
+tests are skipped unless `RUN_INTEGRATION=1` is set, so the normal test suite
+does not require Docker. Run them with:
+
+```sh
+bash scripts/run_integration.sh
+```
+
+The script sets `RUN_INTEGRATION=1` and selects the `integration` marker. The
+`Integration` GitHub Actions workflow is manual (`workflow_dispatch`) and runs the
+same script.
 {% endif %}
 
 ## Lint and type-check
@@ -337,7 +398,7 @@ Build and run the container:
 
 ```sh
 docker build -t {{ spec.name }} .
-docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %} --env-file .env{% endif %} {{ spec.name }}
+docker run --rm -p 8000:8000{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %} --env-file .env{% endif %} {{ spec.name }}
 ```
 {% endif %}
 {% if spec.has("alembic") %}
@@ -365,7 +426,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── README.md
 ├── .gitignore
 ├── .python-version
-{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") %}
+{% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") %}
 ├── .env.example
 {% endif %}
 {% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
@@ -381,8 +442,15 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("ci") %}
 ├── .github/workflows/ci.yml
 {% endif %}
+{% if spec.has("testcontainers") %}
+├── .github/workflows/integration.yml
+{% endif %}
 {% if spec.has("pre-commit") %}
 ├── .pre-commit-config.yaml
+{% endif %}
+{% if spec.has("testcontainers") %}
+├── scripts/
+│   └── run_integration.sh
 {% endif %}
 {% if spec.has("alembic") %}
 ├── alembic.ini
@@ -436,6 +504,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("websockets") %}
 │   │       ├── ws.py
 {% endif %}
+{% if spec.has("uploads") %}
+│   │       ├── uploads.py
+{% endif %}
 │   ├── core/
 │   │   ├── __init__.py
 {% if spec.has("redis") %}
@@ -456,6 +527,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("email") %}
 │   │   ├── email.py
+{% endif %}
+{% if spec.has("uploads") %}
+│   │   ├── storage.py
+{% endif %}
+{% if spec.has("s3") %}
+│   │   ├── storage_s3.py
 {% endif %}
 {% if spec.has("auth-jwt") %}
 │   │   └── security.py
@@ -535,6 +612,17 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("sentry") %}
     ├── test_sentry.py
+{% endif %}
+{% if spec.has("uploads") %}
+    ├── test_uploads.py
+{% endif %}
+{% if spec.has("s3") %}
+    ├── test_storage_s3.py
+{% endif %}
+{% if spec.has("testcontainers") %}
+    ├── integration/
+    │   ├── conftest.py
+    │   └── test_integration.py
 {% endif %}
 {% if spec.has("arq") %}
     ├── test_worker.py

@@ -44,6 +44,24 @@ class Settings(BaseSettings):
     smtp_from: str = "noreply@example.com"
     smtp_starttls: bool = True
 {% endif %}
+{% if spec.has("uploads") %}
+    upload_dir: str = "uploads"
+    max_upload_bytes: int = 5_000_000
+    allowed_upload_types: list[str] = [
+        "image/png",
+        "image/jpeg",
+        "application/pdf",
+        "text/plain",
+    ]
+{% endif %}
+{% if spec.has("s3") %}
+    storage_backend: str = "local"
+    s3_bucket: str = "uploads"
+    s3_endpoint_url: str = ""
+    s3_region: str = "us-east-1"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+{% endif %}
 
 
 @lru_cache

@@ -1,0 +1,90 @@
+"""File storage backends."""
+
+from __future__ import annotations
+
+import asyncio
+import re
+from pathlib import Path, PurePosixPath
+from typing import Annotated, Protocol
+from uuid import uuid4
+
+from fastapi import Depends
+
+from {{ spec.package }}.core.config import Settings, get_settings
+
+_SAFE_SUFFIX = re.compile(r"\.[a-z0-9]{1,10}")
+
+
+class Storage(Protocol):
+    """Asynchronous storage for uploaded files."""
+
+    async def save(self, key: str, data: bytes) -> None:
+        """Store bytes under a safe key."""
+        ...
+
+    async def read(self, key: str) -> bytes | None:
+        """Return stored bytes or ``None`` when the key is missing."""
+        ...
+
+    async def delete(self, key: str) -> None:
+        """Remove a key."""
+        ...
+
+
+def new_storage_key(filename: str) -> str:
+    """Return a unique storage key that keeps a safe file extension."""
+    suffix = PurePosixPath(filename).suffix.lower()
+    if not _SAFE_SUFFIX.fullmatch(suffix):
+        suffix = ""
+    return f"{uuid4().hex}{suffix}"
+
+
+class LocalStorage:
+    """Store uploaded files under a local directory."""
+
+    def __init__(self, root: str | Path) -> None:
+        self._root = Path(root)
+
+    def _resolve(self, key: str) -> Path:
+        if "\x00" in key or "\\" in key:
+            raise ValueError(f"Unsafe storage key: {key!r}")
+        pure = PurePosixPath(key)
+        if pure.is_absolute() or ".." in pure.parts or pure.name in {"", "."}:
+            raise ValueError(f"Unsafe storage key: {key!r}")
+        root = self._root.resolve()
+        path = (root / pure).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError(f"Unsafe storage key: {key!r}")
+        return path
+
+    async def save(self, key: str, data: bytes) -> None:
+        """Write bytes to the local filesystem."""
+        path = self._resolve(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(path.write_bytes, data)
+
+    async def read(self, key: str) -> bytes | None:
+        """Read bytes from the local filesystem."""
+        path = self._resolve(key)
+        if not path.is_file():
+            return None
+        return await asyncio.to_thread(path.read_bytes)
+
+    async def delete(self, key: str) -> None:
+        """Delete one local file when it exists."""
+        path = self._resolve(key)
+        if path.is_file():
+            await asyncio.to_thread(path.unlink)
+
+
+def get_storage(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Storage:
+    """Return the storage backend selected by the settings."""
+{% if spec.has("s3") %}
+    if settings.storage_backend == "s3":
+        from {{ spec.package }}.core.storage_s3 import S3Storage
+
+        return S3Storage(settings)
+{% endif %}
+    return LocalStorage(settings.upload_dir)

@@ -49,6 +49,14 @@ CASES: dict[str, ProjectSpec] = {
         name="operations-service",
         dependencies=frozenset({"docker", "compose", "ci", "pre-commit", "makefile"}),
     ),
+    "uploads": ProjectSpec(
+        name="uploads-service",
+        dependencies=frozenset({"uploads", "s3"}),
+    ),
+    "integration": ProjectSpec(
+        name="integration-service",
+        dependencies=frozenset({"sqlalchemy", "postgres", "redis", "testcontainers"}),
+    ),
     "full": ProjectSpec(
         name="full-service",
         dependencies=frozenset(
@@ -67,6 +75,9 @@ CASES: dict[str, ProjectSpec] = {
                 "static-templates",
                 "websockets",
                 "rate-limit",
+                "uploads",
+                "s3",
+                "testcontainers",
                 "docker",
                 "compose",
                 "ci",

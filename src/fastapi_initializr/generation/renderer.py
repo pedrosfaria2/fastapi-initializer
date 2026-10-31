@@ -54,7 +54,13 @@ def _has_any(*features: str) -> Callable[[ProjectSpec], bool]:
 
 
 def _needs_env(spec: ProjectSpec) -> bool:
-    return spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email")
+    return (
+        spec.has_environment
+        or spec.has("redis")
+        or spec.has("sentry")
+        or spec.has("email")
+        or spec.has("uploads")
+    )
 
 
 FILES: tuple[FileSpec, ...] = (
@@ -139,6 +145,11 @@ FILES: tuple[FileSpec, ...] = (
         "src/{{ spec.package }}/api/routes/limited.py",
         _has("rate-limit"),
     ),
+    FileSpec(
+        "src/api/routes/uploads.py.j2",
+        "src/{{ spec.package }}/api/routes/uploads.py",
+        _has("uploads"),
+    ),
     FileSpec("src/core/__init__.py.j2", "src/{{ spec.package }}/core/__init__.py"),
     FileSpec("src/core/config.py.j2", "src/{{ spec.package }}/core/config.py"),
     FileSpec("src/core/errors.py.j2", "src/{{ spec.package }}/core/errors.py"),
@@ -173,6 +184,16 @@ FILES: tuple[FileSpec, ...] = (
         "src/core/email.py.j2",
         "src/{{ spec.package }}/core/email.py",
         _has("email"),
+    ),
+    FileSpec(
+        "src/core/storage.py.j2",
+        "src/{{ spec.package }}/core/storage.py",
+        _has("uploads"),
+    ),
+    FileSpec(
+        "src/core/storage_s3.py.j2",
+        "src/{{ spec.package }}/core/storage_s3.py",
+        _has("s3"),
     ),
     FileSpec(
         "src/db/__init__.py.j2",
@@ -306,6 +327,36 @@ FILES: tuple[FileSpec, ...] = (
         "tests/test_rate_limit.py.j2",
         "tests/test_rate_limit.py",
         _has("rate-limit"),
+    ),
+    FileSpec(
+        "tests/test_uploads.py.j2",
+        "tests/test_uploads.py",
+        _has("uploads"),
+    ),
+    FileSpec(
+        "tests/test_storage_s3.py.j2",
+        "tests/test_storage_s3.py",
+        _has("s3"),
+    ),
+    FileSpec(
+        "tests/integration/conftest.py.j2",
+        "tests/integration/conftest.py",
+        _has("testcontainers"),
+    ),
+    FileSpec(
+        "tests/integration/test_integration.py.j2",
+        "tests/integration/test_integration.py",
+        _has("testcontainers"),
+    ),
+    FileSpec(
+        "scripts/run_integration.sh.j2",
+        "scripts/run_integration.sh",
+        _has("testcontainers"),
+    ),
+    FileSpec(
+        ".github/workflows/integration.yml.j2",
+        ".github/workflows/integration.yml",
+        _has("testcontainers"),
     ),
     FileSpec("tests/test_makefile.py.j2", "tests/test_makefile.py", _has("makefile")),
 )
