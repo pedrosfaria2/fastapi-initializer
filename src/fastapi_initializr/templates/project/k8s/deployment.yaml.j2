@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ spec.name }}
+  labels:
+    app: {{ spec.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ spec.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ spec.name }}
+    spec:
+      containers:
+        - name: {{ spec.name }}
+          image: ghcr.io/example/{{ spec.name }}:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: {{ spec.name }}-config
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

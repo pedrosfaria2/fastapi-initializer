@@ -25,6 +25,9 @@ dist/
 htmlcov/
 .coverage
 coverage.xml
+{% if spec.has("security-scan") %}
+sbom.json
+{% endif %}
 
 # Local database files
 *.db

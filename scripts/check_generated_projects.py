@@ -61,6 +61,21 @@ CASES: dict[str, ProjectSpec] = {
         name="uploads-service",
         dependencies=frozenset({"uploads", "s3"}),
     ),
+    "deploy": ProjectSpec(
+        name="deploy-service",
+        dependencies=frozenset(
+            {
+                "kubernetes",
+                "ci-gitlab",
+                "ci-bitbucket",
+                "security-scan",
+                "ci",
+                "pre-commit",
+                "docker",
+                "compose",
+            }
+        ),
+    ),
     "integration": ProjectSpec(
         name="integration-service",
         dependencies=frozenset({"sqlalchemy", "postgres", "redis", "testcontainers"}),
@@ -93,6 +108,10 @@ CASES: dict[str, ProjectSpec] = {
                 "ci",
                 "pre-commit",
                 "makefile",
+                "security-scan",
+                "kubernetes",
+                "ci-gitlab",
+                "ci-bitbucket",
             }
         ),
     ),

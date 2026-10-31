@@ -431,6 +431,60 @@ Run all hooks manually:
 uv run pre-commit run --all-files
 ```
 {% endif %}
+{% if spec.has("security-scan") %}
+
+## Security scanning and SBOM
+
+`scripts/security.sh` is a hard gate. It fails on vulnerable dependencies,
+Bandit findings, detected secrets, or a failed SBOM export:
+
+```sh
+bash scripts/security.sh
+```
+
+The script runs `pip-audit`, `bandit -r src -q`, `detect-secrets scan
+--all-files`, and `cyclonedx-py environment -o sbom.json`. Secret scan output is
+written to a temporary file, checked for findings, and removed on exit.
+`sbom.json` is generated locally and ignored by Git.
+{% endif %}
+{% if spec.has("kubernetes") %}
+
+## Kubernetes
+
+The `k8s/` directory contains a Deployment, Service, ConfigMap, and Ingress.
+Replace `ghcr.io/example/{{ spec.name }}:latest` with your published image and
+set the ingress host `{{ spec.name }}.example.com` to a domain you control before
+deploying.
+
+The Deployment exposes port `8000`, reads `ENVIRONMENT` and `LOG_LEVEL` from the
+ConfigMap, and uses `/ready` for readiness and `/health` for liveness probes. The
+Service listens on port `80` and forwards to port `8000`. Apply the manifests
+with:
+
+```sh
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+{% endif %}
+{% if spec.has("ci-gitlab") %}
+
+## GitLab CI
+
+`.gitlab-ci.yml` uses the `ghcr.io/astral-sh/uv:0.13.6` image and runs three
+stages: `lint`, `typecheck`, and `test`. Each job runs `uv sync` first, then Ruff
+format and lint checks, mypy, pyright, or pytest. The pipeline starts
+automatically when the repository is hosted on GitLab.
+{% endif %}
+{% if spec.has("ci-bitbucket") %}
+
+## Bitbucket Pipelines
+
+`bitbucket-pipelines.yml` uses `python:{{ spec.python }}-slim`, installs `uv`,
+runs `uv sync`, and then executes Ruff format and lint checks, mypy, pyright, and
+pytest. Enable Pipelines for the repository in Bitbucket to run it.
+{% endif %}
 {% if spec.has("docker") or spec.has("compose") or spec.has("arq") %}
 
 ## Docker
@@ -486,12 +540,32 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% if spec.has("testcontainers") %}
 ├── .github/workflows/integration.yml
 {% endif %}
+{% if spec.has("ci-gitlab") %}
+├── .gitlab-ci.yml
+{% endif %}
+{% if spec.has("ci-bitbucket") %}
+├── bitbucket-pipelines.yml
+{% endif %}
 {% if spec.has("pre-commit") %}
 ├── .pre-commit-config.yaml
 {% endif %}
-{% if spec.has("testcontainers") %}
+{% if spec.has("testcontainers") or spec.has("security-scan") %}
 ├── scripts/
+{% if spec.has("testcontainers") and spec.has("security-scan") %}
+│   ├── run_integration.sh
+│   └── security.sh
+{% elif spec.has("testcontainers") %}
 │   └── run_integration.sh
+{% else %}
+│   └── security.sh
+{% endif %}
+{% endif %}
+{% if spec.has("kubernetes") %}
+├── k8s/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── ingress.yaml
+│   └── service.yaml
 {% endif %}
 {% if spec.has("alembic") %}
 ├── alembic.ini
@@ -655,6 +729,12 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 {% if spec.has("makefile") %}
     ├── test_makefile.py
+{% endif %}
+{% if spec.has("kubernetes") %}
+    ├── test_kubernetes.py
+{% endif %}
+{% if spec.has("security-scan") %}
+    ├── test_security_tooling.py
 {% endif %}
     ├── test_health.py
 {% if spec.has("sqlalchemy") %}

@@ -1,0 +1,58 @@
+"""Kubernetes manifest checks."""
+
+from pathlib import Path
+from typing import Any, cast
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_manifest(name: str) -> dict[str, Any]:
+    content = (ROOT / "k8s" / name).read_text(encoding="utf-8")
+    data = yaml.safe_load(content)
+    assert isinstance(data, dict)
+    return cast(dict[str, Any], data)
+
+
+def test_deployment_uses_the_config_map_and_http_probes() -> None:
+    deployment = _load_manifest("deployment.yaml")
+    pod_spec = deployment["spec"]["template"]["spec"]
+    container = pod_spec["containers"][0]
+
+    assert deployment["kind"] == "Deployment"
+    assert container["image"] == "ghcr.io/example/{{ spec.name }}:latest"
+    assert container["ports"][0]["containerPort"] == 8000
+    assert container["envFrom"][0]["configMapRef"]["name"] == "{{ spec.name }}-config"
+    assert container["readinessProbe"]["httpGet"]["path"] == "/ready"
+    assert container["livenessProbe"]["httpGet"]["path"] == "/health"
+    assert container["resources"]["requests"]
+    assert container["resources"]["limits"]
+
+
+def test_service_exposes_http_on_cluster_ip() -> None:
+    service = _load_manifest("service.yaml")
+    port = service["spec"]["ports"][0]
+
+    assert service["kind"] == "Service"
+    assert service["spec"]["type"] == "ClusterIP"
+    assert port["port"] == 80
+    assert port["targetPort"] == 8000
+
+
+def test_config_map_sets_the_runtime_environment() -> None:
+    config_map = _load_manifest("configmap.yaml")
+
+    assert config_map["kind"] == "ConfigMap"
+    assert config_map["data"] == {"ENVIRONMENT": "production", "LOG_LEVEL": "INFO"}
+
+
+def test_ingress_routes_the_placeholder_host() -> None:
+    ingress = _load_manifest("ingress.yaml")
+    rule = ingress["spec"]["rules"][0]
+    path = rule["http"]["paths"][0]
+
+    assert ingress["kind"] == "Ingress"
+    assert rule["host"] == "{{ spec.name }}.example.com"
+    assert path["path"] == "/"
+    assert path["backend"]["service"]["port"]["number"] == 80

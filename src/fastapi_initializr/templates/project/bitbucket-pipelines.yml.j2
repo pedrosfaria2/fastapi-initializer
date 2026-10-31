@@ -1,0 +1,14 @@
+image: python:{{ spec.python }}-slim
+
+pipelines:
+  default:
+    - step:
+        name: Quality gates
+        script:
+          - python -m pip install --upgrade uv
+          - uv sync
+          - uv run ruff format --check .
+          - uv run ruff check .
+          - uv run mypy src
+          - uv run pyright src
+          - uv run pytest

@@ -80,11 +80,21 @@ FILES: tuple[FileSpec, ...] = (
     ),
     FileSpec("Makefile.j2", "Makefile", _has("makefile")),
     FileSpec("ci.yml.j2", ".github/workflows/ci.yml", _has("ci")),
+    FileSpec("gitlab-ci.yml.j2", ".gitlab-ci.yml", _has("ci-gitlab")),
+    FileSpec(
+        "bitbucket-pipelines.yml.j2",
+        "bitbucket-pipelines.yml",
+        _has("ci-bitbucket"),
+    ),
     FileSpec(
         "pre-commit-config.yaml.j2",
         ".pre-commit-config.yaml",
         _has("pre-commit"),
     ),
+    FileSpec("k8s/deployment.yaml.j2", "k8s/deployment.yaml", _has("kubernetes")),
+    FileSpec("k8s/service.yaml.j2", "k8s/service.yaml", _has("kubernetes")),
+    FileSpec("k8s/configmap.yaml.j2", "k8s/configmap.yaml", _has("kubernetes")),
+    FileSpec("k8s/ingress.yaml.j2", "k8s/ingress.yaml", _has("kubernetes")),
     FileSpec("alembic.ini.j2", "alembic.ini", _has("alembic")),
     FileSpec("migrations/env.py.j2", "migrations/env.py", _has("alembic")),
     FileSpec(
@@ -378,11 +388,26 @@ FILES: tuple[FileSpec, ...] = (
         _has("testcontainers"),
     ),
     FileSpec(
+        "scripts/security.sh.j2",
+        "scripts/security.sh",
+        _has("security-scan"),
+    ),
+    FileSpec(
         ".github/workflows/integration.yml.j2",
         ".github/workflows/integration.yml",
         _has("testcontainers"),
     ),
     FileSpec("tests/test_makefile.py.j2", "tests/test_makefile.py", _has("makefile")),
+    FileSpec(
+        "tests/test_kubernetes.py.j2",
+        "tests/test_kubernetes.py",
+        _has("kubernetes"),
+    ),
+    FileSpec(
+        "tests/test_security_tooling.py.j2",
+        "tests/test_security_tooling.py",
+        _has("security-scan"),
+    ),
 )
 
 

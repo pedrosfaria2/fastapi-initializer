@@ -26,3 +26,7 @@ jobs:
         run: uv run pyright src
       - name: Test
         run: uv run pytest --cov={{ spec.package }} --cov-report=term-missing
+{% if spec.has("security-scan") %}
+      - name: Security scan
+        run: bash scripts/security.sh
+{% endif %}

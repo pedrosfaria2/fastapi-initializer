@@ -1,0 +1,59 @@
+"""Security tooling checks."""
+
+import tomllib
+from pathlib import Path
+from typing import Any, cast
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _read_pyproject() -> dict[str, Any]:
+    with (ROOT / "pyproject.toml").open("rb") as file:
+        return tomllib.load(file)
+
+
+def test_security_script_exists_and_runs_every_tool() -> None:
+    script = (ROOT / "scripts" / "security.sh").read_text(encoding="utf-8")
+
+    assert script.startswith("#!/usr/bin/env bash")
+    assert "set -euo pipefail" in script
+    for command in (
+        "uv run pip-audit",
+        "uv run bandit -r src -q",
+        "uv run detect-secrets scan --all-files",
+        "uv run cyclonedx-py environment -o sbom.json",
+    ):
+        assert command in script
+    assert "mktemp" in script
+    assert "trap" in script
+
+
+def test_security_tools_are_development_dependencies() -> None:
+    data = _read_pyproject()
+    dev_dependencies = cast(list[str], data["dependency-groups"]["dev"])
+
+    for package in (
+        "pip-audit>=2.10.1",
+        "bandit>=1.9.4",
+        "detect-secrets>=1.5.0",
+        "cyclonedx-bom>=7.6.0",
+    ):
+        assert package in dev_dependencies
+{% if spec.has("ci") %}
+
+
+def test_ci_runs_the_security_script() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "Security scan" in workflow
+    assert "bash scripts/security.sh" in workflow
+{% endif %}
+{% if spec.has("pre-commit") %}
+
+
+def test_pre_commit_runs_security_hooks() -> None:
+    config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+    assert "pip-audit" in config
+    assert "bandit" in config
+{% endif %}

@@ -19,3 +19,16 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+{% if spec.has("security-scan") %}
+      - id: pip-audit
+        name: pip-audit
+        entry: uv run pip-audit
+        language: system
+        pass_filenames: false
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -r src -q
+        language: system
+        types: [python]
+        pass_filenames: false
+{% endif %}

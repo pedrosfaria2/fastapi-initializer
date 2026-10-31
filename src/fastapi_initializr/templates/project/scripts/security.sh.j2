@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+report_file="$(mktemp)"
+trap 'rm -f "$report_file"' EXIT
+
+uv run pip-audit
+uv run bandit -r src -q
+uv run detect-secrets scan --all-files > "$report_file"
+uv run python -c '
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as report:
+    results = json.load(report).get("results", {})
+raise SystemExit(1 if results else 0)
+' "$report_file"
+uv run cyclonedx-py environment -o sbom.json

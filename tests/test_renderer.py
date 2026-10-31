@@ -2,10 +2,19 @@
 
 import ast
 import tomllib
+from typing import Any, cast
+
+import yaml  # type: ignore[import-untyped]  # PyYAML ships no inline type hints
 
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
+
+
+def _load_yaml(content: str) -> dict[str, Any]:
+    data = yaml.safe_load(content)
+    assert isinstance(data, dict)
+    return cast(dict[str, Any], data)
 
 
 def test_minimal_project_contains_core_files() -> None:
@@ -233,6 +242,181 @@ def test_compose_is_generated_for_postgres_without_docker() -> None:
 
     assert "docker-compose.yml" in files
     assert "Dockerfile" not in files
+
+
+def test_security_scan_feature_renders_hard_gate_and_wiring() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"security-scan", "ci", "pre-commit", "docker"}),
+    )
+
+    files = render_project(spec)
+
+    assert "scripts/security.sh" in files
+    assert "tests/test_security_tooling.py" in files
+    script = files["scripts/security.sh"]
+    assert "set -euo pipefail" in script
+    for command in (
+        "uv run pip-audit",
+        "uv run bandit -r src -q",
+        "uv run detect-secrets scan --all-files",
+        "uv run cyclonedx-py environment -o sbom.json",
+    ):
+        assert command in script
+    assert "mktemp" in script
+    assert "trap" in script
+    assert "raise SystemExit(1 if results else 0)" in script
+
+    workflow = files[".github/workflows/ci.yml"]
+    assert "Security scan" in workflow
+    assert "bash scripts/security.sh" in workflow
+
+    pre_commit = files[".pre-commit-config.yaml"]
+    assert "id: pip-audit" in pre_commit
+    assert "entry: uv run pip-audit" in pre_commit
+    assert "id: bandit" in pre_commit
+    assert "entry: uv run bandit -r src -q" in pre_commit
+
+    data = tomllib.loads(files["pyproject.toml"])
+    dev_dependencies = data["dependency-groups"]["dev"]
+    for package in (
+        "pip-audit>=2.10.1",
+        "bandit>=1.9.4",
+        "detect-secrets>=1.5.0",
+        "cyclonedx-bom>=7.6.0",
+    ):
+        assert package in dev_dependencies
+
+    assert "sbom.json" in files[".gitignore"]
+
+    readme = files["README.md"]
+    assert "## Security scanning and SBOM" in readme
+    assert "bash scripts/security.sh" in readme
+    assert "pip-audit" in readme
+    assert "cyclonedx-py environment -o sbom.json" in readme
+
+
+def test_security_scan_feature_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "scripts/security.sh" not in files
+    assert "tests/test_security_tooling.py" not in files
+    assert "sbom.json" not in files[".gitignore"]
+    assert "## Security scanning and SBOM" not in files["README.md"]
+
+
+def test_kubernetes_feature_renders_manifests() -> None:
+    files = render_project(ProjectSpec(name="my-service", dependencies=frozenset({"kubernetes"})))
+
+    for name in ("configmap.yaml", "deployment.yaml", "ingress.yaml", "service.yaml"):
+        assert f"k8s/{name}" in files
+    assert "tests/test_kubernetes.py" in files
+
+    deployment = _load_yaml(files["k8s/deployment.yaml"])
+    pod_spec = deployment["spec"]["template"]["spec"]
+    container = pod_spec["containers"][0]
+    assert deployment["kind"] == "Deployment"
+    assert container["image"] == "ghcr.io/example/my-service:latest"
+    assert container["ports"][0]["containerPort"] == 8000
+    assert container["envFrom"][0]["configMapRef"]["name"] == "my-service-config"
+    assert container["readinessProbe"]["httpGet"]["path"] == "/ready"
+    assert container["livenessProbe"]["httpGet"]["path"] == "/health"
+    assert container["resources"]["requests"]
+    assert container["resources"]["limits"]
+
+    service = _load_yaml(files["k8s/service.yaml"])
+    port = service["spec"]["ports"][0]
+    assert service["kind"] == "Service"
+    assert service["spec"]["type"] == "ClusterIP"
+    assert port["port"] == 80
+    assert port["targetPort"] == 8000
+
+    config_map = _load_yaml(files["k8s/configmap.yaml"])
+    assert config_map["kind"] == "ConfigMap"
+    assert config_map["data"] == {"ENVIRONMENT": "production", "LOG_LEVEL": "INFO"}
+
+    ingress = _load_yaml(files["k8s/ingress.yaml"])
+    rule = ingress["spec"]["rules"][0]
+    path = rule["http"]["paths"][0]
+    assert ingress["kind"] == "Ingress"
+    assert rule["host"] == "my-service.example.com"
+    assert path["path"] == "/"
+    assert path["backend"]["service"]["port"]["number"] == 80
+
+    data = tomllib.loads(files["pyproject.toml"])
+    assert "pyyaml>=6.0.3" in data["dependency-groups"]["dev"]
+
+    readme = files["README.md"]
+    assert "## Kubernetes" in readme
+    assert "kubectl apply -f k8s/deployment.yaml" in readme
+    assert "{{ spec.name }}" not in readme
+
+
+def test_kubernetes_feature_is_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "k8s/deployment.yaml" not in files
+    assert "k8s/service.yaml" not in files
+    assert "k8s/configmap.yaml" not in files
+    assert "k8s/ingress.yaml" not in files
+    assert "tests/test_kubernetes.py" not in files
+    assert "## Kubernetes" not in files["README.md"]
+
+
+def test_gitlab_ci_feature_renders_pipeline() -> None:
+    files = render_project(ProjectSpec(name="my-service", dependencies=frozenset({"ci-gitlab"})))
+
+    pipeline = _load_yaml(files[".gitlab-ci.yml"])
+
+    assert pipeline["stages"] == ["lint", "typecheck", "test"]
+    assert pipeline["default"]["image"] == "ghcr.io/astral-sh/uv:0.13.6"
+    assert pipeline["default"]["before_script"] == ["uv sync"]
+    assert pipeline["lint"]["stage"] == "lint"
+    assert pipeline["lint"]["script"] == [
+        "uv run ruff format --check .",
+        "uv run ruff check .",
+    ]
+    assert pipeline["typecheck"]["stage"] == "typecheck"
+    assert pipeline["typecheck"]["script"] == [
+        "uv run mypy src",
+        "uv run pyright src",
+    ]
+    assert pipeline["test"]["stage"] == "test"
+    assert pipeline["test"]["script"] == ["uv run pytest"]
+
+    assert "## GitLab CI" in files["README.md"]
+    assert ".gitlab-ci.yml" in files["README.md"]
+
+
+def test_bitbucket_pipelines_feature_renders_pipeline() -> None:
+    files = render_project(ProjectSpec(name="my-service", dependencies=frozenset({"ci-bitbucket"})))
+
+    pipeline = _load_yaml(files["bitbucket-pipelines.yml"])
+    step = pipeline["pipelines"]["default"][0]["step"]
+
+    assert pipeline["image"] == "python:3.13-slim"
+    assert step["name"] == "Quality gates"
+    assert step["script"] == [
+        "python -m pip install --upgrade uv",
+        "uv sync",
+        "uv run ruff format --check .",
+        "uv run ruff check .",
+        "uv run mypy src",
+        "uv run pyright src",
+        "uv run pytest",
+    ]
+
+    assert "## Bitbucket Pipelines" in files["README.md"]
+    assert "bitbucket-pipelines.yml" in files["README.md"]
+
+
+def test_gitlab_and_bitbucket_pipelines_are_absent_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert ".gitlab-ci.yml" not in files
+    assert "bitbucket-pipelines.yml" not in files
+    assert "## GitLab CI" not in files["README.md"]
+    assert "## Bitbucket Pipelines" not in files["README.md"]
 
 
 def test_auth_feature_renders_security_slice() -> None:
@@ -552,6 +736,10 @@ def test_generated_python_parses() -> None:
                 "uploads",
                 "s3",
                 "testcontainers",
+                "security-scan",
+                "kubernetes",
+                "ci-gitlab",
+                "ci-bitbucket",
             }
         ),
     )
@@ -586,6 +774,10 @@ def test_no_unresolved_template_markers() -> None:
                 "uploads",
                 "s3",
                 "testcontainers",
+                "security-scan",
+                "kubernetes",
+                "ci-gitlab",
+                "ci-bitbucket",
             }
         ),
     )
