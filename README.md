@@ -339,11 +339,15 @@ records its size, and smoke-tests `/health`.
 
 ```sh
 uv sync --locked
+uv run playwright install chromium
 bash scripts/check.sh
 ```
 
 `scripts/check.sh` runs the lockfile check, Ruff, mypy, pyright, pytest, and
-`uv build`.
+`uv build`. Browser tests cover search, shift-click, presets, Share, Reset,
+Ctrl/Cmd+Enter, and Explore highlighting/scrolling against a real server. Install
+system browser dependencies with
+`uv run playwright install --with-deps chromium` when they are missing.
 
 When templates or generated-project behavior change, run the combined gate:
 

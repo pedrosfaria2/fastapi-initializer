@@ -24,8 +24,10 @@ entrypoint = "fastapi_initializr.main:app"
 dev = [
     "httpx2>=2.16.0",
     "mypy>=2.4.1",
+    "playwright>=1.64.1",
     "pyright>=1.1.414",
     "pytest>=9.2.0",
+    "pytest-playwright>=0.10.0",
     "ruff>=0.17.3",
     "types-pygments>=2.21.0.20260819",
 ]
@@ -85,3 +87,4 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
+markers = ["browser: requires Playwright browsers"]

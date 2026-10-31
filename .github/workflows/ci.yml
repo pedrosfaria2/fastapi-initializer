@@ -13,6 +13,7 @@ jobs:
         with:
           version: "0.13.6"
           enable-cache: true
+      - run: uv run playwright install --with-deps chromium
       - run: bash scripts/check.sh
 
   generated:

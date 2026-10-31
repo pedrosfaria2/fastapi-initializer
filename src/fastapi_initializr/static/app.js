@@ -132,6 +132,8 @@
   let packageTouched = false;
   /** @type {string | null} */
   let lastDependencyId = null;
+  /** @type {{id: string, checked: boolean} | null} */
+  let pendingDependencyState = null;
   let shareTimer = 0;
 
   function setError(message) {
@@ -1160,6 +1162,16 @@
     stateChanged();
   });
 
+  dependencyGroups.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLInputElement &&
+      target.name === "dependencies"
+    ) {
+      pendingDependencyState = { id: target.value, checked: target.checked };
+    }
+  });
+
   dependencyGroups.addEventListener("click", (event) => {
     if (!metadata) {
       return;
@@ -1190,7 +1202,11 @@
     }
 
     event.preventDefault();
-    const desired = !target.checked;
+    const wasChecked =
+      pendingDependencyState && pendingDependencyState.id === target.value
+        ? pendingDependencyState.checked
+        : target.checked;
+    const desired = !wasChecked;
     const start = Math.min(currentIndex, anchorIndex);
     const end = Math.max(currentIndex, anchorIndex);
     const selected = new Set(getCheckedIds());
