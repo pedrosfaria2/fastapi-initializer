@@ -1,7 +1,19 @@
-"""${message}
+<%
+import json
+
+def literal(value):
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, (tuple, list)):
+        items = ", ".join(json.dumps(item) for item in value)
+        return f"({items},)"
+    return repr(value)
+%>"""${message}
 
 Revision ID: ${up_revision}
+% if down_revision:
 Revises: ${down_revision | comma,n}
+% endif
 Create Date: ${create_date}
 
 """
@@ -10,14 +22,12 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-
 ${imports if imports else ""}
-
 # revision identifiers, used by Alembic.
-revision: str = ${repr(up_revision)}
-down_revision: str | Sequence[str] | None = ${repr(down_revision)}
-branch_labels: str | Sequence[str] | None = ${repr(branch_labels)}
-depends_on: str | Sequence[str] | None = ${repr(depends_on)}
+revision: str = ${literal(up_revision)}
+down_revision: str | Sequence[str] | None = ${literal(down_revision)}
+branch_labels: str | Sequence[str] | None = ${literal(branch_labels)}
+depends_on: str | Sequence[str] | None = ${literal(depends_on)}
 
 
 def upgrade() -> None:

@@ -1,5 +1,7 @@
 """Shared test fixtures."""
 
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -7,6 +9,7 @@ from {{ spec.package }}.main import create_app
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     """Return a client bound to a fresh application."""
-    return TestClient(create_app())
+    with TestClient(create_app()) as test_client:
+        yield test_client

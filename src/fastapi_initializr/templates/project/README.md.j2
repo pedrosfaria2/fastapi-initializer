@@ -105,6 +105,11 @@ uv run alembic upgrade head
 .
 ├── pyproject.toml
 ├── README.md
+├── .gitignore
+├── .python-version
+{% if spec.has_environment %}
+├── .env.example
+{% endif %}
 {% if spec.has("docker") %}
 ├── Dockerfile
 ├── .dockerignore
