@@ -4,167 +4,474 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Generate a ready-to-run FastAPI project with uv, Ruff, mypy, pyright, and pytest."
+    />
     <title>FastAPI Initializr</title>
     <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}" />
   </head>
   <body>
-    <a class="skip-link" href="#preview">Skip to preview</a>
+    <a class="skip-link" href="#project-name">Skip to project options</a>
+
+    {% set query = request.query_params %}
+    {% set dependency_ids = namespace(values=[]) %}
+    {% for raw_dependency in query.getlist("dependencies") %}
+      {% for part in raw_dependency.split(",") %}
+        {% set dependency_id = part.strip() %}
+        {% if dependency_id and dependency_id not in dependency_ids.values %}
+          {% set _ = dependency_ids.values.append(dependency_id) %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    {% set dependency_count = namespace(value=0) %}
+    {% for group in metadata.dependencies.groups %}
+      {% for dependency in group.values %}
+        {% set dependency_count.value = dependency_count.value + 1 %}
+      {% endfor %}
+    {% endfor %}
+
+    {# Expand requirements so a shared URL selects everything the API needs. #}
+    {% for _pass in range(dependency_count.value + 1) %}
+      {% for group in metadata.dependencies.groups %}
+        {% for dependency in group.values %}
+          {% if dependency.id in dependency_ids.values %}
+            {% for requirement in dependency.requires %}
+              {% if requirement not in dependency_ids.values %}
+                {% set _ = dependency_ids.values.append(requirement) %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    {% endfor %}
+
+    {% set requested_python = query.get("python") or query.get("pythonVersion") %}
+    {% set python_ids = metadata.python.values | map(attribute="id") | list %}
+    {% if requested_python and requested_python in python_ids %}
+      {% set python_value = requested_python %}
+    {% else %}
+      {% set python_value = metadata.python.default %}
+    {% endif %}
+
+    {% set requested_fastapi = query.get("fastapi") or query.get("fastapiVersion") %}
+    {% set fastapi_ids = metadata.fastapi.values | map(attribute="id") | list %}
+    {% if requested_fastapi and requested_fastapi in fastapi_ids %}
+      {% set fastapi_value = requested_fastapi %}
+    {% else %}
+      {% set fastapi_value = metadata.fastapi.default %}
+    {% endif %}
+
+    {% set name_value = query.get("name", metadata.project.name.default) %}
+    {% set package_value = query.get("package", metadata.project.package.default) %}
+    {% set description_value = query.get("description", metadata.project.description.default) %}
+    {% set version_value = query.get("version", metadata.project.version.default) %}
+    {% set author_value = query.get("author", metadata.project.author.default) %}
+    {% set base_dir_value = query.get("baseDir", metadata.base_dir.default) %}
+    {% set application_name_value = query.get("applicationName", metadata.application_name.default) %}
 
     <header class="site-header">
       <div class="wrap header-inner">
-        <div>
-          <h1>FastAPI Initializr</h1>
-          <p class="tagline">
-            Describe your project, pick the features you need, and download a
-            ready-to-run FastAPI service.
-          </p>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">FI</span>
+          <div class="brand-copy">
+            <h1>FastAPI Initializr</h1>
+            <p class="tagline">
+              Generate a ready-to-run FastAPI service with a modern Python
+              toolchain in seconds.
+            </p>
+          </div>
         </div>
-        <p class="header-badge">uv + Ruff + mypy + pyright + pytest</p>
+        <nav class="header-nav" aria-label="Project resources">
+          <a href="/docs">API docs</a>
+          <a href="/api/metadata">Metadata</a>
+          <a href="#preview">Explore</a>
+        </nav>
       </div>
     </header>
 
-    <main class="wrap layout">
-      <section class="panel form-panel" aria-labelledby="form-heading">
-        <h2 id="form-heading" class="visually-hidden">Project options</h2>
+    <main class="wrap page">
+      <div class="page-intro">
+        <div>
+          <h2>Create your FastAPI project</h2>
+          <p>
+            Choose your project details, runtime versions, and the features you
+            need. Everything is generated from a reviewed catalog.
+          </p>
+        </div>
+        <p class="toolchain-badge">uv · Ruff · mypy · pyright · pytest</p>
+      </div>
 
-        <div id="error" class="error" role="alert" aria-live="assertive" hidden></div>
+      <div class="workspace">
+        <section class="panel settings-panel" aria-labelledby="form-heading">
+          <h2 id="form-heading" class="visually-hidden">Project options</h2>
 
-        <form id="project-form" action="/api/generate" method="get">
-          <div class="field">
-            <label for="project-name">Project name</label>
-            <input
-              id="project-name"
-              name="name"
-              type="text"
-              value="my-service"
-              maxlength="64"
-              autocomplete="off"
-              spellcheck="false"
-              aria-describedby="name-hint"
-              required
-            />
-            <p id="name-hint" class="hint">
-              Lowercase letters, digits, hyphens, or underscores. Must start
-              with a letter.
+          <div id="error" class="error" role="alert" aria-live="assertive" hidden></div>
+
+          <form id="project-form" action="/api/generate" method="get">
+            <section class="form-section" aria-labelledby="project-section">
+              <div class="section-heading">
+                <h3 id="project-section">Project</h3>
+                <p>Metadata written into the generated project.</p>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="project-name">Project name</label>
+                  <input
+                    id="project-name"
+                    name="name"
+                    type="text"
+                    value="{{ name_value }}"
+                    maxlength="{{ metadata.project.name.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="name-hint name-error"
+                    required
+                  />
+                  <p id="name-hint" class="hint">
+                    Lowercase letters, digits, hyphens, or underscores. Must
+                    start with a letter.
+                  </p>
+                  <p id="name-error" class="field-error" role="status" hidden></p>
+                </div>
+
+                <div class="field">
+                  <label for="package">Package name</label>
+                  <input
+                    id="package"
+                    name="package"
+                    type="text"
+                    value="{{ package_value }}"
+                    maxlength="{{ metadata.project.package.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="package-hint package-error"
+                  />
+                  <p id="package-hint" class="hint">
+                    Python import package. Use lowercase letters, digits, and
+                    underscores.
+                  </p>
+                  <p id="package-error" class="field-error" role="status" hidden></p>
+                </div>
+
+                <div class="field field-wide">
+                  <label for="description">Description</label>
+                  <input
+                    id="description"
+                    name="description"
+                    type="text"
+                    value="{{ description_value }}"
+                    maxlength="{{ metadata.project.description.max_length }}"
+                    autocomplete="off"
+                    aria-describedby="description-hint"
+                  />
+                  <p id="description-hint" class="hint">
+                    A short summary for the generated project metadata.
+                  </p>
+                </div>
+
+                <div class="field">
+                  <label for="version">Version</label>
+                  <input
+                    id="version"
+                    name="version"
+                    type="text"
+                    value="{{ version_value }}"
+                    maxlength="{{ metadata.project.version.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="version-hint"
+                  />
+                  <p id="version-hint" class="hint">Semantic version, for example 0.1.0.</p>
+                </div>
+
+                <div class="field">
+                  <label for="author">Author</label>
+                  <input
+                    id="author"
+                    name="author"
+                    type="text"
+                    value="{{ author_value }}"
+                    maxlength="{{ metadata.project.author.max_length }}"
+                    autocomplete="name"
+                    aria-describedby="author-hint"
+                  />
+                  <p id="author-hint" class="hint">Optional name for project metadata.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section" aria-labelledby="runtime-section">
+              <div class="section-heading">
+                <h3 id="runtime-section">Language &amp; runtime</h3>
+                <p>The generated project targets these versions.</p>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="python">Python version</label>
+                  <select id="python" name="python" aria-describedby="python-hint">
+                    {% for value in metadata.python.values %}
+                      <option value="{{ value.id }}"{% if value.id == python_value %} selected{% endif %}>{{ value.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <p id="python-hint" class="hint">Python interpreter used by uv.</p>
+                </div>
+
+                <div class="field">
+                  <label for="fastapi">FastAPI version</label>
+                  <select id="fastapi" name="fastapi" aria-describedby="fastapi-hint">
+                    {% for value in metadata.fastapi.values %}
+                      <option value="{{ value.id }}"{% if value.id == fastapi_value %} selected{% endif %}>{{ value.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <p id="fastapi-hint" class="hint">Framework version pinned in pyproject.toml.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section" aria-labelledby="advanced-section">
+              <div class="section-heading">
+                <h3 id="advanced-section">Advanced</h3>
+                <p>Optional layout and entrypoint overrides.</p>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="base-dir">Base directory</label>
+                  <input
+                    id="base-dir"
+                    name="baseDir"
+                    type="text"
+                    value="{{ base_dir_value }}"
+                    maxlength="{{ metadata.base_dir.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="base-dir-hint"
+                  />
+                  <p id="base-dir-hint" class="hint">
+                    Leave empty to use the project name as the archive folder.
+                  </p>
+                </div>
+
+                <div class="field">
+                  <label for="application-name">Application name</label>
+                  <input
+                    id="application-name"
+                    name="applicationName"
+                    type="text"
+                    value="{{ application_name_value }}"
+                    maxlength="{{ metadata.application_name.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="application-name-hint"
+                  />
+                  <p id="application-name-hint" class="hint">
+                    Optional FastAPI application title override.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <fieldset class="form-section dependency-section" aria-labelledby="dependencies-section">
+              <legend class="visually-hidden">Dependencies</legend>
+              <div class="section-heading section-heading-inline">
+                <div>
+                  <h3 id="dependencies-section">Dependencies</h3>
+                  <p>Features add packages, configuration, and project files.</p>
+                </div>
+                <span id="selected-count" class="count-badge">{{ dependency_ids.values | length }} selected</span>
+              </div>
+
+              <div class="dependency-toolbar">
+                <label class="visually-hidden" for="dependency-search">Search dependencies</label>
+                <input
+                  id="dependency-search"
+                  type="search"
+                  placeholder="Search dependencies by name, id, or description"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button id="clear-search" class="button button-quiet" type="button">
+                  Clear search
+                </button>
+              </div>
+
+              <p id="dependency-empty" class="hint dependency-empty" role="status" hidden>
+                No dependencies match that search.
+              </p>
+
+              <div id="dependency-groups" class="dependency-groups">
+                {% for group in metadata.dependencies.groups %}
+                  {% set group_slug = group.name | lower | replace(" ", "-") | replace("/", "-") %}
+                  <section
+                    class="dependency-group"
+                    data-group-name="{{ group.name }}"
+                    aria-labelledby="dependency-group-{{ loop.index }}-{{ group_slug }}"
+                  >
+                    <h4 id="dependency-group-{{ loop.index }}-{{ group_slug }}" class="dependency-group-title">
+                      <span>{{ group.name }}</span>
+                      <span class="group-count" data-group-count>{{ group.values | length }}</span>
+                    </h4>
+                    <div class="dependency-list">
+                      {% for dependency in group.values %}
+                        {% set selected = dependency.id in dependency_ids.values %}
+                        {% set conflict_state = namespace(names=[]) %}
+                        {% if not selected %}
+                          {% for other_group in metadata.dependencies.groups %}
+                            {% for other in other_group.values %}
+                              {% if other.id in dependency_ids.values and (other.id in dependency.conflicts or dependency.id in other.conflicts) %}
+                                {% set _ = conflict_state.names.append(other.name) %}
+                              {% endif %}
+                            {% endfor %}
+                          {% endfor %}
+                        {% endif %}
+                        {% set required_state = namespace(names=[]) %}
+                        {% for other_group in metadata.dependencies.groups %}
+                          {% for other in other_group.values %}
+                            {% if other.id in dependency_ids.values and dependency.id in other.requires and other.id != dependency.id %}
+                              {% set _ = required_state.names.append(other.name) %}
+                            {% endif %}
+                          {% endfor %}
+                        {% endfor %}
+                        {% set disabled = conflict_state.names | length > 0 %}
+                        {% set package_count = dependency.packages | length + dependency.dev_packages | length %}
+                        {% set search_text = dependency.id ~ ' ' ~ dependency.name ~ ' ' ~ dependency.description ~ ' ' ~ (dependency.packages | join(' ')) ~ ' ' ~ (dependency.dev_packages | join(' ')) %}
+                        <div
+                          class="dependency-option{% if selected %} is-selected{% endif %}{% if disabled %} is-disabled{% endif %}{% if required_state.names | length > 0 %} is-required{% endif %}"
+                          data-dependency-id="{{ dependency.id }}"
+                          data-search="{{ search_text | lower }}"
+                        >
+                          <input
+                            id="dependency-{{ dependency.id }}"
+                            type="checkbox"
+                            name="dependencies"
+                            value="{{ dependency.id }}"
+                            {% if selected %}checked{% endif %}
+                            {% if disabled %}disabled{% endif %}
+                            aria-describedby="dependency-description-{{ dependency.id }} dependency-note-{{ dependency.id }}"
+                          />
+                          <div class="dependency-body">
+                            <div class="dependency-heading">
+                              <label class="dependency-title" for="dependency-{{ dependency.id }}">{{ dependency.name }}</label>
+                              <span class="dependency-packages" title="Packages added to the generated project">{{ package_count }} package{% if package_count != 1 %}s{% endif %}</span>
+                            </div>
+                            <p id="dependency-description-{{ dependency.id }}" class="dependency-description">{{ dependency.description }}</p>
+                            <div class="dependency-meta">
+                              {% if dependency.version_range %}
+                                <span class="dependency-version">{{ dependency.version_range }}</span>
+                              {% endif %}
+                              {% set guide = dependency.links.get("guide") %}
+                              {% set reference = dependency.links.get("reference") %}
+                              {% set home = dependency.links.get("home") %}
+                              {% if guide %}
+                                <a class="dependency-link" href="{{ guide.href }}" target="_blank" rel="noopener noreferrer">{{ guide.title or "Guide" }}</a>
+                              {% endif %}
+                              {% if reference %}
+                                <a class="dependency-link" href="{{ reference.href }}" target="_blank" rel="noopener noreferrer">{{ reference.title or "Reference" }}</a>
+                              {% endif %}
+                              {% if home %}
+                                <a class="dependency-link" href="{{ home.href }}" target="_blank" rel="noopener noreferrer">{{ home.title or "Homepage" }}</a>
+                              {% endif %}
+                            </div>
+                            <p id="dependency-note-{{ dependency.id }}" class="dependency-note"{% if not disabled and required_state.names | length == 0 %} hidden{% endif %}>
+                              {% if disabled %}
+                                Conflicts with {{ conflict_state.names | join(", ") }}
+                              {% elif required_state.names | length > 0 %}
+                                Required by {{ required_state.names | join(", ") }}
+                              {% endif %}
+                            </p>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </section>
+                {% endfor %}
+              </div>
+            </fieldset>
+          </form>
+
+          <noscript>
+            <p class="notice">
+              JavaScript enables the live preview, dependency search, and
+              shortcuts. Without it, this form still submits the selected
+              options and downloads a ZIP archive.
             </p>
-          </div>
+          </noscript>
+        </section>
 
-          <div class="field">
-            <label for="package">Package name</label>
-            <input
-              id="package"
-              name="package"
-              type="text"
-              value="my_service"
-              maxlength="64"
-              autocomplete="off"
-              spellcheck="false"
-              aria-describedby="package-hint"
-            />
-            <p id="package-hint" class="hint">
-              Python import package. Use lowercase letters, digits, and
-              underscores.
-            </p>
-          </div>
-
-          <div class="field">
-            <label for="description">Description</label>
-            <input
-              id="description"
-              name="description"
-              type="text"
-              value="A FastAPI service"
-              maxlength="200"
-              autocomplete="off"
-              aria-describedby="description-hint"
-            />
-            <p id="description-hint" class="hint">
-              A short summary for the generated project metadata.
-            </p>
-          </div>
-
-          <div class="field">
-            <label for="python">Python version</label>
-            <select id="python" name="python" aria-describedby="python-hint">
-              <option value="3.13">Python 3.13</option>
-            </select>
-            <p id="python-hint" class="hint">
-              Additional versions load from the server metadata.
-            </p>
-          </div>
-
-          <fieldset class="field dependency-field">
-            <legend>Optional features</legend>
-            <p class="hint">
-              Features add dependencies, configuration, and project files.
-              Required features are selected automatically.
-            </p>
-            <div id="dependency-groups" class="dependency-groups" aria-live="polite">
-              <p class="loading-note">Loading dependency options…</p>
+        <aside class="sidebar" aria-label="Generate and explore">
+          <section class="panel action-panel" aria-labelledby="generate-heading">
+            <div class="section-heading">
+              <h2 id="generate-heading">Generate</h2>
+              <p>Download the project with the options selected on the left.</p>
             </div>
-          </fieldset>
 
-          <div class="actions">
-            <button id="generate" class="button button-primary" type="submit">
-              Download ZIP
-            </button>
+            <div class="field">
+              <label for="output">Output</label>
+              <select id="output">
+                <option value="zip">ZIP archive (.zip)</option>
+                <option value="tgz">tar.gz archive (.tar.gz)</option>
+                <option value="pyproject">pyproject.toml</option>
+              </select>
+            </div>
+
             <button
-              id="refresh-preview"
-              class="button button-secondary"
-              type="button"
+              id="generate"
+              class="button button-primary button-block"
+              type="submit"
+              form="project-form"
             >
-              Refresh preview
+              Generate
             </button>
-          </div>
 
-          <p class="hint">
-            Downloads use the same options as the preview. Add
-            <code>?dependencies=sqlalchemy</code> style parameters to share a
-            configuration.
-          </p>
-        </form>
-
-        <noscript>
-          <p class="notice">
-            JavaScript adds the full Python version and feature catalog. Without
-            it, the form still generates the base project with the selected
-            Python version shown above.
-          </p>
-        </noscript>
-      </section>
-
-      <section
-        id="preview"
-        class="panel preview-panel"
-        aria-labelledby="preview-heading"
-      >
-        <div class="preview-header">
-          <div>
-            <h2 id="preview-heading">Preview</h2>
-            <p id="preview-status" class="subtle" aria-live="polite">
-              Loading project options…
-            </p>
-          </div>
-          <span id="project-label" class="project-label">my-service</span>
-        </div>
-
-        <div class="preview-body">
-          <nav class="file-tree" aria-label="Generated files">
-            <p id="tree-empty" class="subtle tree-empty">
-              The generated file tree will appear here.
-            </p>
-            <ul id="file-list" class="file-list" hidden></ul>
-          </nav>
-
-          <div class="file-view">
-            <div class="file-meta">
-              <span id="selected-file" class="selected-file">No file selected</span>
-              <span id="file-size" class="file-size"></span>
+            <div class="button-row">
+              <button id="share" class="button button-secondary" type="button" aria-live="polite">
+                Share
+              </button>
+              <button id="reset" class="button button-quiet" type="button">Reset</button>
             </div>
-            <pre id="file-content" class="file-content" tabindex="0"><code>Choose a file to inspect its rendered content.</code></pre>
-          </div>
-        </div>
-      </section>
+
+            <p class="hint keyboard-hint">
+              Tip: press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Enter</kbd> to generate.
+            </p>
+          </section>
+
+          <section id="preview" class="panel preview-panel" aria-labelledby="preview-heading">
+            <div class="preview-header">
+              <div>
+                <h2 id="preview-heading">Explore</h2>
+                <p id="preview-status" class="subtle" aria-live="polite">
+                  Loading project options…
+                </p>
+              </div>
+              <span id="project-label" class="project-label">{{ name_value }}</span>
+            </div>
+
+            <div class="preview-body">
+              <nav class="file-tree" aria-label="Generated files">
+                <p id="tree-empty" class="subtle tree-empty">
+                  The generated file tree will appear here.
+                </p>
+                <ul id="file-list" class="file-list" hidden></ul>
+              </nav>
+
+              <div class="file-view">
+                <div class="file-meta">
+                  <span id="selected-file" class="selected-file">No file selected</span>
+                  <span class="file-meta-right">
+                    <span id="file-language" class="file-language"></span>
+                    <span id="file-size" class="file-size"></span>
+                  </span>
+                </div>
+                <pre id="file-content" class="file-content" tabindex="0">Choose a file to inspect its rendered content.</pre>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </main>
 
     <footer class="site-footer wrap">

@@ -5,45 +5,102 @@
   const nameInput = document.getElementById("project-name");
   const packageInput = document.getElementById("package");
   const descriptionInput = document.getElementById("description");
+  const versionInput = document.getElementById("version");
+  const authorInput = document.getElementById("author");
+  const baseDirInput = document.getElementById("base-dir");
+  const applicationNameInput = document.getElementById("application-name");
   const pythonSelect = document.getElementById("python");
+  const fastapiSelect = document.getElementById("fastapi");
   const dependencyGroups = document.getElementById("dependency-groups");
+  const dependencySearch = document.getElementById("dependency-search");
+  const clearSearchButton = document.getElementById("clear-search");
+  const selectedCount = document.getElementById("selected-count");
+  const dependencyEmpty = document.getElementById("dependency-empty");
   const errorBox = document.getElementById("error");
+  const nameError = document.getElementById("name-error");
+  const packageError = document.getElementById("package-error");
   const previewStatus = document.getElementById("preview-status");
   const projectLabel = document.getElementById("project-label");
   const fileList = document.getElementById("file-list");
   const treeEmpty = document.getElementById("tree-empty");
   const selectedFileLabel = document.getElementById("selected-file");
   const fileSizeLabel = document.getElementById("file-size");
+  const fileLanguageLabel = document.getElementById("file-language");
   const fileContent = document.getElementById("file-content");
-  const refreshButton = document.getElementById("refresh-preview");
+  const outputSelect = document.getElementById("output");
+  const generateButton = document.getElementById("generate");
+  const shareButton = document.getElementById("share");
+  const resetButton = document.getElementById("reset");
 
   if (
     !form ||
     !nameInput ||
     !packageInput ||
     !descriptionInput ||
+    !versionInput ||
+    !authorInput ||
+    !baseDirInput ||
+    !applicationNameInput ||
     !pythonSelect ||
+    !fastapiSelect ||
     !dependencyGroups ||
+    !dependencySearch ||
+    !clearSearchButton ||
+    !selectedCount ||
+    !dependencyEmpty ||
     !errorBox ||
+    !nameError ||
+    !packageError ||
     !previewStatus ||
     !projectLabel ||
     !fileList ||
     !treeEmpty ||
     !selectedFileLabel ||
     !fileSizeLabel ||
+    !fileLanguageLabel ||
     !fileContent ||
-    !refreshButton
+    !outputSelect ||
+    !generateButton ||
+    !shareButton ||
+    !resetButton
   ) {
     return;
   }
 
-  const PREVIEW_DEBOUNCE_MS = 250;
+  const PREVIEW_DEBOUNCE_MS = 300;
   const DEFAULT_FILE_MESSAGE =
     "Choose a file to inspect its rendered content.";
+  const NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
+  const PACKAGE_PATTERN = /^[a-z_][a-z0-9_]*$/;
+  const OUTPUTS = {
+    zip: { path: "/starter.zip", fallbackName: ".zip" },
+    tgz: { path: "/starter.tgz", fallbackName: ".tar.gz" },
+    pyproject: { path: "/pyproject.toml", fallbackName: null },
+  };
+  const LANGUAGE_BY_EXTENSION = {
+    cfg: "Config",
+    css: "CSS",
+    dockerfile: "Dockerfile",
+    env: "Dotenv",
+    html: "HTML",
+    ini: "INI",
+    js: "JavaScript",
+    json: "JSON",
+    lock: "Lock file",
+    md: "Markdown",
+    mako: "Mako",
+    py: "Python",
+    sh: "Shell",
+    sql: "SQL",
+    toml: "TOML",
+    txt: "Text",
+    yaml: "YAML",
+    yml: "YAML",
+  };
 
-  /** @type {Metadata | null} */
+  /** @type {Record<string, unknown> | null} */
   let metadata = null;
-  /** @type {Map<string, Dependency>} */
+  /** @type {Map<string, any>} */
   const dependenciesById = new Map();
   /** @type {Map<string, Set<string>>} */
   const conflictsById = new Map();
@@ -51,7 +108,7 @@
   const notesById = new Map();
   /** @type {string[]} */
   let dependencyOrder = [];
-  /** @type {PreviewFile[]} */
+  /** @type {Array<{path: string, content: string, size: number}>} */
   let files = [];
   /** @type {string | null} */
   let selectedPath = null;
@@ -60,6 +117,9 @@
   /** @type {AbortController | null} */
   let previewController = null;
   let packageTouched = false;
+  /** @type {string | null} */
+  let lastDependencyId = null;
+  let shareTimer = 0;
 
   function setError(message) {
     errorBox.textContent = message;
@@ -123,10 +183,16 @@
     return messageFromError(payload, `Request failed (${status}).`);
   }
 
-  function getCheckedIds() {
+  function dependencyInputs() {
     return Array.from(
-      form.querySelectorAll('input[name="dependencies"]:checked'),
-    ).map((input) => input.value);
+      dependencyGroups.querySelectorAll('input[name="dependencies"]'),
+    );
+  }
+
+  function getCheckedIds() {
+    return dependencyInputs()
+      .filter((input) => input.checked)
+      .map((input) => input.value);
   }
 
   function currentState() {
@@ -134,7 +200,12 @@
       name: nameInput.value,
       package: packageInput.value,
       description: descriptionInput.value,
+      version: versionInput.value,
+      author: authorInput.value,
       python: pythonSelect.value,
+      fastapi: fastapiSelect.value,
+      baseDir: baseDirInput.value,
+      applicationName: applicationNameInput.value,
       dependencies: getCheckedIds(),
     };
   }
@@ -144,13 +215,14 @@
     params.set("name", state.name);
     params.set("package", state.package);
     params.set("description", state.description);
+    params.set("version", state.version);
+    params.set("author", state.author);
     params.set("python", state.python);
-    const seen = new Set();
+    params.set("fastapi", state.fastapi);
+    params.set("baseDir", state.baseDir);
+    params.set("applicationName", state.applicationName);
     for (const dependencyId of [...state.dependencies].sort()) {
-      if (!seen.has(dependencyId)) {
-        seen.add(dependencyId);
-        params.append("dependencies", dependencyId);
-      }
+      params.append("dependencies", dependencyId);
     }
     return params;
   }
@@ -163,48 +235,49 @@
 
   function dependencyName(dependencyId) {
     const dependency = dependenciesById.get(dependencyId);
-    return dependency ? dependency.name : dependencyId;
+    return dependency && typeof dependency.name === "string"
+      ? dependency.name
+      : dependencyId;
+  }
+
+  function dependencyRequires(dependencyId) {
+    const dependency = dependenciesById.get(dependencyId);
+    return dependency && Array.isArray(dependency.requires)
+      ? dependency.requires
+      : [];
   }
 
   function expandRequirements(selected) {
     const result = new Set(selected);
-    let changed = true;
-    let passes = 0;
-    while (changed && passes < dependencyOrder.length + 1) {
-      changed = false;
-      passes += 1;
+    const maxPasses = dependencyOrder.length + 1;
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      let changed = false;
       for (const dependencyId of Array.from(result)) {
-        const dependency = dependenciesById.get(dependencyId);
-        if (!dependency) {
-          continue;
-        }
-        for (const requirement of dependency.requires) {
+        for (const requirement of dependencyRequires(dependencyId)) {
           if (dependenciesById.has(requirement) && !result.has(requirement)) {
             result.add(requirement);
             changed = true;
           }
         }
       }
+      if (!changed) {
+        break;
+      }
     }
     return result;
   }
 
-  function removeDependents(selected, removedId) {
+  function removeDependents(selected, removedIds) {
     const result = new Set(selected);
-    const removed = new Set([removedId]);
+    const removed = new Set(removedIds);
     let changed = true;
     while (changed) {
       changed = false;
       for (const dependencyId of Array.from(result)) {
-        const dependency = dependenciesById.get(dependencyId);
-        if (!dependency) {
-          continue;
-        }
-        if (
-          !removed.has(dependencyId) &&
-          dependency.requires.some((id) => removed.has(id))
-        ) {
+        const requires = dependencyRequires(dependencyId);
+        if (requires.some((id) => removed.has(id))) {
           removed.add(dependencyId);
+          changed = true;
         }
       }
     }
@@ -216,16 +289,10 @@
 
   function reconcileSelection(selected, preferredId) {
     let result = expandRequirements(selected);
-    let passes = 0;
-    let changed = true;
-    while (changed && passes < dependencyOrder.length + 1) {
-      changed = false;
-      passes += 1;
-      const priority = [
-        ...(preferredId !== null && result.has(preferredId) ? [preferredId] : []),
-        ...dependencyOrder.filter((id) => id !== preferredId && result.has(id)),
-      ];
-      for (const dependencyId of priority) {
+    const maxPasses = dependencyOrder.length + 2;
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      let changed = false;
+      for (const dependencyId of dependencyOrder) {
         if (!result.has(dependencyId)) {
           continue;
         }
@@ -234,10 +301,15 @@
           continue;
         }
         for (const conflictId of conflicts) {
-          if (conflictId !== dependencyId && result.has(conflictId)) {
-            result.delete(conflictId);
-            changed = true;
+          if (conflictId === dependencyId || !result.has(conflictId)) {
+            continue;
           }
+          if (conflictId === preferredId) {
+            result.delete(dependencyId);
+          } else {
+            result.delete(conflictId);
+          }
+          changed = true;
         }
       }
       const expanded = expandRequirements(result);
@@ -245,40 +317,42 @@
         result = expanded;
         changed = true;
       }
+      if (!changed) {
+        break;
+      }
     }
     return result;
   }
 
   function applySelection(selected) {
-    for (const input of form.querySelectorAll(
-      'input[name="dependencies"]',
-    )) {
+    for (const input of dependencyInputs()) {
       input.checked = selected.has(input.value);
     }
   }
 
+  function updateSelectedCount() {
+    const count = getCheckedIds().length;
+    selectedCount.textContent = `${count} selected`;
+  }
+
   function syncDependencyState() {
     const selected = new Set(getCheckedIds());
-    for (const input of form.querySelectorAll(
-      'input[name="dependencies"]',
-    )) {
+    for (const input of dependencyInputs()) {
       const dependencyId = input.value;
-      const dependency = dependenciesById.get(dependencyId);
-      if (!dependency) {
-        continue;
-      }
       const conflicts = Array.from(conflictsById.get(dependencyId) ?? []).filter(
         (id) => selected.has(id),
       );
       const requiring = Array.from(selected)
         .filter((id) => id !== dependencyId)
-        .filter((id) =>
-          dependenciesById.get(id)?.requires.includes(dependencyId),
-        )
+        .filter((id) => dependencyRequires(id).includes(dependencyId))
         .map(dependencyName);
 
       const note = notesById.get(dependencyId);
       const option = input.closest(".dependency-option");
+      if (option) {
+        option.classList.toggle("is-selected", input.checked);
+      }
+
       if (input.checked) {
         input.disabled = false;
         if (note) {
@@ -307,88 +381,185 @@
         }
       }
     }
+    updateSelectedCount();
   }
 
-  function renderDependencies(selected, preferredId) {
-    dependencyGroups.replaceChildren();
-    notesById.clear();
+  function addDependencyLink(container, link, fallbackLabel) {
+    if (!link || typeof link.href !== "string" || link.href === "") {
+      return;
+    }
+    const anchor = document.createElement("a");
+    anchor.className = "dependency-link";
+    anchor.href = link.href;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.textContent =
+      typeof link.title === "string" && link.title !== ""
+        ? link.title
+        : fallbackLabel;
+    container.append(anchor);
+  }
 
-    const resolved = reconcileSelection(selected, preferredId);
+  function renderDependencyDomFromMetadata() {
+    dependencyGroups.replaceChildren();
+    const groups =
+      metadata &&
+      metadata.dependencies &&
+      Array.isArray(metadata.dependencies.groups)
+        ? metadata.dependencies.groups
+        : [];
     const fragment = document.createDocumentFragment();
 
-    for (const [groupIndex, group] of metadata.dependencies.groups.entries()) {
-      const groupSection = document.createElement("section");
-      groupSection.className = "dependency-group";
-      const headingId = `dependency-group-${groupIndex}-${group.name
+    groups.forEach((group, groupIndex) => {
+      const section = document.createElement("section");
+      section.className = "dependency-group";
+      section.dataset.groupName = group.name;
+      const headingId = `dependency-group-${groupIndex}-${String(group.name)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")}`;
-      groupSection.setAttribute("aria-labelledby", headingId);
+      section.setAttribute("aria-labelledby", headingId);
 
-      const heading = document.createElement("h3");
+      const heading = document.createElement("h4");
       heading.id = headingId;
       heading.className = "dependency-group-title";
-      heading.textContent = group.name;
-      groupSection.append(heading);
+      const headingText = document.createElement("span");
+      headingText.textContent = group.name;
+      const groupCount = document.createElement("span");
+      groupCount.className = "group-count";
+      groupCount.dataset.groupCount = "";
+      groupCount.textContent = String(group.values.length);
+      heading.append(headingText, groupCount);
 
       const list = document.createElement("div");
       list.className = "dependency-list";
 
       for (const dependency of group.values) {
-        const option = document.createElement("label");
+        const option = document.createElement("div");
         option.className = "dependency-option";
+        option.dataset.dependencyId = dependency.id;
+        option.dataset.search = [
+          dependency.id,
+          dependency.name,
+          dependency.description,
+          ...(dependency.packages ?? []),
+          ...(dependency.devPackages ?? []),
+        ]
+          .join(" ")
+          .toLowerCase();
 
         const input = document.createElement("input");
+        input.id = `dependency-${dependency.id}`;
         input.type = "checkbox";
         input.name = "dependencies";
         input.value = dependency.id;
-        input.id = `dependency-${dependency.id}`;
-        input.checked = resolved.has(dependency.id);
 
-        const body = document.createElement("span");
+        const body = document.createElement("div");
         body.className = "dependency-body";
 
-        const title = document.createElement("span");
+        const header = document.createElement("div");
+        header.className = "dependency-heading";
+
+        const title = document.createElement("label");
         title.className = "dependency-title";
+        title.htmlFor = input.id;
         title.textContent = dependency.name;
 
-        const description = document.createElement("span");
+        const packageCount =
+          (dependency.packages?.length ?? 0) +
+          (dependency.devPackages?.length ?? 0);
+        const packages = document.createElement("span");
+        packages.className = "dependency-packages";
+        packages.textContent = `${packageCount} package${
+          packageCount === 1 ? "" : "s"
+        }`;
+
+        header.append(title, packages);
+
+        const description = document.createElement("p");
         description.className = "dependency-description";
+        description.id = `dependency-description-${dependency.id}`;
         description.textContent = dependency.description;
 
-        const note = document.createElement("span");
-        note.className = "dependency-note";
+        const meta = document.createElement("div");
+        meta.className = "dependency-meta";
+        if (dependency.versionRange) {
+          const version = document.createElement("span");
+          version.className = "dependency-version";
+          version.textContent = dependency.versionRange;
+          meta.append(version);
+        }
+        addDependencyLink(meta, dependency.links?.guide, "Guide");
+        addDependencyLink(meta, dependency.links?.reference, "Reference");
+        addDependencyLink(meta, dependency.links?.home, "Homepage");
+
+        const note = document.createElement("p");
         note.id = `dependency-note-${dependency.id}`;
+        note.className = "dependency-note";
         note.hidden = true;
 
-        body.append(title, description, note);
-        input.setAttribute("aria-describedby", note.id);
+        input.setAttribute(
+          "aria-describedby",
+          `${description.id} ${note.id}`,
+        );
+        body.append(header, description, meta, note);
         option.append(input, body);
         list.append(option);
-        notesById.set(dependency.id, note);
       }
 
-      groupSection.append(list);
-      fragment.append(groupSection);
-    }
+      section.append(heading, list);
+      fragment.append(section);
+    });
 
     dependencyGroups.append(fragment);
-    applySelection(resolved);
-    syncDependencyState();
   }
 
-  function renderPythonOption(values, selectedId) {
-    pythonSelect.replaceChildren();
+  function indexDependencyDom() {
+    notesById.clear();
+    for (const input of dependencyInputs()) {
+      const option = input.closest(".dependency-option");
+      if (!option) {
+        continue;
+      }
+      const note = option.querySelector(".dependency-note");
+      if (note instanceof HTMLElement) {
+        notesById.set(input.value, note);
+      }
+    }
+  }
+
+  function ensureDependencyDom() {
+    if (dependencyInputs().length === 0) {
+      renderDependencyDomFromMetadata();
+    }
+    indexDependencyDom();
+  }
+
+  function renderSelect(select, values, selectedId) {
+    select.replaceChildren();
     for (const value of values) {
       const option = document.createElement("option");
       option.value = value.id;
       option.textContent = value.name;
-      pythonSelect.append(option);
+      select.append(option);
     }
-    pythonSelect.value = selectedId;
+    select.value = selectedId;
   }
 
   function initialValue(params, key, fallback) {
     return params.has(key) ? params.get(key) ?? "" : fallback;
+  }
+
+  function initialSelectValue(params, keys, option) {
+    for (const key of keys) {
+      if (!params.has(key)) {
+        continue;
+      }
+      const value = params.get(key);
+      if (option.values.some((candidate) => candidate.id === value)) {
+        return value;
+      }
+    }
+    return option.default;
   }
 
   function initialDependencies(params) {
@@ -406,9 +577,7 @@
     return { selected, preferredId };
   }
 
-  function configureMetadata(nextMetadata, params) {
-    metadata = nextMetadata;
-
+  function buildDependencyTables() {
     dependenciesById.clear();
     conflictsById.clear();
     dependencyOrder = [];
@@ -426,7 +595,7 @@
       if (!conflicts) {
         continue;
       }
-      for (const conflictId of dependency.conflicts) {
+      for (const conflictId of dependency.conflicts ?? []) {
         conflicts.add(conflictId);
         const reverse = conflictsById.get(conflictId);
         if (reverse) {
@@ -434,10 +603,19 @@
         }
       }
     }
+  }
+
+  function configureMetadata(nextMetadata, params) {
+    metadata = nextMetadata;
+    buildDependencyTables();
 
     nameInput.maxLength = metadata.project.name.maxLength;
     packageInput.maxLength = metadata.project.package.maxLength;
     descriptionInput.maxLength = metadata.project.description.maxLength;
+    versionInput.maxLength = metadata.project.version.maxLength;
+    authorInput.maxLength = metadata.project.author.maxLength;
+    baseDirInput.maxLength = metadata.baseDir.maxLength;
+    applicationNameInput.maxLength = metadata.applicationName.maxLength;
 
     nameInput.value = initialValue(
       params,
@@ -449,28 +627,54 @@
       "package",
       metadata.project.package.default,
     );
-    packageTouched = params.has("package");
     descriptionInput.value = initialValue(
       params,
       "description",
       metadata.project.description.default,
     );
-
-    const pythonValues = metadata.python.values.map((value) => ({
-      id: value.id,
-      name: value.name,
-    }));
-    const requestedPython = params.get("python");
-    const pythonIsKnown = pythonValues.some(
-      (value) => value.id === requestedPython,
+    versionInput.value = initialValue(
+      params,
+      "version",
+      metadata.project.version.default,
     );
-    renderPythonOption(
-      pythonValues,
-      pythonIsKnown ? requestedPython : metadata.python.default,
+    authorInput.value = initialValue(
+      params,
+      "author",
+      metadata.project.author.default,
+    );
+    baseDirInput.value = initialValue(
+      params,
+      "baseDir",
+      metadata.baseDir.default,
+    );
+    applicationNameInput.value = initialValue(
+      params,
+      "applicationName",
+      metadata.applicationName.default,
+    );
+    packageTouched = params.has("package");
+
+    renderSelect(
+      pythonSelect,
+      metadata.python.values,
+      initialSelectValue(params, ["python", "pythonVersion"], metadata.python),
+    );
+    renderSelect(
+      fastapiSelect,
+      metadata.fastapi.values,
+      initialSelectValue(
+        params,
+        ["fastapi", "fastapiVersion"],
+        metadata.fastapi,
+      ),
     );
 
+    ensureDependencyDom();
     const initial = initialDependencies(params);
-    renderDependencies(initial.selected, initial.preferredId);
+    applySelection(reconcileSelection(initial.selected, initial.preferredId));
+    syncDependencyState();
+    applyFilter();
+    validateInline();
     projectLabel.textContent = nameInput.value;
   }
 
@@ -491,6 +695,20 @@
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
   }
 
+  function languageForPath(path) {
+    const fileName = path.split("/").pop() ?? path;
+    const lowerName = fileName.toLowerCase();
+    if (LANGUAGE_BY_EXTENSION[lowerName]) {
+      return LANGUAGE_BY_EXTENSION[lowerName];
+    }
+    const dotIndex = lowerName.lastIndexOf(".");
+    if (dotIndex <= 0) {
+      return lowerName.startsWith(".") ? "Text" : "Text";
+    }
+    const extension = lowerName.slice(dotIndex + 1);
+    return LANGUAGE_BY_EXTENSION[extension] ?? extension.toUpperCase();
+  }
+
   function updatePreviewSelection() {
     for (const button of fileList.querySelectorAll("button.file-button")) {
       if (button.dataset.path === selectedPath) {
@@ -506,12 +724,14 @@
     if (!file) {
       selectedPath = null;
       selectedFileLabel.textContent = "No file selected";
+      fileLanguageLabel.textContent = "";
       fileSizeLabel.textContent = "";
       fileContent.textContent = DEFAULT_FILE_MESSAGE;
       updatePreviewSelection();
       return;
     }
     selectedFileLabel.textContent = file.path;
+    fileLanguageLabel.textContent = languageForPath(file.path);
     fileSizeLabel.textContent = formatBytes(file.size);
     fileContent.textContent =
       file.content === "" ? "(empty file)" : file.content;
@@ -533,6 +753,7 @@
       button.type = "button";
       button.className = "file-button";
       button.dataset.path = file.path;
+      button.title = file.path;
 
       const path = document.createElement("span");
       path.className = "file-path";
@@ -573,7 +794,9 @@
       return [];
     }
     return payload.files
-      .filter((file) => file && typeof file.path === "string" && file.path !== "")
+      .filter(
+        (file) => file && typeof file.path === "string" && file.path !== "",
+      )
       .map((file) => {
         const size = Number(file.size);
         return {
@@ -633,7 +856,9 @@
       if (token !== previewToken) {
         return;
       }
-      setError("Could not load the preview. Check your connection and try again.");
+      setError(
+        "Could not load the preview. Check your connection and try again.",
+      );
       previewStatus.textContent = "Preview unavailable";
     }
   }
@@ -645,21 +870,196 @@
     }, PREVIEW_DEBOUNCE_MS);
   }
 
+  function validateField(input, errorElement, pattern, message) {
+    const value = input.value;
+    if (input === packageInput && value === "") {
+      input.removeAttribute("aria-invalid");
+      errorElement.textContent = "";
+      errorElement.hidden = true;
+      return;
+    }
+    if (value === "" || !pattern.test(value)) {
+      input.setAttribute("aria-invalid", "true");
+      errorElement.textContent = message;
+      errorElement.hidden = false;
+      return;
+    }
+    input.removeAttribute("aria-invalid");
+    errorElement.textContent = "";
+    errorElement.hidden = true;
+  }
+
+  function validateInline() {
+    validateField(
+      nameInput,
+      nameError,
+      NAME_PATTERN,
+      "Use lowercase letters, digits, hyphens, or underscores, starting with a letter.",
+    );
+    validateField(
+      packageInput,
+      packageError,
+      PACKAGE_PATTERN,
+      "Use lowercase letters, digits, and underscores, starting with a letter or underscore.",
+    );
+  }
+
   function stateChanged() {
     clearError();
+    validateInline();
     updateUrl();
     schedulePreview();
   }
 
-  function downloadProject() {
+  function applyFilter() {
+    const term = dependencySearch.value.trim().toLowerCase();
+    let visibleTotal = 0;
+    for (const group of dependencyGroups.querySelectorAll(
+      ".dependency-group",
+    )) {
+      let visibleCount = 0;
+      for (const option of group.querySelectorAll(".dependency-option")) {
+        const haystack =
+          option instanceof HTMLElement ? option.dataset.search ?? "" : "";
+        const visible = term === "" || haystack.includes(term);
+        if (option instanceof HTMLElement) {
+          option.hidden = !visible;
+        }
+        if (visible) {
+          visibleCount += 1;
+        }
+      }
+      visibleTotal += visibleCount;
+      if (group instanceof HTMLElement) {
+        group.hidden = visibleCount === 0;
+        const groupCount = group.querySelector("[data-group-count]");
+        if (groupCount) {
+          groupCount.textContent = String(visibleCount);
+        }
+      }
+    }
+    dependencyEmpty.hidden = visibleTotal > 0;
+  }
+
+  function generateUrl() {
+    const output = OUTPUTS[outputSelect.value] ?? OUTPUTS.zip;
+    return `${output.path}?${stateParams(currentState()).toString()}`;
+  }
+
+  function filenameFromResponse(response, output, projectName) {
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+    if (encoded) {
+      try {
+        return decodeURIComponent(encoded[1].replace(/["']/g, "").trim());
+      } catch {
+        return encoded[1].replace(/["']/g, "").trim();
+      }
+    }
+    const plain = /filename="?([^";]+)"?/i.exec(disposition);
+    if (plain) {
+      return plain[1].trim();
+    }
+    const safeName = projectName.replace(/[^a-z0-9._-]+/gi, "-") || "project";
+    if (output === "pyproject") {
+      return "pyproject.toml";
+    }
+    return `${safeName}${OUTPUTS[output]?.fallbackName ?? ".zip"}`;
+  }
+
+  async function downloadProject() {
+    if (!metadata) {
+      return;
+    }
+    clearError();
     updateUrl();
     window.clearTimeout(previewTimer);
-    const anchor = document.createElement("a");
-    anchor.href = `/api/generate?${stateParams(currentState()).toString()}`;
-    anchor.rel = "noopener";
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
+    const output = outputSelect.value;
+    const state = currentState();
+    const url = generateUrl();
+    const originalLabel = generateButton.textContent ?? "Generate";
+    generateButton.disabled = true;
+    generateButton.textContent = "Generating…";
+
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: "*/*" },
+      });
+      if (!response.ok) {
+        setError(await responseError(response));
+        return;
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filenameFromResponse(response, output, state.name);
+      anchor.rel = "noopener";
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch {
+      setError(
+        "Could not generate the project. Check your connection and try again.",
+      );
+    } finally {
+      generateButton.disabled = false;
+      generateButton.textContent = originalLabel;
+    }
+  }
+
+  function showCopiedState() {
+    const originalLabel = shareButton.dataset.label ?? "Share";
+    shareButton.dataset.label = originalLabel;
+    shareButton.textContent = "Copied";
+    shareButton.classList.add("is-copied");
+    window.clearTimeout(shareTimer);
+    shareTimer = window.setTimeout(() => {
+      shareButton.textContent = originalLabel;
+      shareButton.classList.remove("is-copied");
+    }, 1600);
+  }
+
+  async function shareProject() {
+    clearError();
+    updateUrl();
+    try {
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(window.location.href);
+      showCopiedState();
+    } catch {
+      setError(
+        "Could not copy the share link. Copy the address bar URL manually.",
+      );
+    }
+  }
+
+  function resetForm() {
+    if (!metadata) {
+      return;
+    }
+    clearError();
+    nameInput.value = metadata.project.name.default;
+    packageInput.value = metadata.project.package.default;
+    descriptionInput.value = metadata.project.description.default;
+    versionInput.value = metadata.project.version.default;
+    authorInput.value = metadata.project.author.default;
+    baseDirInput.value = metadata.baseDir.default;
+    applicationNameInput.value = metadata.applicationName.default;
+    pythonSelect.value = metadata.python.default;
+    fastapiSelect.value = metadata.fastapi.default;
+    packageTouched = false;
+    dependencySearch.value = "";
+    applySelection(new Set());
+    syncDependencyState();
+    applyFilter();
+    validateInline();
+    projectLabel.textContent = nameInput.value;
+    stateChanged();
+    nameInput.focus();
   }
 
   form.addEventListener("input", (event) => {
@@ -668,6 +1068,9 @@
     }
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.name === "dependencies") {
       return;
     }
     if (target === nameInput) {
@@ -693,13 +1096,80 @@
     if (target.name !== "dependencies") {
       return;
     }
+    lastDependencyId = target.value;
     const selected = new Set(getCheckedIds());
     const nextSelected = target.checked
       ? reconcileSelection(selected, target.value)
-      : reconcileSelection(removeDependents(selected, target.value), null);
+      : reconcileSelection(removeDependents(selected, [target.value]), null);
     applySelection(nextSelected);
     syncDependencyState();
     stateChanged();
+  });
+
+  dependencyGroups.addEventListener("click", (event) => {
+    if (!metadata) {
+      return;
+    }
+    const target = event.target;
+    if (
+      !(target instanceof HTMLInputElement) ||
+      target.name !== "dependencies"
+    ) {
+      return;
+    }
+    if (!event.shiftKey || lastDependencyId === null) {
+      lastDependencyId = target.value;
+      return;
+    }
+
+    const inputs = dependencyInputs().filter((input) => {
+      const option = input.closest(".dependency-option");
+      return option instanceof HTMLElement && !option.hidden;
+    });
+    const currentIndex = inputs.indexOf(target);
+    const anchorIndex = inputs.findIndex(
+      (input) => input.value === lastDependencyId,
+    );
+    if (currentIndex < 0 || anchorIndex < 0) {
+      lastDependencyId = target.value;
+      return;
+    }
+
+    event.preventDefault();
+    const desired = !target.checked;
+    const start = Math.min(currentIndex, anchorIndex);
+    const end = Math.max(currentIndex, anchorIndex);
+    const selected = new Set(getCheckedIds());
+    const removed = [];
+    for (let index = start; index <= end; index += 1) {
+      const input = inputs[index];
+      if (desired) {
+        if (!input.disabled) {
+          selected.add(input.value);
+        }
+      } else if (input.checked) {
+        selected.delete(input.value);
+        removed.push(input.value);
+      }
+    }
+    const nextSelected = reconcileSelection(
+      removeDependents(selected, removed),
+      target.value,
+    );
+    applySelection(nextSelected);
+    syncDependencyState();
+    lastDependencyId = target.value;
+    stateChanged();
+  });
+
+  dependencySearch.addEventListener("input", () => {
+    applyFilter();
+  });
+
+  clearSearchButton.addEventListener("click", () => {
+    dependencySearch.value = "";
+    applyFilter();
+    dependencySearch.focus();
   });
 
   form.addEventListener("submit", (event) => {
@@ -707,14 +1177,29 @@
       return;
     }
     event.preventDefault();
-    downloadProject();
+    void downloadProject();
   });
 
-  refreshButton.addEventListener("click", () => {
-    if (!metadata) {
-      return;
+  shareButton.addEventListener("click", () => {
+    void shareProject();
+  });
+
+  resetButton.addEventListener("click", () => {
+    resetForm();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      event.key === "Enter"
+    ) {
+      if (!metadata) {
+        return;
+      }
+      event.preventDefault();
+      void downloadProject();
     }
-    void loadPreview();
   });
 
   async function loadMetadata() {
@@ -734,6 +1219,8 @@
         !payload.project ||
         !payload.python ||
         !Array.isArray(payload.python.values) ||
+        !payload.fastapi ||
+        !Array.isArray(payload.fastapi.values) ||
         !payload.dependencies ||
         !Array.isArray(payload.dependencies.groups)
       ) {
@@ -745,7 +1232,9 @@
       updateUrl();
       await loadPreview();
     } catch {
-      setError("Could not load project options. Check your connection and reload.");
+      setError(
+        "Could not load project options. Check your connection and reload.",
+      );
       previewStatus.textContent = "Options unavailable";
     }
   }
