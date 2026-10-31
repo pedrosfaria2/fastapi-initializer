@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 {% endif %}
 
+from {{ spec.package }} import __version__
 from {{ spec.package }}.api.routes import api_router
 from {{ spec.package }}.core.config import get_settings
 {% if spec.has_database %}
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title=settings.app_name,
+        version=__version__,
 {% if spec.has_database %}
         lifespan=lifespan,
 {% endif %}

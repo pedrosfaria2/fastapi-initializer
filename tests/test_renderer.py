@@ -105,6 +105,29 @@ def test_explicit_package_is_used_in_paths() -> None:
     assert "src/my_service/main.py" not in files
 
 
+def test_pyproject_uses_project_metadata_and_fastapi_range() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        version="1.2.3",
+        author="Ada Lovelace",
+        fastapi="0.161.1",
+    )
+    files = render_project(spec)
+    data = tomllib.loads(files["pyproject.toml"])
+
+    assert data["project"]["version"] == "1.2.3"
+    assert data["project"]["authors"] == [{"name": "Ada Lovelace"}]
+    assert "fastapi>=0.161.1,<0.162.0" in data["project"]["dependencies"]
+    assert '__version__ = "1.2.3"' in files["src/my_service/__init__.py"]
+    assert 'app_name: str = "my-service"' in files["src/my_service/core/config.py"]
+
+
+def test_application_name_controls_app_title() -> None:
+    files = render_project(ProjectSpec(name="my-service", application_name="My Public API"))
+
+    assert 'app_name: str = "My Public API"' in files["src/my_service/core/config.py"]
+
+
 def test_description_with_quotes_is_escaped_in_toml() -> None:
     description = 'A "quoted" \\ service'
     files = render_project(ProjectSpec(name="my-service", description=description))

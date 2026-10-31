@@ -92,3 +92,47 @@ def test_environment_is_needed_for_database_or_cors() -> None:
 
 def test_derives_package_name_for_hyphenated_name() -> None:
     assert derive_package_name("my-cool-service") == "my_cool_service"
+
+
+def test_accepts_project_metadata() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        version="1.2.3",
+        author="Ada Lovelace",
+        fastapi="0.161.1",
+        base_dir="custom-root",
+        application_name="My Service",
+    )
+
+    assert spec.version == "1.2.3"
+    assert spec.author == "Ada Lovelace"
+    assert spec.fastapi_range == ">=0.161.1,<0.162.0"
+    assert spec.archive_root == "custom-root"
+    assert spec.app_title == "My Service"
+
+
+@pytest.mark.parametrize("version", ["1.0", "1.0.0.0", "v1.0.0", ""])
+def test_rejects_invalid_project_versions(version: str) -> None:
+    with pytest.raises(ValidationError, match=r"MAJOR\.MINOR\.PATCH"):
+        ProjectSpec(name="my-service", version=version)
+
+
+def test_rejects_unknown_fastapi_version() -> None:
+    with pytest.raises(ValidationError, match="FastAPI version"):
+        ProjectSpec(name="my-service", fastapi="0.100.0")
+
+
+@pytest.mark.parametrize("base_dir", ["../evil", "a/b", "a\\b", ".hidden", "a..b"])
+def test_rejects_unsafe_base_dir(base_dir: str) -> None:
+    with pytest.raises(ValidationError, match="baseDir"):
+        ProjectSpec(name="my-service", base_dir=base_dir)
+
+
+def test_rejects_control_characters_in_author() -> None:
+    with pytest.raises(ValidationError, match="control characters"):
+        ProjectSpec(name="my-service", author="bad\x00author")
+
+
+def test_rejects_control_characters_in_application_name() -> None:
+    with pytest.raises(ValidationError, match="applicationName"):
+        ProjectSpec(name="my-service", application_name="bad\x00name")

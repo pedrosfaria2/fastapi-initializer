@@ -1,11 +1,14 @@
 [project]
 name = "{{ spec.name }}"
-version = "0.1.0"
+version = "{{ project_version }}"
 description = "{{ spec.description | replace('\\', '\\\\') | replace('"', '\\"') }}"
 readme = "README.md"
 requires-python = ">={{ spec.python }}"
+{% if author %}
+authors = [{ name = "{{ author | replace('\\', '\\\\') | replace('"', '\\"') }}" }]
+{% endif %}
 dependencies = [
-    "fastapi>={{ fastapi_version }}",
+    "fastapi{{ fastapi_range }}",
     "fastapi-cli>=0.0.32",
     "uvicorn[standard]>={{ uvicorn_version }}",
     "pydantic-settings>={{ pydantic_settings_version }}",

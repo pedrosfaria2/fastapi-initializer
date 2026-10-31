@@ -11,12 +11,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from fastapi_initializr.generation.catalog import DEPENDENCIES
 from fastapi_initializr.generation.constants import (
+    DEFAULT_FASTAPI_VERSION,
     DEFAULT_PYTHON_VERSION,
+    SUPPORTED_FASTAPI_VERSIONS,
     SUPPORTED_PYTHON_VERSIONS,
+    fastapi_version_range,
 )
 
 PROJECT_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]{0,63}$")
+PROJECT_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
+BASE_DIR_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 RESERVED_NAMES = frozenset(
     {
@@ -45,7 +50,12 @@ class ProjectSpec(BaseModel):
     name: str = Field(default="my-service", min_length=1, max_length=64)
     package: str | None = Field(default=None, max_length=64)
     description: str = Field(default="A FastAPI service", max_length=200)
+    version: str = Field(default="0.1.0", max_length=32)
+    author: str = Field(default="", max_length=100)
     python: str = Field(default=DEFAULT_PYTHON_VERSION)
+    fastapi: str = Field(default=DEFAULT_FASTAPI_VERSION)
+    base_dir: str | None = Field(default=None, max_length=64)
+    application_name: str | None = Field(default=None, max_length=100)
     dependencies: frozenset[str] = Field(default_factory=frozenset)
 
     @field_validator("name")
@@ -56,12 +66,42 @@ class ProjectSpec(BaseModel):
             raise ValueError("Use lowercase letters, digits, '-' or '_' and start with a letter.")
         return value
 
-    @field_validator("description")
+    @field_validator("description", "author")
     @classmethod
-    def validate_description(cls, value: str) -> str:
+    def validate_text(cls, value: str) -> str:
         value = value.strip()
         if any(ord(character) < 32 for character in value):
-            raise ValueError("Description cannot contain control characters.")
+            raise ValueError("Text fields cannot contain control characters.")
+        return value
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        value = value.strip()
+        if not PROJECT_VERSION_PATTERN.fullmatch(value):
+            raise ValueError("Project version must use MAJOR.MINOR.PATCH, for example 0.1.0.")
+        return value
+
+    @field_validator("base_dir")
+    @classmethod
+    def validate_base_dir(cls, value: str | None) -> str | None:
+        if value is None or value.strip() == "":
+            return None
+        value = value.strip()
+        if not BASE_DIR_PATTERN.fullmatch(value) or ".." in value:
+            raise ValueError(
+                "baseDir must be a single directory name without path separators or '..'."
+            )
+        return value
+
+    @field_validator("application_name")
+    @classmethod
+    def validate_application_name(cls, value: str | None) -> str | None:
+        if value is None or value.strip() == "":
+            return None
+        value = value.strip()
+        if any(ord(character) < 32 for character in value):
+            raise ValueError("applicationName cannot contain control characters.")
         return value
 
     @model_validator(mode="after")
@@ -76,6 +116,9 @@ class ProjectSpec(BaseModel):
         if self.python not in SUPPORTED_PYTHON_VERSIONS:
             allowed = ", ".join(SUPPORTED_PYTHON_VERSIONS)
             raise ValueError(f"Python version must be one of: {allowed}.")
+        if self.fastapi not in SUPPORTED_FASTAPI_VERSIONS:
+            allowed = ", ".join(SUPPORTED_FASTAPI_VERSIONS)
+            raise ValueError(f"FastAPI version must be one of: {allowed}.")
 
         unknown = sorted(self.dependencies - DEPENDENCIES.keys())
         if unknown:
@@ -120,3 +163,18 @@ class ProjectSpec(BaseModel):
     def cors_origins(self) -> list[str]:
         """Return the default local CORS origins."""
         return ["http://localhost:3000"]
+
+    @property
+    def archive_root(self) -> str:
+        """Return the root directory inside the generated archive."""
+        return self.base_dir or self.name
+
+    @property
+    def app_title(self) -> str:
+        """Return the application title used by FastAPI."""
+        return self.application_name or self.name
+
+    @property
+    def fastapi_range(self) -> str:
+        """Return the bounded FastAPI dependency range."""
+        return fastapi_version_range(self.fastapi)
