@@ -43,7 +43,10 @@ def _callback_url(provider: str) -> str:
 
 @router.get(
     "/{provider}/login",
-    responses={302: {"description": "Redirect to the provider authorization page"}},
+    responses={
+        302: {"description": "Redirect to the provider authorization page"},
+        429: {"description": "Rate limit exceeded"},
+    },
     dependencies=[Depends(auth_rate_limit("oauth_login", OAUTH_LIMIT))],
 )
 async def login(
@@ -63,6 +66,7 @@ async def login(
         400: {"description": "Invalid provider identity"},
         403: {"description": "Invalid callback or state"},
         409: {"description": "Email already belongs to a password account"},
+        429: {"description": "Rate limit exceeded"},
     },
     dependencies=[Depends(auth_rate_limit("oauth_callback", OAUTH_LIMIT))],
 )
