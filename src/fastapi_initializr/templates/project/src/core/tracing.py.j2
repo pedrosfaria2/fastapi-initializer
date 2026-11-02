@@ -7,7 +7,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 {% if spec.has("redis") %}
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 {% endif %}
 from opentelemetry.sdk.resources import Resource
@@ -34,7 +34,7 @@ def configure_tracing(app: FastAPI, settings: Settings) -> None:
     )
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(app)
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
     SQLAlchemyInstrumentor().instrument()
 {% endif %}
 {% if spec.has("redis") %}

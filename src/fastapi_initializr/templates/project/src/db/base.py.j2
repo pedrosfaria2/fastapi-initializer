@@ -1,7 +1,14 @@
 """Declarative base for database models."""
+{% if spec.has("sqlmodel") %}
+
+from sqlmodel import SQLModel
+
+Base = SQLModel
+{% else %}
 
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     """Base class for SQLAlchemy models."""
+{% endif %}

@@ -1,7 +1,13 @@
 """Item service functions."""
+{% if spec.has("sqlmodel") %}
+
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+{% else %}
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+{% endif %}
 
 from {{ spec.package }}.models.item import Item
 from {{ spec.package }}.schemas.item import ItemCreate, ItemUpdate
@@ -42,9 +48,15 @@ async def list_items(
 ) -> list[Item]:
     """Return a bounded page of items ordered by id."""
     _validate_pagination(limit, offset)
+{% if spec.has("sqlmodel") %}
+    statement = select(Item).order_by("id").limit(limit).offset(offset)
+    result = await session.exec(statement)
+    return list(result.all())
+{% else %}
     statement = select(Item).order_by(Item.id).limit(limit).offset(offset)
     result = await session.execute(statement)
     return list(result.scalars().all())
+{% endif %}
 
 
 async def get_item(session: AsyncSession, item_id: int) -> Item:

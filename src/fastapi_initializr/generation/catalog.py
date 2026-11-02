@@ -32,6 +32,8 @@ class Dependency:
     description: str
     group: str
     requires: tuple[str, ...] = ()
+    requires_capabilities: tuple[str, ...] = ()
+    provides: tuple[str, ...] = ()
     conflicts: tuple[str, ...] = ()
     packages: tuple[str, ...] = ()
     dev_packages: tuple[str, ...] = ()
@@ -49,7 +51,8 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="SQLAlchemy",
         description="Async SQLAlchemy session and SQLite driver.",
         group="Database",
-        conflicts=("mongodb",),
+        provides=("orm",),
+        conflicts=("mongodb", "sqlmodel"),
         packages=("sqlalchemy[asyncio]", "aiosqlite"),
         files=(
             "src/{package}/db/base.py",
@@ -60,12 +63,33 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="SQLAlchemy asyncio ORM",
         reference="https://docs.sqlalchemy.org/en/20/",
     ),
+    "sqlmodel": Dependency(
+        id="sqlmodel",
+        name="SQLModel",
+        description="SQLModel ORM on SQLAlchemy with async sessions.",
+        group="Database",
+        provides=("orm",),
+        conflicts=("sqlalchemy", "mongodb"),
+        packages=("sqlmodel", "sqlalchemy[asyncio]", "aiosqlite"),
+        files=(
+            "src/{package}/db/base.py",
+            "src/{package}/db/session.py",
+            "src/{package}/api/dependencies.py",
+            "src/{package}/models/item.py",
+            "src/{package}/schemas/item.py",
+            "src/{package}/services/items.py",
+            "src/{package}/api/routes/items.py",
+        ),
+        guide="https://sqlmodel.tiangolo.com/tutorial/fastapi/",
+        guide_title="SQLModel with FastAPI",
+        reference="https://sqlmodel.tiangolo.com/",
+    ),
     "alembic": Dependency(
         id="alembic",
         name="Alembic",
-        description="Database migrations for SQLAlchemy.",
+        description="Database migrations for SQLAlchemy and SQLModel.",
         group="Database",
-        requires=("sqlalchemy",),
+        requires_capabilities=("orm",),
         packages=("alembic",),
         files=(
             "alembic.ini",
@@ -82,11 +106,24 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="PostgreSQL",
         description="Async PostgreSQL driver.",
         group="Database",
-        requires=("sqlalchemy",),
+        requires_capabilities=("orm",),
+        conflicts=("mysql",),
         packages=("asyncpg",),
         guide="https://magicstack.github.io/asyncpg/current/usage.html",
         guide_title="asyncpg usage",
         reference="https://magicstack.github.io/asyncpg/current/",
+    ),
+    "mysql": Dependency(
+        id="mysql",
+        name="MySQL/MariaDB",
+        description="Async MySQL and MariaDB driver.",
+        group="Database",
+        requires_capabilities=("orm",),
+        conflicts=("postgres",),
+        packages=("aiomysql",),
+        guide="https://aiomysql.readthedocs.io/en/stable/",
+        guide_title="aiomysql documentation",
+        reference="https://docs.sqlalchemy.org/en/20/dialects/mysql.html",
     ),
     "redis": Dependency(
         id="redis",
@@ -104,7 +141,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="MongoDB with Beanie",
         description="Async MongoDB documents through Beanie and Motor.",
         group="Database",
-        conflicts=("sqlalchemy",),
+        conflicts=("sqlalchemy", "sqlmodel"),
         packages=("beanie", "motor"),
         dev_packages=("mongomock-motor",),
         files=(
@@ -534,7 +571,9 @@ class Preset:
 
 
 _FULL_PRESET_IDS = tuple(
-    dependency_id for dependency_id in DEPENDENCIES if dependency_id != "mongodb"
+    dependency_id
+    for dependency_id in DEPENDENCIES
+    if dependency_id not in {"mongodb", "sqlmodel", "mysql"}
 )
 
 PRESETS: tuple[Preset, ...] = (
@@ -601,6 +640,8 @@ def metadata() -> Metadata:
                 name=dependency.name,
                 description=dependency.description,
                 requires=list(dependency.requires),
+                requires_capabilities=list(dependency.requires_capabilities),
+                provides=list(dependency.provides),
                 conflicts=list(dependency.conflicts),
                 packages=list(dependency.packages),
                 dev_packages=list(dependency.dev_packages),

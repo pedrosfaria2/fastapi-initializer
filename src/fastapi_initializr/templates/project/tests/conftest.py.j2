@@ -1,20 +1,20 @@
 """Shared test fixtures."""
 
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 import asyncio
 {% endif %}
 from collections.abc import Iterator
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from pathlib import Path
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from typing import cast
 {% elif spec.has("mongodb") %}
 from typing import Any, cast
 {% endif %}
 
 import pytest
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from fastapi import FastAPI
 {% endif %}
 from fastapi.testclient import TestClient
@@ -23,11 +23,11 @@ from mongomock.database import Database as MongoMockDatabase
 from mongomock_motor import AsyncMongoMockClient
 from motor.motor_asyncio import AsyncIOMotorClient
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from sqlalchemy.ext.asyncio import AsyncEngine
 {% endif %}
 
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.main import create_app
 from {{ spec.package }}.models import Base
@@ -51,7 +51,7 @@ def _list_collection_names_compat(
     return _ORIGINAL_LIST_COLLECTION_NAMES(database)
 
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 
 def _create_tables(client: TestClient) -> None:
     """Create the schema on the application's test database."""

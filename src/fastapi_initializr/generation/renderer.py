@@ -87,7 +87,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "docker-compose.yml.j2",
         "docker-compose.yml",
-        _has_any("docker", "compose", "postgres", "redis"),
+        _has_any("docker", "compose", "postgres", "mysql", "redis"),
     ),
     FileSpec("Makefile.j2", "Makefile", _has("makefile")),
     FileSpec("ci.yml.j2", ".github/workflows/ci.yml", _has("ci")),
@@ -141,7 +141,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/api/routes/items.py.j2",
         "src/{{ spec.package }}/api/routes/items.py",
-        _has("sqlalchemy"),
+        _has_database,
     ),
     FileSpec(
         "src/api/routes/documents.py.j2",
@@ -271,7 +271,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/models/__init__.py.j2",
         "src/{{ spec.package }}/models/__init__.py",
-        _has_any("sqlalchemy", "mongodb"),
+        _has_any("sqlalchemy", "sqlmodel", "mongodb"),
     ),
     FileSpec(
         "src/models/document.py.j2",
@@ -281,7 +281,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/models/item.py.j2",
         "src/{{ spec.package }}/models/item.py",
-        _has("sqlalchemy"),
+        _has_database,
     ),
     FileSpec(
         "src/models/user.py.j2",
@@ -295,7 +295,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/schemas/item.py.j2",
         "src/{{ spec.package }}/schemas/item.py",
-        _has("sqlalchemy"),
+        _has_database,
     ),
     FileSpec(
         "src/schemas/user.py.j2",
@@ -314,7 +314,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/services/items.py.j2",
         "src/{{ spec.package }}/services/items.py",
-        _has("sqlalchemy"),
+        _has_database,
     ),
     FileSpec(
         "src/services/documents.py.j2",
@@ -375,7 +375,7 @@ FILES: tuple[FileSpec, ...] = (
     ),
     FileSpec("tests/conftest.py.j2", "tests/conftest.py"),
     FileSpec("tests/test_health.py.j2", "tests/test_health.py"),
-    FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has("sqlalchemy")),
+    FileSpec("tests/test_items.py.j2", "tests/test_items.py", _has_database),
     FileSpec("tests/test_documents.py.j2", "tests/test_documents.py", _has("mongodb")),
     FileSpec("tests/test_graphql.py.j2", "tests/test_graphql.py", _has("graphql")),
     FileSpec("tests/test_auth.py.j2", "tests/test_auth.py", _has("auth-jwt")),

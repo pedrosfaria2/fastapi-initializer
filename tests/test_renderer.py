@@ -1080,6 +1080,47 @@ def test_mongodb_renders_with_python_314() -> None:
     assert "src/my_service/core/mongo.py" in files
 
 
+def test_sqlmodel_mysql_feature_renders_the_relational_slice() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlmodel", "alembic", "mysql"}),
+    )
+
+    files = render_project(spec)
+
+    assert "Base = SQLModel" in files["src/my_service/db/base.py"]
+    assert (
+        "from sqlmodel.ext.asyncio.session import AsyncSession"
+        in files["src/my_service/db/session.py"]
+    )
+    assert "class Item(SQLModel, table=True)" in files["src/my_service/models/item.py"]
+    assert "await session.exec(statement)" in files["src/my_service/services/items.py"]
+    assert (
+        "from sqlmodel.ext.asyncio.session import AsyncSession"
+        in files["src/my_service/api/dependencies.py"]
+    )
+    assert "create_session_factory(engine)" in files["src/my_service/main.py"]
+    assert "class_=AsyncSession" in files["src/my_service/db/session.py"]
+    assert "tests/test_items.py" in files
+    assert "mysql+aiomysql://" in files["src/my_service/core/config.py"]
+    assert "mysql+aiomysql://" in files[".env.example"]
+
+    compose = files["docker-compose.yml"]
+    assert "  db:" in compose
+    assert "image: mysql:latest" in compose
+    assert "mysql-data" in compose
+    assert "postgres:latest" not in compose
+
+    readme = files["README.md"]
+    assert "## Database setup" in readme
+    assert "MySQL/MariaDB" in readme
+
+    dependencies = tomllib.loads(files["pyproject.toml"])["project"]["dependencies"]
+    assert "sqlmodel" in dependencies
+    assert "aiomysql" in dependencies
+    assert "alembic" in dependencies
+
+
 def test_graphql_feature_renders_schema_and_route() -> None:
     spec = ProjectSpec(name="my-service", dependencies=frozenset({"graphql"}))
 

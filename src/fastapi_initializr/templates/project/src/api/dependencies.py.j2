@@ -1,11 +1,15 @@
 """Shared API dependencies."""
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 
 from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
+{% if spec.has("sqlmodel") %}
+from sqlmodel.ext.asyncio.session import AsyncSession
+{% else %}
 from sqlalchemy.ext.asyncio import AsyncSession
+{% endif %}
 
 from {{ spec.package }}.db.session import SessionFactory
 

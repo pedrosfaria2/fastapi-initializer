@@ -41,7 +41,9 @@ def get_compatibility(
                 id=feature.id,
                 enabled=feature.enabled,
                 selected=feature.selected,
+                provides=list(feature.provides),
                 missing=list(feature.missing),
+                missing_capabilities=list(feature.missing_capabilities),
                 conflicts=list(feature.conflicts),
                 required_by=list(feature.required_by),
             )

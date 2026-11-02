@@ -8,9 +8,9 @@ services:
     env_file:
       - .env
 {% endif %}
-{% if spec.has("postgres") or spec.has("redis") %}
+{% if spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
     depends_on:
-{% if spec.has("postgres") %}
+{% if spec.has("postgres") or spec.has("mysql") %}
       db:
         condition: service_healthy
 {% endif %}
@@ -47,6 +47,22 @@ services:
       timeout: 5s
       retries: 10
 {% endif %}
+{% if spec.has("mysql") %}
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+{% endif %}
 {% if spec.has("redis") %}
   redis:
     image: redis:alpine
@@ -60,11 +76,14 @@ services:
       timeout: 5s
       retries: 10
 {% endif %}
-{% if spec.has("postgres") or spec.has("redis") %}
+{% if spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
 
 volumes:
 {% if spec.has("postgres") %}
   postgres-data:
+{% endif %}
+{% if spec.has("mysql") %}
+  mysql-data:
 {% endif %}
 {% if spec.has("redis") %}
   redis-data:

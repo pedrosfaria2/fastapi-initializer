@@ -23,6 +23,18 @@ CASES: dict[str, ProjectSpec] = {
         name="mongo-service",
         dependencies=frozenset({"mongodb"}),
     ),
+    "sqlmodel": ProjectSpec(
+        name="sqlmodel-service",
+        dependencies=frozenset({"sqlmodel", "alembic"}),
+    ),
+    "mysql": ProjectSpec(
+        name="mysql-service",
+        dependencies=frozenset({"sqlalchemy", "mysql"}),
+    ),
+    "sqlmodel-mysql": ProjectSpec(
+        name="sqlmodel-mysql-service",
+        dependencies=frozenset({"sqlmodel", "mysql", "alembic"}),
+    ),
     "auth": ProjectSpec(
         name="auth-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt"}),

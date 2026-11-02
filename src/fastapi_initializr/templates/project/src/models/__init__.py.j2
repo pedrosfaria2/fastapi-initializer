@@ -1,6 +1,6 @@
 """Database models."""
 
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 from {{ spec.package }}.db.base import Base
 from {{ spec.package }}.models.item import Item
 {% endif %}
@@ -12,7 +12,7 @@ from {{ spec.package }}.models.document import Document
 {% endif %}
 
 __all__ = [
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
     "Base",
     "Item",
 {% endif %}

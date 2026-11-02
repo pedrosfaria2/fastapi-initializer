@@ -26,7 +26,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 {% endif %}
 {% if spec.has_database %}
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 {% endif %}
 {% if spec.has("oauth2") %}
 from starlette.middleware.sessions import SessionMiddleware
@@ -54,7 +54,7 @@ from {{ spec.package }}.core.rate_limit import limiter, rate_limit_exceeded_hand
 from {{ spec.package }}.core.tracing import configure_tracing
 {% endif %}
 {% if spec.has_database %}
-from {{ spec.package }}.db.session import SessionFactory
+from {{ spec.package }}.db.session import SessionFactory, create_session_factory
 {% endif %}
 {% if spec.has("graphql") %}
 from {{ spec.package }}.graphql.schema import schema
@@ -66,7 +66,7 @@ from {{ spec.package }}.graphql.schema import schema
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Create the database engine for the application lifetime."""
     engine = create_async_engine(get_settings().database_url)
-    session_factory: SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
+    session_factory: SessionFactory = create_session_factory(engine)
     app.state.engine = engine
     app.state.session_factory = session_factory
     try:

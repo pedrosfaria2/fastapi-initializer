@@ -9,7 +9,12 @@ class CompatibilityIssueModel(BaseModel):
     """One incompatibility in a feature selection."""
 
     feature: str
-    kind: Literal["unknown", "missing-requirement", "conflict"]
+    kind: Literal[
+        "unknown",
+        "missing-requirement",
+        "missing-capability",
+        "conflict",
+    ]
     message: str
     related: list[str] = Field(default_factory=list)
 
@@ -20,7 +25,9 @@ class FeatureAvailabilityModel(BaseModel):
     id: str
     enabled: bool
     selected: bool
+    provides: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
+    missing_capabilities: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
     required_by: list[str] = Field(default_factory=list)
 

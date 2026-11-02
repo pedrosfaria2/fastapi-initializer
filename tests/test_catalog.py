@@ -5,6 +5,7 @@ from typing import cast
 from fastapi_initializr.generation.catalog import (
     DEPENDENCIES,
     GROUP_ORDER,
+    PRESETS_BY_ID,
     dependency_catalog,
     metadata,
     resolve_packages,
@@ -13,6 +14,16 @@ from fastapi_initializr.generation.catalog import (
 
 def test_every_dependency_has_a_unique_id() -> None:
     assert len(DEPENDENCIES) == len(set(DEPENDENCIES))
+
+
+def test_full_preset_chooses_one_provider_per_capability() -> None:
+    full = PRESETS_BY_ID["full"]
+
+    assert "sqlalchemy" in full.dependencies
+    assert "sqlmodel" not in full.dependencies
+    assert "postgres" in full.dependencies
+    assert "mysql" not in full.dependencies
+    assert "mongodb" not in full.dependencies
 
 
 def test_requirements_and_conflicts_reference_known_dependencies() -> None:

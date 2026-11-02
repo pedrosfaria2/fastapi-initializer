@@ -13,7 +13,7 @@ from {{ spec.package }}.api.routes import (
     documents,
 {% endif %}
     health,
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
     items,
 {% endif %}
 {% if spec.has("rate-limit") %}
@@ -38,7 +38,7 @@ api_router.include_router(health.router)
 {% if spec.has("mongodb") %}
 api_router.include_router(documents.router)
 {% endif %}
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 api_router.include_router(items.router)
 {% endif %}
 {% if spec.has("auth-jwt") %}

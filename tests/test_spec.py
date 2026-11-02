@@ -98,8 +98,24 @@ def test_database_url_uses_postgres_driver() -> None:
     assert spec.database_url.startswith("postgresql+asyncpg://")
 
 
+def test_database_url_uses_mysql_driver_with_sqlmodel() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlmodel", "mysql"}),
+    )
+
+    assert spec.has_database is True
+    assert spec.database_url.startswith("mysql+aiomysql://")
+
+
 def test_database_url_defaults_to_sqlite() -> None:
     spec = ProjectSpec(name="my-service", dependencies=frozenset({"sqlalchemy"}))
+
+    assert spec.database_url.startswith("sqlite+aiosqlite://")
+
+
+def test_database_url_defaults_to_sqlite_with_sqlmodel() -> None:
+    spec = ProjectSpec(name="my-service", dependencies=frozenset({"sqlmodel"}))
 
     assert spec.database_url.startswith("sqlite+aiosqlite://")
 

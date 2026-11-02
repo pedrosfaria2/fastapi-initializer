@@ -137,8 +137,8 @@ class ProjectSpec(BaseModel):
 
     @property
     def has_database(self) -> bool:
-        """Return whether a database feature is selected."""
-        return self.has("sqlalchemy")
+        """Return whether a relational ORM is selected."""
+        return self.has("sqlalchemy") or self.has("sqlmodel")
 
     @property
     def has_environment(self) -> bool:
@@ -148,6 +148,8 @@ class ProjectSpec(BaseModel):
     @property
     def database_url(self) -> str:
         """Return the default database URL for the selected driver."""
+        if self.has("mysql"):
+            return "mysql+aiomysql://root:root@localhost:3306/app"
         if self.has("postgres"):
             return "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
         return "sqlite+aiosqlite:///./app.db"

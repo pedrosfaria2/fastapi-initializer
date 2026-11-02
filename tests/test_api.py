@@ -243,7 +243,7 @@ def test_compatibility_reports_a_compatible_selection(client: TestClient) -> Non
     assert any(feature["id"] == "sqlalchemy" for feature in body["features"])
 
 
-def test_compatibility_reports_a_missing_requirement(client: TestClient) -> None:
+def test_compatibility_reports_a_missing_capability(client: TestClient) -> None:
     response = client.get("/compatibility", params={"dependencies": ["alembic"]})
 
     assert response.status_code == 200
@@ -252,9 +252,9 @@ def test_compatibility_reports_a_missing_requirement(client: TestClient) -> None
     assert body["issues"] == [
         {
             "feature": "alembic",
-            "kind": "missing-requirement",
-            "message": "Dependency 'alembic' requires: sqlalchemy.",
-            "related": ["sqlalchemy"],
+            "kind": "missing-capability",
+            "message": ("Dependency 'alembic' requires one of: sqlalchemy, sqlmodel."),
+            "related": ["sqlalchemy", "sqlmodel"],
         }
     ]
 
@@ -275,6 +275,19 @@ def test_compatibility_reports_a_conflict(client: TestClient) -> None:
             "related": ["sqlalchemy"],
         }
     ]
+
+
+def test_compatibility_accepts_sqlmodel_with_alembic_and_mysql(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/compatibility",
+        params={"dependencies": ["sqlmodel,alembic,mysql"]},
+    )
+
+    body = response.json()
+    assert body["compatible"] is True
+    assert body["issues"] == []
 
 
 def test_compatibility_reports_unknown_features(client: TestClient) -> None:

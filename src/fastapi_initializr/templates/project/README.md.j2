@@ -26,7 +26,7 @@ Copy the example environment file and adjust it for your machine:
 cp .env.example .env
 ```
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("redis") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
 
 ## Docker Compose
 
@@ -36,10 +36,12 @@ includes only the selected services:
 - The application image when Docker or Compose is selected.
 - PostgreSQL when PostgreSQL is selected, with database `app` and the
   credentials `postgres` / `postgres`.
+- MySQL when MySQL/MariaDB is selected, with database `app` and the
+  credentials `root` / `root`.
 - Redis when Redis is selected, with a persistent volume.
 - An ARQ worker when ARQ is selected, built from the same image as the app.
 
-PostgreSQL and Redis include healthchecks. Start the stack with:
+PostgreSQL, MySQL, and Redis include healthchecks. Start the stack with:
 
 ```sh
 docker compose up -d
@@ -62,7 +64,7 @@ uv run fastapi dev src/{{ spec.package }}/main.py
 
 The API is available at <http://127.0.0.1:8000>. Interactive documentation is
 served at <http://127.0.0.1:8000/docs>.
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 
 ## Item endpoints
 
@@ -198,6 +200,10 @@ variable. The generated default is:
 
 With PostgreSQL selected, the default points at the `db` service described in
 `docker-compose.yml`. Set `DATABASE_URL` in `.env` to use a different database.
+{% elif spec.has("mysql") %}
+
+With MySQL/MariaDB selected, the default points at the `db` service described in
+`docker-compose.yml`. Set `DATABASE_URL` in `.env` to use a different database.
 {% else %}
 
 SQLite is used by default and the database file is created on first use.
@@ -216,7 +222,7 @@ app
 ```
 
 The `documents` collection stores `name`, `description`, and `created_at` fields.
-The CRUD endpoints reuse the same bounded pagination contract as the SQLAlchemy
+The CRUD endpoints reuse the same bounded pagination contract as the relational
 example:
 
 | Method | Path | Description |
@@ -407,8 +413,8 @@ curl "http://127.0.0.1:8000/metrics"
 OpenTelemetry runs at startup when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Leave
 it empty to disable tracing without contacting an exporter. `OTEL_SERVICE_NAME`
 and `OTEL_ENVIRONMENT` label the exported spans. FastAPI requests are
-instrumented, and SQLAlchemy and Redis calls are instrumented when those
-features are selected.
+instrumented, and database and Redis calls are instrumented when those features
+are selected.
 
 ```sh
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces uv run fastapi dev src/{{ spec.package }}/main.py
@@ -420,10 +426,10 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces uv run fastapi dev s
 ```sh
 uv run pytest
 ```
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 
 Database tests override `DATABASE_URL` with a temporary SQLite file, so they run
-without a PostgreSQL server even when PostgreSQL is selected.
+without a PostgreSQL or MySQL server even when one is selected.
 {% endif %}
 {% if spec.has("testcontainers") %}
 
@@ -563,7 +569,7 @@ The initial migration creates the `items` table. Apply the pending migrations:
 uv run alembic upgrade head
 ```
 
-Create a migration after changing the SQLAlchemy models:
+Create a migration after changing the models:
 
 ```sh
 uv run alembic revision --autogenerate -m "describe the change"
@@ -585,7 +591,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── Dockerfile
 ├── .dockerignore
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("redis") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
 ├── docker-compose.yml
 {% endif %}
 {% if spec.has("makefile") %}
@@ -667,7 +673,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │       ├── documents.py
 {% endif %}
 │   │       ├── health.py
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 │   │       ├── items.py
 {% endif %}
 {% if spec.has("rate-limit") %}
@@ -741,10 +747,10 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │   ├── base.py
 │   │   └── session.py
 {% endif %}
-{% if spec.has("sqlalchemy") or spec.has("mongodb") %}
+{% if spec.has_database or spec.has("mongodb") %}
 │   ├── models/
 │   │   ├── __init__.py
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 │   │   ├── item.py
 {% endif %}
 {% if spec.has("mongodb") %}
@@ -756,7 +762,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 {% endif %}
 │   ├── schemas/
 │   │   ├── __init__.py
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 │   │   ├── item.py
 {% endif %}
 {% if spec.has("mongodb") %}
@@ -766,9 +772,9 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   │   └── user.py
 {% endif %}
 │   └── services/
-{% if spec.has("sqlalchemy") or spec.has("mongodb") %}
+{% if spec.has_database or spec.has("mongodb") %}
 │       ├── __init__.py
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
 │       ├── items.py
 {% endif %}
 {% if spec.has("mongodb") %}
@@ -822,7 +828,7 @@ uv run alembic revision --autogenerate -m "describe the change"
     ├── test_security_tooling.py
 {% endif %}
     ├── test_health.py
-{% if spec.has("sqlalchemy") %}
+{% if spec.has_database %}
     ├── test_items.py
 {% endif %}
 {% if spec.has("static-templates") %}

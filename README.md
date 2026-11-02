@@ -10,7 +10,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   clients and IDE integrations.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
   `requirements.txt` outputs.
-- Searchable catalog with 30 selectable features, docs links, compatibility
+- Searchable catalog with 32 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
 - Presets for API only, database + auth, Redis worker, and full stack.
 - Explore preview with server-side Pygments highlighting, language labels, file
@@ -18,8 +18,9 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 - Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
   request IDs, gzip compression, logging, error handlers, and tests.
-- Optional SQLAlchemy CRUD, Alembic, PostgreSQL, JWT authentication, CORS,
-  Docker/Compose, GitHub Actions, pre-commit, and coverage.
+- Optional SQLAlchemy or SQLModel CRUD, Alembic, PostgreSQL or MySQL/MariaDB,
+  JWT authentication, CORS, Docker/Compose, GitHub Actions, pre-commit, and
+  coverage.
 - Local CLI: `fastapi-initializr new`, `update`, `list`, `metadata`,
   `completion`, `--lock`, `--dry-run`, `--json`, and `--preset`.
 - Local JSON plugins can add catalog features without changing the generator.
@@ -195,8 +196,10 @@ features only, so select plugin features explicitly.
 | ID | Group | Adds | Requires |
 | --- | --- | --- | --- |
 | `sqlalchemy` | Database | Async SQLAlchemy session and SQLite driver | — |
-| `alembic` | Database | Alembic configuration and migrations | `sqlalchemy` |
-| `postgres` | Database | Async PostgreSQL driver | `sqlalchemy` |
+| `sqlmodel` | Database | SQLModel ORM on SQLAlchemy with async sessions | — |
+| `alembic` | Database | Alembic configuration and migrations | SQLAlchemy or SQLModel |
+| `postgres` | Database | Async PostgreSQL driver | SQLAlchemy or SQLModel |
+| `mysql` | Database | Async MySQL/MariaDB driver | SQLAlchemy or SQLModel |
 | `mongodb` | Database | Beanie ODM, document CRUD, and MongoDB settings | — |
 | `redis` | Database | Async Redis client and settings | — |
 | `cache` | Database | Typed cache-aside helpers with TTL and invalidation | `redis` |
@@ -216,7 +219,7 @@ features only, so select plugin features explicitly.
 | `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
 | `opentelemetry` | Observability | OTLP tracing for FastAPI, SQLAlchemy, and Redis | — |
 | `docker` | Operations | Dockerfile and .dockerignore | — |
-| `compose` | Operations | Compose stack for the app, PostgreSQL, and Redis | — |
+| `compose` | Operations | Compose stack for the app, PostgreSQL/MySQL, and Redis | — |
 | `makefile` | Operations | Common development targets | — |
 | `ci` | Operations | GitHub Actions workflow | — |
 | `ci-gitlab` | Operations | GitLab CI pipeline | — |
@@ -227,6 +230,10 @@ features only, so select plugin features explicitly.
 
 Every generated project includes FastAPI, Uvicorn, Pydantic Settings,
 `python-multipart`, pytest, httpx2, Ruff, mypy, and pyright.
+
+`sqlmodel` covers the relational CRUD, Alembic, and database-driver slices.
+The JWT auth, email, and OAuth2 slices currently require `sqlalchemy`.
+`testcontainers` currently provides PostgreSQL and Redis fixtures, not MySQL.
 
 ## Generated project
 

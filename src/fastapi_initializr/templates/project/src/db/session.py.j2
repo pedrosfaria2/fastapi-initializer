@@ -1,5 +1,16 @@
 """Database session types."""
+{% if spec.has("sqlmodel") %}
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
+{% else %}
+
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+{% endif %}
 
 SessionFactory = async_sessionmaker[AsyncSession]
+
+
+def create_session_factory(engine: AsyncEngine) -> SessionFactory:
+    """Create a session factory bound to the engine."""
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

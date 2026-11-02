@@ -113,6 +113,8 @@
   const dependenciesById = new Map();
   /** @type {Map<string, Set<string>>} */
   const conflictsById = new Map();
+  /** @type {Map<string, Set<string>>} */
+  const providersByCapability = new Map();
   /** @type {Map<string, string[]>} */
   const presetDependenciesById = new Map();
   /** @type {Map<string, HTMLElement>} */
@@ -253,6 +255,35 @@
       : dependencyId;
   }
 
+  function dependencyRequiresCapabilities(dependencyId) {
+    const dependency = dependenciesById.get(dependencyId);
+    return dependency && Array.isArray(dependency.requiresCapabilities)
+      ? dependency.requiresCapabilities
+      : [];
+  }
+
+  function selectedProvidesCapability(capability, selected) {
+    const providers = providersByCapability.get(capability);
+    return providers
+      ? Array.from(providers).some((dependencyId) => selected.has(dependencyId))
+      : false;
+  }
+
+  function capabilityRequirementText(capabilities) {
+    const names = new Set();
+    for (const capability of capabilities) {
+      const providers = providersByCapability.get(capability);
+      if (!providers || providers.size === 0) {
+        names.add(capability);
+        continue;
+      }
+      for (const dependencyId of providers) {
+        names.add(dependencyName(dependencyId));
+      }
+    }
+    return `Requires one of: ${Array.from(names).join(", ")}`;
+  }
+
   function dependencyRequires(dependencyId) {
     const dependency = dependenciesById.get(dependencyId);
     return dependency && Array.isArray(dependency.requires)
@@ -355,10 +386,25 @@
       const conflicts = Array.from(conflictsById.get(dependencyId) ?? []).filter(
         (id) => selected.has(id),
       );
+      const dependency = dependenciesById.get(dependencyId);
+      const provides = new Set(
+        Array.isArray(dependency?.provides) ? dependency.provides : [],
+      );
       const requiring = Array.from(selected)
         .filter((id) => id !== dependencyId)
-        .filter((id) => dependencyRequires(id).includes(dependencyId))
+        .filter(
+          (id) =>
+            dependencyRequires(id).includes(dependencyId) ||
+            dependencyRequiresCapabilities(id).some((capability) =>
+              provides.has(capability),
+            ),
+        )
         .map(dependencyName);
+      const missingCapabilities = dependencyRequiresCapabilities(
+        dependencyId,
+      ).filter(
+        (capability) => !selectedProvidesCapability(capability, selected),
+      );
 
       const note = notesById.get(dependencyId);
       const option = input.closest(".dependency-option");
@@ -369,11 +415,16 @@
       if (input.checked) {
         input.disabled = false;
         if (note) {
-          note.textContent =
-            requiring.length > 0
-              ? `Required by ${requiring.join(", ")}`
-              : "";
-          note.hidden = requiring.length === 0;
+          if (missingCapabilities.length > 0) {
+            note.textContent = capabilityRequirementText(missingCapabilities);
+            note.hidden = false;
+          } else {
+            note.textContent =
+              requiring.length > 0
+                ? `Required by ${requiring.join(", ")}`
+                : "";
+            note.hidden = requiring.length === 0;
+          }
         }
         if (option) {
           option.classList.toggle("is-required", requiring.length > 0);
@@ -382,11 +433,18 @@
       } else {
         input.disabled = conflicts.length > 0;
         if (note) {
-          note.textContent =
-            conflicts.length > 0
-              ? `Conflicts with ${conflicts.map(dependencyName).join(", ")}`
-              : "";
-          note.hidden = conflicts.length === 0;
+          if (conflicts.length > 0) {
+            note.textContent = `Conflicts with ${conflicts
+              .map(dependencyName)
+              .join(", ")}`;
+            note.hidden = false;
+          } else if (missingCapabilities.length > 0) {
+            note.textContent = capabilityRequirementText(missingCapabilities);
+            note.hidden = false;
+          } else {
+            note.textContent = "";
+            note.hidden = true;
+          }
         }
         if (option) {
           option.classList.toggle("is-disabled", conflicts.length > 0);
@@ -593,6 +651,7 @@
   function buildDependencyTables() {
     dependenciesById.clear();
     conflictsById.clear();
+    providersByCapability.clear();
     presetDependenciesById.clear();
     dependencyOrder = [];
     for (const group of metadata.dependencies.groups) {
@@ -602,6 +661,14 @@
         if (!conflictsById.has(dependency.id)) {
           conflictsById.set(dependency.id, new Set());
         }
+      }
+    }
+    for (const dependency of dependenciesById.values()) {
+      for (const capability of dependency.provides ?? []) {
+        if (!providersByCapability.has(capability)) {
+          providersByCapability.set(capability, new Set());
+        }
+        providersByCapability.get(capability).add(dependency.id);
       }
     }
     for (const dependency of dependenciesById.values()) {

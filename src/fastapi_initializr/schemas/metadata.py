@@ -60,6 +60,11 @@ class DependencyValue(BaseModel):
     name: str
     description: str
     requires: list[str] = Field(default_factory=list)
+    requires_capabilities: list[str] = Field(
+        default_factory=list,
+        serialization_alias="requiresCapabilities",
+    )
+    provides: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
     packages: list[str] = Field(default_factory=list)
     dev_packages: list[str] = Field(default_factory=list, serialization_alias="devPackages")
