@@ -5,7 +5,7 @@ import difflib
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed uv executable, no shell
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -338,7 +338,7 @@ def _new(args: argparse.Namespace) -> int:
             print("uv was not found in PATH", file=sys.stderr)
             return 1
         try:
-            subprocess.run(  # noqa: S603 - fixed uv executable, not user input
+            subprocess.run(  # noqa: S603 - fixed uv executable, not user input  # nosec B603
                 [uv, "lock"],
                 cwd=target,
                 check=True,

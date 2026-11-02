@@ -30,7 +30,12 @@ router = APIRouter(prefix="/items", tags=["items"])
     "",
     response_model=ItemRead,
     status_code=status.HTTP_201_CREATED,
-    responses={400: {"description": "Malformed request body"}},
+    responses={
+        400: {"description": "Malformed request body"},
+{% if spec.has("auth-jwt") %}
+        401: {"description": "Not authenticated"},
+{% endif %}
+    },
 )
 async def create_item_endpoint(
     payload: ItemCreate,
@@ -48,7 +53,13 @@ async def create_item_endpoint(
     return ItemRead.model_validate(item)
 
 
-@router.get("", response_model=list[ItemRead])
+@router.get(
+    "",
+    response_model=list[ItemRead],
+{% if spec.has("auth-jwt") %}
+    responses={401: {"description": "Not authenticated"}},
+{% endif %}
+)
 async def list_items_endpoint(
     session: SessionDep,
 {% if spec.has("auth-jwt") %}
@@ -69,7 +80,10 @@ async def list_items_endpoint(
 @router.get(
     "/{item_id}",
     response_model=ItemRead,
-    responses={404: {"description": "Item not found"}},
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "Item not found"},
+    },
 )
 async def get_item_endpoint(
     item_id: Annotated[int, Path(ge=1, le=9_223_372_036_854_775_807)],
@@ -98,6 +112,7 @@ async def get_item_endpoint(
     response_model=ItemRead,
     responses={
         400: {"description": "Malformed request body"},
+        401: {"description": "Not authenticated"},
         404: {"description": "Item not found"},
     },
 )
@@ -127,7 +142,10 @@ async def update_item_endpoint(
 @router.delete(
     "/{item_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={404: {"description": "Item not found"}},
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "Item not found"},
+    },
 )
 async def delete_item_endpoint(
     item_id: Annotated[int, Path(ge=1, le=9_223_372_036_854_775_807)],

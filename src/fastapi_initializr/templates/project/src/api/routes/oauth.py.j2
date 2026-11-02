@@ -42,7 +42,10 @@ def _callback_url(provider: str) -> str:
     return f"{base_url}/auth/oauth/{provider}/callback"
 
 
-@router.get("/{provider}/login")
+@router.get(
+    "/{provider}/login",
+    responses={400: {"description": "Unknown OAuth provider"}},
+)
 {% if spec.has("rate-limit") %}
 @rate_limit("20/minute")
 {% endif %}

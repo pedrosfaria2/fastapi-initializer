@@ -379,7 +379,10 @@ def test_celery_rabbitmq_renders_worker_and_compose() -> None:
     assert "celery_app = Celery(" in worker
     assert "def _add(left: int, right: int) -> int:" in worker
     assert "celery_broker_url" in files["src/my_service/core/config.py"]
-    assert "amqp://guest:guest@localhost:5672//" in files[".env.example"]
+    assert (
+        "amqp://guest:guest@localhost:5672//"  # pragma: allowlist secret
+        in files[".env.example"]
+    )
     assert "tests/test_worker.py" in files
     assert "add.delay(2, 3)" in files["tests/test_worker.py"]
 
@@ -652,7 +655,7 @@ def test_auth_feature_renders_security_slice() -> None:
 
     config = files["src/my_service/core/config.py"]
     assert 'secret_key: str = "dev-secret-change-me-32-bytes-minimum"' in config
-    assert "access_token_expire_minutes: int = 30" in config
+    assert "access_token_expire_minutes: int = 5" in config
     assert 'jwt_algorithm: str = "HS256"' in config
     env = files[".env.example"]
     assert "SECRET_KEY" in env

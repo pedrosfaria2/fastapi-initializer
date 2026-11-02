@@ -202,9 +202,9 @@ class ProjectSpec(BaseModel):
     def database_url(self) -> str:
         """Return the default database URL for the selected driver."""
         if self.has("mysql"):
-            return "mysql+aiomysql://root:root@localhost:3306/app"
+            return "mysql+aiomysql://root:root@localhost:3306/app"  # pragma: allowlist secret - local placeholder
         if self.has("postgres"):
-            return "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
+            return "postgresql+asyncpg://postgres:postgres@localhost:5432/app"  # pragma: allowlist secret - local placeholder
         return "sqlite+aiosqlite:///./app.db"
 
     @property
@@ -216,7 +216,7 @@ class ProjectSpec(BaseModel):
     def celery_broker_url(self) -> str:
         """Return the default Celery broker URL for the selected broker."""
         if self.has("rabbitmq"):
-            return "amqp://guest:guest@localhost:5672//"
+            return "amqp://guest:guest@localhost:5672//"  # pragma: allowlist secret - local placeholder
         if self.has("redis"):
             return "redis://localhost:6379/0"
         return ""

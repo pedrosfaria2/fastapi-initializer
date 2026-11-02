@@ -114,7 +114,9 @@ def test_celery_broker_url_uses_rabbitmq() -> None:
         dependencies=frozenset({"celery", "rabbitmq"}),
     )
 
-    assert spec.celery_broker_url == "amqp://guest:guest@localhost:5672//"
+    assert (
+        spec.celery_broker_url == "amqp://guest:guest@localhost:5672//"  # pragma: allowlist secret
+    )
     assert spec.has_environment is True
 
 

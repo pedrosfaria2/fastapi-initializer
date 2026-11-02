@@ -13,6 +13,24 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 StorageDep = Annotated[Storage, Depends(get_storage)]
 
+_MAGIC_SIGNATURES = {
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "application/pdf": (b"%PDF-",),
+}
+
+
+def _content_matches(content_type: str | None, data: bytes) -> bool:
+    """Reject a file whose bytes do not match its declared type."""
+    if content_type == "text/plain":
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+        return True
+    signatures = _MAGIC_SIGNATURES.get(content_type or "")
+    return signatures is None or any(data.startswith(signature) for signature in signatures)
+
 
 def _owned_key(owner_id: int, key: str) -> str:
     """Reject keys that are not owned by the authenticated user."""
@@ -50,6 +68,11 @@ async def upload_file(
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Upload exceeds the size limit",
+        )
+    if not _content_matches(file.content_type, data):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Upload content does not match its type",
         )
     key = new_storage_key(file.filename or "upload", current_user.id)
     await storage.save(key, data)

@@ -1,5 +1,6 @@
 """Password hashing and JWT helpers."""
 
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast
@@ -69,6 +70,7 @@ def create_access_token(
         "typ": "access",
         "iss": settings.app_name,
         "aud": settings.app_name,
+        "jti": secrets.token_urlsafe(16),
     }
     return _PYJWT.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 

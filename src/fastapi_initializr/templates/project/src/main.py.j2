@@ -1,5 +1,6 @@
 """Application entry point."""
 
+import re
 {% if spec.structure == "minimal" %}
 from collections.abc import Awaitable, Callable
 
@@ -34,7 +35,14 @@ def create_app() -> FastAPI:
 {% if spec.has("sentry") %}
     init_sentry(settings)
 {% endif %}
-    app = FastAPI(title=settings.app_name, version=__version__)
+    docs_enabled = settings.environment.lower() != "production"
+    app = FastAPI(
+        title=settings.app_name,
+        version=__version__,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
 {% if spec.has("opentelemetry") %}
     configure_tracing(app, settings)
 {% endif %}
@@ -49,6 +57,8 @@ def create_app() -> FastAPI:
 {% endif %}
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    allowed_methods: dict[str, set[str]] = {}
 
     @app.middleware("http")
     async def security_middleware(
@@ -69,6 +79,11 @@ def create_app() -> FastAPI:
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
             )
+        if response.status_code == 405:
+            for pattern, methods in allowed_methods.items():
+                if re.fullmatch(pattern, request.url.path):
+                    response.headers["Allow"] = ", ".join(sorted(methods))
+                    break
         return response
 
     install_error_handlers(app)
@@ -200,9 +215,13 @@ def create_app() -> FastAPI:
 {% if spec.has("sentry") %}
     init_sentry(settings)
 {% endif %}
+    docs_enabled = settings.environment.lower() != "production"
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
 {% if spec.has_database or spec.has("mongodb") %}
         lifespan=lifespan,
 {% endif %}
@@ -235,6 +254,8 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+    allowed_methods: dict[str, set[str]] = {}
+
     @app.middleware("http")
     async def security_middleware(
         request: Request,
@@ -254,10 +275,21 @@ def create_app() -> FastAPI:
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
             )
+        if response.status_code == 405:
+            for pattern, methods in allowed_methods.items():
+                if re.fullmatch(pattern, request.url.path):
+                    response.headers["Allow"] = ", ".join(sorted(methods))
+                    break
         return response
 
     install_error_handlers(app)
     app.include_router(api_router)
+    allowed_methods.update(
+        {
+            re.sub(r"\{[^}]+\}", "[^/]+", path): {method.upper() for method in operations}
+            for path, operations in app.openapi().get("paths", {}).items()
+        }
+    )
 {% if spec.has("graphql") %}
     app.include_router(GraphQLRouter(schema), prefix="/graphql")
 {% endif %}

@@ -1,10 +1,12 @@
 """Item CRUD endpoint contract."""
 
+import secrets
+
 from fastapi.testclient import TestClient
 
 EMAIL = "owner@example.com"
 OTHER_EMAIL = "other@example.com"
-CREDENTIAL = "correct-horse-battery"
+CREDENTIAL = secrets.token_urlsafe(18)
 
 
 {% if spec.has("auth-jwt") %}

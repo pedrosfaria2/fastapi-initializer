@@ -1,6 +1,7 @@
 """OAuth login endpoint contract with a fake provider."""
 
 import asyncio
+import secrets
 from collections.abc import Mapping
 from typing import cast
 
@@ -17,7 +18,7 @@ from {{ spec.package }}.main import create_app
 
 EMAIL = "user@example.com"
 NEW_EMAIL = "social@example.com"
-CREDENTIAL = "correct-horse-battery"
+CREDENTIAL = secrets.token_urlsafe(18)
 PROVIDERS = ("google", "github")
 
 

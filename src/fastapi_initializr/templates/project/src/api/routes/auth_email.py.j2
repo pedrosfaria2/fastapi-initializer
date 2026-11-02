@@ -51,7 +51,10 @@ class MessageResponse(BaseModel):
     "/request-password-reset",
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    responses={400: {"description": "Malformed request body"}},
+    responses={
+        400: {"description": "Malformed request body"},
+        429: {"description": "Rate limit exceeded"},
+    },
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("5/minute")
@@ -71,7 +74,11 @@ async def request_password_reset(
 @router.post(
     "/reset-password",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={400: {"description": "Invalid or expired token"}},
+    responses={
+        400: {"description": "Malformed request body"},
+        401: {"description": "Invalid or expired token"},
+        429: {"description": "Rate limit exceeded"},
+    },
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("10/minute")
@@ -91,7 +98,10 @@ async def reset_password(
     "/request-verification",
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    responses={400: {"description": "Malformed request body"}},
+    responses={
+        400: {"description": "Malformed request body"},
+        429: {"description": "Rate limit exceeded"},
+    },
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("5/minute")
@@ -111,7 +121,11 @@ async def request_verification(
 @router.post(
     "/verify-email",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={400: {"description": "Invalid or expired token"}},
+    responses={
+        400: {"description": "Malformed request body"},
+        401: {"description": "Invalid or expired token"},
+        429: {"description": "Rate limit exceeded"},
+    },
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("10/minute")

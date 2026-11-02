@@ -137,11 +137,11 @@ Register a user, request a token, and call the protected route:
 ```sh
 curl -X POST "http://127.0.0.1:8000/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "correct-horse-battery"}'
+  -d '{"email": "user@example.com", "password": "<password>"}'
 
 curl -X POST "http://127.0.0.1:8000/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=user@example.com&password=correct-horse-battery"
+  -d "username=user@example.com&password=<password>"
 
 curl "http://127.0.0.1:8000/auth/me" \
   -H "Authorization: Bearer <access_token>"
@@ -179,7 +179,7 @@ curl -X POST "http://127.0.0.1:8000/auth/request-password-reset" \
 
 curl -X POST "http://127.0.0.1:8000/auth/reset-password" \
   -H "Content-Type: application/json" \
-  -d '{"token": "<token>", "new_password": "new-correct-horse-battery"}'
+  -d '{"token": "<token>", "new_password": "<new-password>"}'
 ```
 
 Configure SMTP with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
@@ -408,8 +408,9 @@ user id; another user's key returns `404`.
 | `DELETE` | `/uploads/{key}` | Delete a stored file owned by the caller and return `204`. |
 
 `MAX_UPLOAD_BYTES` defaults to `5000000`. `ALLOWED_UPLOAD_TYPES` lists the
-accepted media types and defaults to PNG, JPEG, PDF, and plain text. Rejected
-types return `415`; oversized files return `413`. Stored keys are generated on
+accepted media types and defaults to PNG, JPEG, PDF, and plain text. PNG, JPEG,
+and PDF content must match its magic bytes; plain text must be valid UTF-8.
+Mismatched content returns `415`; oversized files return `413`. Stored keys are generated on
 the server and resolved below the configured directory, so path traversal
 attempts are rejected.
 

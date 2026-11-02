@@ -29,7 +29,7 @@ EMAIL_VERIFY_EXPIRE_MINUTES = 1440
 class InvalidActionTokenError(DomainError):
     """Raised when a one-time token is invalid or expired."""
 
-    status_code = 400
+    status_code = 401
     code = "invalid_action_token"
 
 

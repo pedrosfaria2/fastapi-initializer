@@ -1,6 +1,7 @@
 """File upload endpoint contract."""
 
 import asyncio
+import secrets
 from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
@@ -14,7 +15,7 @@ from {{ spec.package }}.core.storage import LocalStorage, get_storage
 
 OWNER = "owner@example.com"
 OTHER = "other@example.com"
-CREDENTIAL = "correct-horse-battery"
+CREDENTIAL = secrets.token_urlsafe(18)
 
 
 @pytest.fixture
@@ -114,6 +115,36 @@ def test_upload_rejects_oversized_file(
         get_settings.cache_clear()
 
     assert response.status_code == 413
+
+
+def test_upload_rejects_mismatched_content(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("page.html", b"<script>alert(1)</script>", "image/png")},
+        headers=headers,
+    )
+
+    assert response.status_code == 415
+
+
+def test_upload_accepts_a_valid_png(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={
+            "file": (
+                "image.png",
+                b"\x89PNG\r\n\x1a\n" + b"data",
+                "image/png",
+            )
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
 
 
 def test_upload_rejects_disallowed_type(upload_client: TestClient) -> None:
