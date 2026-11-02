@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = {{ app_title | tojson }}
+    app_name: str = {{ app_title | py_string }}
     environment: str = "development"
     log_level: str = "INFO"
 {% if spec.has_database %}
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 {% endif %}
 {% if spec.has("opentelemetry") %}
     otel_exporter_otlp_endpoint: str = ""
-    otel_service_name: str = {{ app_title | tojson }}
+    otel_service_name: str = {{ app_title | py_string }}
     otel_environment: str = "development"
 {% endif %}
 {% if spec.has("uploads") %}

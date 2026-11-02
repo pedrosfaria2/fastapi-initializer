@@ -199,6 +199,93 @@ def test_post_generate_form_keeps_quotes_and_markers(client: TestClient) -> None
     assert "literal {{x}}" in pyproject
 
 
+def test_post_generate_accepts_camel_case_json(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={
+            "name": "my-service",
+            "baseDir": "custom-root",
+            "applicationName": "Acme",
+            "pythonVersion": "3.12",
+        },
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        assert "custom-root/pyproject.toml" in archive.namelist()
+        config = archive.read("custom-root/src/my_service/core/config.py").decode()
+        python_version = archive.read("custom-root/.python-version").decode().strip()
+    assert 'app_name: str = "Acme"' in config
+    assert python_version == "3.12"
+
+
+def test_post_generate_accepts_snake_case_json(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={"name": "my-service", "base_dir": "snake-root"},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        assert "snake-root/pyproject.toml" in archive.namelist()
+
+
+def test_get_rejects_unknown_query_fields(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "dependecies": "sqlalchemy"},
+    )
+
+    assert response.status_code == 422
+    assert "Unknown fields" in str(response.json())
+
+
+def test_form_rejects_unknown_fields(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        data={"name": "my-service", "dependecies": "sqlalchemy"},
+    )
+
+    assert response.status_code == 422
+    assert "Unknown fields" in str(response.json())
+
+
+def test_form_rejects_file_values_for_scalar_fields(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        files={"name": ("name.txt", b"bad", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert "must be a string" in str(response.json())
+
+
+def test_form_rejects_file_values_for_dependencies(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        files={"dependencies": ("deps.txt", b"sqlalchemy", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert "must be a string" in str(response.json())
+
+
+def test_get_and_form_reject_conflicting_python_aliases(client: TestClient) -> None:
+    query_response = client.get(
+        "/api/generate",
+        params={"python": "3.11", "pythonVersion": "3.14"},
+    )
+    form_response = client.post(
+        "/api/generate",
+        data={"python": "3.11", "pythonVersion": "3.14"},
+    )
+
+    assert query_response.status_code == 422
+    assert form_response.status_code == 422
+    assert "pythonVersion" in str(query_response.json())
+    assert "pythonVersion" in str(form_response.json())
+
+
 def test_post_generate_form_rejects_invalid_input(client: TestClient) -> None:
     response = client.post("/api/generate", data={"name": "Bad Name"})
 

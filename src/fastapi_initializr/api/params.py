@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import HTTPException, Request
@@ -10,6 +11,44 @@ from starlette.datastructures import FormData
 
 from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
 from fastapi_initializr.generation.spec import ProjectSpec
+
+ALLOWED_KEYS = frozenset(
+    {
+        "name",
+        "package",
+        "description",
+        "version",
+        "author",
+        "python",
+        "pythonVersion",
+        "preset",
+        "baseDir",
+        "base_dir",
+        "applicationName",
+        "application_name",
+        "dependencies",
+    }
+)
+
+
+def reject_unknown_keys(keys: Iterable[str]) -> None:
+    """Reject query or form fields that are not part of the contract."""
+    unknown = sorted(set(keys) - ALLOWED_KEYS)
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown fields: {', '.join(unknown)}.",
+        )
+
+
+def resolve_python(python: str | None, python_version: str | None) -> str:
+    """Resolve the python/pythonVersion aliases consistently."""
+    if python and python_version and python != python_version:
+        raise HTTPException(
+            status_code=422,
+            detail="Use either python or pythonVersion, not both with different values.",
+        )
+    return python_version or python or DEFAULT_PYTHON_VERSION
 
 
 def split_dependencies(values: list[str] | None) -> frozenset[str]:
@@ -66,22 +105,35 @@ def build_spec(
 
 def _form_value(form: FormData, key: str, default: str = "") -> str:
     value: Any = form.get(key)
-    return value if isinstance(value, str) else default
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Field '{key}' must be a string.",
+        )
+    return value
 
 
 def _spec_from_form(form: FormData) -> ProjectSpec:
-    dependencies = [value for value in form.getlist("dependencies") if isinstance(value, str)]
+    reject_unknown_keys(form.keys())
+    dependencies: list[str] = []
+    for value in form.getlist("dependencies"):
+        if not isinstance(value, str):
+            raise HTTPException(
+                status_code=422,
+                detail="Field 'dependencies' must be a string.",
+            )
+        dependencies.append(value)
+    python = _form_value(form, "python") or None
+    python_version = _form_value(form, "pythonVersion") or None
     return build_spec(
         name=_form_value(form, "name", "my-service"),
         package=_form_value(form, "package") or None,
         description=_form_value(form, "description", "A FastAPI service"),
         version=_form_value(form, "version", "0.1.0"),
         author=_form_value(form, "author"),
-        python=(
-            _form_value(form, "python")
-            or _form_value(form, "pythonVersion")
-            or DEFAULT_PYTHON_VERSION
-        ),
+        python=resolve_python(python, python_version),
         preset=_form_value(form, "preset", "custom"),
         base_dir=_form_value(form, "baseDir") or _form_value(form, "base_dir") or None,
         application_name=(

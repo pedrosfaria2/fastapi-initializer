@@ -15,6 +15,10 @@ from fastapi_initializr.services.generator import generate_project
 
 CASES: dict[str, ProjectSpec] = {
     "minimal": ProjectSpec(name="minimal-service"),
+    "unicode": ProjectSpec(
+        name="unicode-service",
+        application_name="Service 🚀",
+    ),
     "database": ProjectSpec(
         name="database-service",
         dependencies=frozenset({"sqlalchemy", "alembic"}),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -22,6 +23,13 @@ from fastapi_initializr.generation.spec import ProjectSpec
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "project"
 
+
+def _python_string(value: object) -> str:
+    """Return a valid Python string literal for a user-provided value."""
+    encoded = json.dumps(str(value), ensure_ascii=False)
+    return encoded.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
 _ENVIRONMENT = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     undefined=StrictUndefined,
@@ -30,6 +38,7 @@ _ENVIRONMENT = Environment(
     trim_blocks=True,
     lstrip_blocks=True,
 )
+_ENVIRONMENT.filters["py_string"] = _python_string
 
 _PATH_ENVIRONMENT = Environment(
     undefined=StrictUndefined,

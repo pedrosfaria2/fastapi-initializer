@@ -6,8 +6,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 
-from fastapi_initializr.api.params import build_spec, spec_from_request
-from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
+from fastapi_initializr.api.params import (
+    build_spec,
+    reject_unknown_keys,
+    resolve_python,
+    spec_from_request,
+)
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.requirements import render_requirements
@@ -23,12 +27,13 @@ router = APIRouter(tags=["generate"])
 
 
 def query_spec(
+    request: Request,
     name: Annotated[str, Query()] = "my-service",
     package: Annotated[str | None, Query()] = None,
     description: Annotated[str, Query()] = "A FastAPI service",
     version: Annotated[str, Query()] = "0.1.0",
     author: Annotated[str, Query()] = "",
-    python: Annotated[str, Query()] = DEFAULT_PYTHON_VERSION,
+    python: Annotated[str | None, Query()] = None,
     python_version: Annotated[str | None, Query(alias="pythonVersion")] = None,
     preset: Annotated[str, Query()] = "custom",
     base_dir: Annotated[str | None, Query(alias="baseDir")] = None,
@@ -36,13 +41,14 @@ def query_spec(
     dependencies: Annotated[list[str] | None, Query()] = None,
 ) -> ProjectSpec:
     """Build a validated project spec from query parameters."""
+    reject_unknown_keys(request.query_params.keys())
     return build_spec(
         name=name,
         package=package,
         description=description,
         version=version,
         author=author,
-        python=python_version or python,
+        python=resolve_python(python, python_version),
         preset=preset,
         base_dir=base_dir,
         application_name=application_name,

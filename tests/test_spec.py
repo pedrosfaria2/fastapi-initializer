@@ -181,6 +181,41 @@ def test_rejects_control_characters_in_author() -> None:
         ProjectSpec(name="my-service", author="bad\x00author")
 
 
+@pytest.mark.parametrize("field", ["description", "author", "application_name"])
+def test_rejects_del_and_c1_control_characters(field: str) -> None:
+    for value in ("bad\x7fvalue", "bad\x85value"):
+        with pytest.raises(ValidationError, match="control characters"):
+            ProjectSpec(name="my-service", **{field: value})
+
+
+@pytest.mark.parametrize("version", ["\u0661.\u0662.\u0663", "\uff11.\uff12.\uff13"])
+def test_rejects_non_ascii_digits_in_version(version: str) -> None:
+    with pytest.raises(ValidationError, match=r"MAJOR\.MINOR\.PATCH"):
+        ProjectSpec(name="my-service", version=version)
+
+
+def test_accepts_camel_case_aliases() -> None:
+    spec = ProjectSpec.model_validate(
+        {
+            "name": "my-service",
+            "baseDir": "custom-root",
+            "applicationName": "Acme",
+            "pythonVersion": "3.12",
+        }
+    )
+
+    assert spec.base_dir == "custom-root"
+    assert spec.application_name == "Acme"
+    assert spec.python == "3.12"
+
+
+def test_rejects_conflicting_python_aliases() -> None:
+    with pytest.raises(ValidationError, match="pythonVersion"):
+        ProjectSpec.model_validate(
+            {"name": "my-service", "python": "3.11", "pythonVersion": "3.14"}
+        )
+
+
 def test_rejects_control_characters_in_application_name() -> None:
     with pytest.raises(ValidationError, match="applicationName"):
         ProjectSpec(name="my-service", application_name="bad\x00name")

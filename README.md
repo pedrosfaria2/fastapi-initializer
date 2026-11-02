@@ -71,7 +71,9 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 The `/api/preview` and `/api/generate` aliases remain available.
 `POST /api/generate` accepts a JSON object or an
 `application/x-www-form-urlencoded` form; the no-JavaScript form submits the
-form-encoded variant.
+form-encoded variant. JSON accepts the camelCase aliases `baseDir`,
+`applicationName`, and `pythonVersion` as well as the field names. Unknown
+query/form fields and file uploads for scalar fields are rejected with `422`.
 
 Download a project:
 

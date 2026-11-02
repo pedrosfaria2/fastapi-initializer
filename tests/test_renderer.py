@@ -50,6 +50,16 @@ def test_application_name_escapes_python_string_content() -> None:
     assert 'otel_service_name: str = "Acme \\"API\\""' in config
 
 
+def test_application_name_preserves_unicode() -> None:
+    spec = ProjectSpec(name="my-service", application_name="Service 🚀")
+
+    config = render_project(spec)["src/my_service/core/config.py"]
+    line = next(line for line in config.splitlines() if "app_name" in line)
+    literal = line.split(" = ", 1)[1]
+
+    assert ast.literal_eval(literal) == "Service 🚀"
+
+
 @pytest.mark.parametrize(
     ("field", "value", "path", "marker"),
     [

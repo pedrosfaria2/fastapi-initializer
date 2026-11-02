@@ -5,9 +5,17 @@ from __future__ import annotations
 import keyword
 import re
 import sys
-from typing import Self
+import unicodedata
+from typing import Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from fastapi_initializr.generation.catalog import PRESETS, PRESETS_BY_ID
 from fastapi_initializr.generation.compatibility import selection_issues
@@ -18,7 +26,7 @@ from fastapi_initializr.generation.constants import (
 
 PROJECT_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]{0,63}$")
-PROJECT_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
+PROJECT_VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 BASE_DIR_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 RESERVED_NAMES = frozenset(
@@ -40,19 +48,34 @@ def derive_package_name(name: str) -> str:
     return name.replace("-", "_").lower()
 
 
+def _has_control_characters(value: str) -> bool:
+    return any(unicodedata.category(character) in {"Cc", "Cs"} for character in value)
+
+
 class ProjectSpec(BaseModel):
     """Validated description of the project to generate."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     name: str = Field(default="my-service", min_length=1, max_length=64)
     package: str | None = Field(default=None, max_length=64)
     description: str = Field(default="A FastAPI service", max_length=200)
     version: str = Field(default="0.1.0", max_length=32)
     author: str = Field(default="", max_length=100)
-    python: str = Field(default=DEFAULT_PYTHON_VERSION)
-    base_dir: str | None = Field(default=None, max_length=64)
-    application_name: str | None = Field(default=None, max_length=100)
+    python: str = Field(
+        default=DEFAULT_PYTHON_VERSION,
+        validation_alias=AliasChoices("python", "pythonVersion"),
+    )
+    base_dir: str | None = Field(
+        default=None,
+        max_length=64,
+        validation_alias=AliasChoices("baseDir", "base_dir"),
+    )
+    application_name: str | None = Field(
+        default=None,
+        max_length=100,
+        validation_alias=AliasChoices("applicationName", "application_name"),
+    )
     preset: str = Field(default="custom", max_length=32)
     dependencies: frozenset[str] = Field(default_factory=frozenset)
 
@@ -68,7 +91,7 @@ class ProjectSpec(BaseModel):
     @classmethod
     def validate_text(cls, value: str) -> str:
         value = value.strip()
-        if any(ord(character) < 32 for character in value):
+        if _has_control_characters(value):
             raise ValueError("Text fields cannot contain control characters.")
         return value
 
@@ -98,9 +121,27 @@ class ProjectSpec(BaseModel):
         if value is None or value.strip() == "":
             return None
         value = value.strip()
-        if any(ord(character) < 32 for character in value):
+        if _has_control_characters(value):
             raise ValueError("applicationName cannot contain control characters.")
         return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_python_aliases(cls, data: object) -> object:
+        if isinstance(data, dict):
+            values = cast("dict[str, object]", data)
+            python = values.get("python")
+            python_version = values.get("pythonVersion")
+            if (
+                isinstance(python, str)
+                and isinstance(python_version, str)
+                and python != python_version
+            ):
+                raise ValueError(
+                    "Use either python or pythonVersion, not both with different values."
+                )
+            return values
+        return data
 
     @model_validator(mode="after")
     def validate_project(self) -> Self:
