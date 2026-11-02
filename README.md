@@ -17,7 +17,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   sizes, and an empty-file marker.
 - Safe project, package, version, and baseDir validation.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
-  request IDs, gzip compression, logging, error handlers, and tests.
+  request IDs, gzip compression, logging, error handlers, tests, and a
+  selected-feature `HELP.md` checklist.
 - Optional SQLAlchemy or SQLModel CRUD, Alembic, PostgreSQL or MySQL/MariaDB,
   JWT authentication, CORS, Docker/Compose, GitHub Actions, pre-commit, and
   coverage.
@@ -243,6 +244,7 @@ my-service/
 ├── .python-version
 ├── .gitignore
 ├── .fastapi-initializr.json
+├── HELP.md
 ├── README.md
 ├── src/my_service/
 │   ├── main.py

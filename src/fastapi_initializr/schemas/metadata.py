@@ -68,6 +68,7 @@ class DependencyValue(BaseModel):
     conflicts: list[str] = Field(default_factory=list)
     packages: list[str] = Field(default_factory=list)
     dev_packages: list[str] = Field(default_factory=list, serialization_alias="devPackages")
+    help: list[str] = Field(default_factory=list)
     files: list[str] = Field(default_factory=list)
     links: dict[str, Link] = Field(default_factory=dict)
 

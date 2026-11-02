@@ -506,6 +506,50 @@ DEPENDENCIES: dict[str, Dependency] = {
     ),
 }
 
+HELP_STEPS: dict[str, tuple[str, ...]] = {
+    "sqlalchemy": ("CRUD endpoints are available at `/items`.",),
+    "sqlmodel": ("CRUD endpoints are available at `/items`.",),
+    "alembic": (
+        "Apply migrations with `uv run alembic upgrade head`.",
+        'Create one with `uv run alembic revision --autogenerate -m "describe the change"`.',
+    ),
+    "postgres": ("Set `DATABASE_URL` in `.env`; Compose starts PostgreSQL.",),
+    "mysql": ("Set `DATABASE_URL` in `.env`; Compose starts MySQL.",),
+    "mongodb": ("Set `MONGODB_URL` and `MONGODB_DB` in `.env`.",),
+    "redis": ("Set `REDIS_URL` in `.env`.",),
+    "cache": ("Use the cache helpers in `core/cache_helpers.py`.",),
+    "arq": ("Start the worker with `uv run arq {package}.worker.WorkerSettings`.",),
+    "auth-jwt": (
+        "Change `SECRET_KEY` in `.env` before deploying.",
+        "Endpoints: `/auth/register`, `/auth/login`, and `/auth/me`.",
+    ),
+    "email": ("Configure `SMTP_*` in `.env`; the console backend is the default.",),
+    "oauth2": ("Configure `GOOGLE_*` and `GITHUB_*` in `.env`.",),
+    "cors": ("Set `CORS_ORIGINS` in `.env`.",),
+    "static-templates": ("The welcome page is at `/`.",),
+    "websockets": ("The WebSocket echo endpoint is at `/ws`.",),
+    "rate-limit": ("The limiter is wired in `core/rate_limit.py`.",),
+    "uploads": ("Set `UPLOAD_DIR` and `MAX_UPLOAD_BYTES`; the endpoint is `/uploads`.",),
+    "graphql": ("The GraphQL endpoint is at `/graphql`.",),
+    "s3": ("Set `STORAGE_BACKEND=s3` and the `S3_*` variables in `.env`.",),
+    "testcontainers": (
+        "Run integration tests with `RUN_INTEGRATION=1 bash scripts/run_integration.sh`.",
+    ),
+    "sentry": ("Set `SENTRY_DSN` to enable error reporting.",),
+    "prometheus": ("Metrics are exposed at `/metrics`.",),
+    "opentelemetry": ("Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export traces.",),
+    "docker": ("Build the image with `docker build -t <name> .`.",),
+    "compose": ("Start the stack with `docker compose up --build`.",),
+    "makefile": ("Common targets: `make sync`, `make run`, `make test`, `make lint`.",),
+    "ci": ("GitHub Actions workflow: `.github/workflows/ci.yml`.",),
+    "ci-gitlab": ("GitLab pipeline: `.gitlab-ci.yml`.",),
+    "ci-bitbucket": ("Bitbucket pipeline: `bitbucket-pipelines.yml`.",),
+    "security-scan": ("Run `bash scripts/security.sh`.",),
+    "kubernetes": ("Apply manifests with `kubectl apply -f k8s/`.",),
+    "pre-commit": ("Install hooks with `uv run pre-commit install`.",),
+}
+
+
 GROUP_ORDER: tuple[str, ...] = (
     "Database",
     "Messaging",
@@ -645,6 +689,7 @@ def metadata() -> Metadata:
                 conflicts=list(dependency.conflicts),
                 packages=list(dependency.packages),
                 dev_packages=list(dependency.dev_packages),
+                help=list(HELP_STEPS.get(dependency.id, ())),
                 files=list(dependency.files),
                 links=_dependency_links(dependency),
             )

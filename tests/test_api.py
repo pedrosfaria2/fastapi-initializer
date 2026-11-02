@@ -304,6 +304,7 @@ def test_starter_zip_alias(client: TestClient) -> None:
     assert response.status_code == 200
     with ZipFile(io.BytesIO(response.content)) as archive:
         assert "my-service/pyproject.toml" in archive.namelist()
+        assert "my-service/HELP.md" in archive.namelist()
 
 
 def test_starter_tgz_returns_tar_gz(client: TestClient) -> None:

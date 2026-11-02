@@ -22,6 +22,7 @@ def test_minimal_project_contains_core_files() -> None:
 
     assert "pyproject.toml" in files
     assert "README.md" in files
+    assert "HELP.md" in files
     assert ".gitignore" in files
     assert ".python-version" in files
     assert "src/my_service/main.py" in files
@@ -33,6 +34,45 @@ def test_minimal_project_contains_core_files() -> None:
     assert "docker-compose.yml" not in files
     assert "src/my_service/models/item.py" not in files
     assert "tests/test_items.py" not in files
+
+
+def test_help_lists_selected_features_and_links() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "alembic", "redis", "arq"}),
+    )
+
+    help_text = render_project(spec)["HELP.md"]
+
+    assert "## Selected features" in help_text
+    assert "### Alembic" in help_text
+    assert "`uv run alembic upgrade head`" in help_text
+    assert "### ARQ" in help_text
+    assert "uv run arq my_service.worker.WorkerSettings" in help_text
+    assert "https://alembic.sqlalchemy.org/en/latest/tutorial.html" in help_text
+    assert "README.md" in help_text
+    assert "{package}" not in help_text
+
+
+def test_help_omits_unselected_features() -> None:
+    help_text = render_project(ProjectSpec(name="my-service"))["HELP.md"]
+
+    assert "No optional features selected." in help_text
+    assert "Alembic" not in help_text
+    assert "Redis" not in help_text
+
+
+def test_help_includes_environment_auth_and_compose_steps() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "docker", "compose"}),
+    )
+
+    help_text = render_project(spec)["HELP.md"]
+
+    assert "cp .env.example .env" in help_text
+    assert "Change `SECRET_KEY` in `.env` before deploying." in help_text
+    assert "docker compose up --build" in help_text
 
 
 def test_all_features_include_conditional_files() -> None:

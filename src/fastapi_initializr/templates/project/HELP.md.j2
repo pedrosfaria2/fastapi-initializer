@@ -1,0 +1,38 @@
+# {{ spec.name }} — Getting started
+
+This file lists the selected features and the first commands to run. See
+[README.md](README.md) for the full documentation.
+
+## Start
+
+```sh
+uv sync
+{% if needs_env %}
+cp .env.example .env
+{% endif %}
+uv run fastapi dev src/{{ spec.package }}/main.py
+```
+
+Open <http://127.0.0.1:8000/docs> for the API documentation.
+
+## Selected features
+
+{% if selected_features %}
+{% for feature in selected_features %}
+### {{ feature.name }}
+{{ feature.description }}
+
+{% for step in feature.help %}
+- {{ step | replace("{package}", spec.package) }}
+{% endfor %}
+{% if feature.guide %}
+[{{ feature.guide_title }}]({{ feature.guide }}){% if feature.reference %} · [Reference]({{ feature.reference }}){% endif %}
+{% elif feature.reference %}
+[Reference]({{ feature.reference }})
+{% endif %}
+
+
+{% endfor %}
+{% else %}
+No optional features selected.
+{% endif %}

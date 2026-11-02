@@ -98,6 +98,7 @@ def test_dependency_metadata_includes_packages_files_and_links() -> None:
     assert "src/{package}/db/session.py" in sqlalchemy.files
     assert "guide" in sqlalchemy.links
     assert sqlalchemy.links["guide"].href.startswith("https://docs.sqlalchemy.org")
+    assert any("uv run alembic upgrade head" in step for step in dependencies["alembic"].help)
 
 
 def test_dependency_catalog_returns_packages() -> None:

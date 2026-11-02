@@ -10,7 +10,12 @@ from pathlib import Path, PurePosixPath
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from fastapi_initializr.generation.catalog import plugin_files, resolve_packages
+from fastapi_initializr.generation.catalog import (
+    DEPENDENCIES,
+    HELP_STEPS,
+    plugin_files,
+    resolve_packages,
+)
 from fastapi_initializr.generation.constants import core_dev_packages, core_packages
 from fastapi_initializr.generation.manifest import MANIFEST_NAME, render_manifest
 from fastapi_initializr.generation.spec import ProjectSpec
@@ -79,6 +84,7 @@ def _needs_env(spec: ProjectSpec) -> bool:
 FILES: tuple[FileSpec, ...] = (
     FileSpec("pyproject.toml.j2", "pyproject.toml"),
     FileSpec("README.md.j2", "README.md"),
+    FileSpec("HELP.md.j2", "HELP.md"),
     FileSpec("gitignore.j2", ".gitignore"),
     FileSpec("python-version.j2", ".python-version"),
     FileSpec("env.example.j2", ".env.example", _needs_env),
@@ -462,12 +468,33 @@ FILES: tuple[FileSpec, ...] = (
 def build_context(spec: ProjectSpec) -> dict[str, object]:
     """Build the template context for a project spec."""
     packages, dev_packages = resolve_packages(spec.dependencies)
+    selected_features = [
+        {
+            "id": dependency.id,
+            "name": dependency.name,
+            "description": dependency.description,
+            "help": HELP_STEPS.get(dependency.id, ()),
+            "guide": dependency.guide,
+            "guide_title": dependency.guide_title or "Guide",
+            "reference": dependency.reference,
+        }
+        for dependency in sorted(
+            (
+                DEPENDENCIES[feature_id]
+                for feature_id in spec.dependencies
+                if feature_id in DEPENDENCIES
+            ),
+            key=lambda dependency: (dependency.group, dependency.name),
+        )
+    ]
     return {
         "spec": spec,
         "core_packages": core_packages(),
         "core_dev_packages": core_dev_packages(),
         "packages": packages,
         "dev_packages": dev_packages,
+        "selected_features": selected_features,
+        "needs_env": _needs_env(spec),
         "project_version": spec.version,
         "author": spec.author,
         "app_title": spec.app_title,
