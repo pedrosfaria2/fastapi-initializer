@@ -4,6 +4,7 @@ import ast
 import tomllib
 from typing import Any, cast
 
+import pytest
 import yaml  # type: ignore[import-untyped]  # PyYAML ships no inline type hints
 
 from fastapi_initializr.generation.preview import build_preview
@@ -34,6 +35,45 @@ def test_minimal_project_contains_core_files() -> None:
     assert "docker-compose.yml" not in files
     assert "src/my_service/models/item.py" not in files
     assert "tests/test_items.py" not in files
+
+
+def test_application_name_escapes_python_string_content() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        application_name='Acme "API"',
+        dependencies=frozenset({"opentelemetry"}),
+    )
+
+    config = render_project(spec)["src/my_service/core/config.py"]
+
+    assert 'app_name: str = "Acme \\"API\\""' in config
+    assert 'otel_service_name: str = "Acme \\"API\\""' in config
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "path", "marker"),
+    [
+        ("description", "literal {{x}}", "pyproject.toml", "{{x}}"),
+        ("author", "literal {%x%}", "pyproject.toml", "{%x%}"),
+        (
+            "application_name",
+            'Acme "{{x}}"',
+            "src/my_service/core/config.py",
+            "{{x}}",
+        ),
+    ],
+)
+def test_user_text_can_contain_template_markers(
+    field: str,
+    value: str,
+    path: str,
+    marker: str,
+) -> None:
+    spec = ProjectSpec(name="my-service", **{field: value})
+
+    content = render_project(spec)[path]
+
+    assert marker in content
 
 
 def test_help_lists_selected_features_and_links() -> None:

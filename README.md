@@ -69,6 +69,9 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | `POST` | `/preview` | Preview from JSON |
 
 The `/api/preview` and `/api/generate` aliases remain available.
+`POST /api/generate` accepts a JSON object or an
+`application/x-www-form-urlencoded` form; the no-JavaScript form submits the
+form-encoded variant.
 
 Download a project:
 

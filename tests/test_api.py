@@ -165,12 +165,73 @@ def test_post_generate_accepts_json(client: TestClient) -> None:
         assert "my-service/.env.example" in names
 
 
+def test_post_generate_accepts_form_data(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        data={
+            "name": "my-service",
+            "dependencies": ["sqlalchemy", "alembic"],
+        },
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        names = archive.namelist()
+        assert "my-service/pyproject.toml" in names
+        assert "my-service/alembic.ini" in names
+
+
+def test_post_generate_form_keeps_quotes_and_markers(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        data={
+            "name": "my-service",
+            "applicationName": 'Acme "API"',
+            "description": "literal {{x}}",
+        },
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        config = archive.read("my-service/src/my_service/core/config.py").decode()
+        pyproject = archive.read("my-service/pyproject.toml").decode()
+    assert 'app_name: str = "Acme \\"API\\""' in config
+    assert "literal {{x}}" in pyproject
+
+
+def test_post_generate_form_rejects_invalid_input(client: TestClient) -> None:
+    response = client.post("/api/generate", data={"name": "Bad Name"})
+
+    assert response.status_code == 422
+
+
+def test_post_generate_rejects_unsupported_content_type(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        content="name=my-service",
+        headers={"content-type": "text/plain"},
+    )
+
+    assert response.status_code == 415
+
+
+def test_post_generate_rejects_invalid_json(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        content="{",
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_index_renders_a_working_form(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
     assert "<form" in response.text
     assert 'action="/api/generate"' in response.text
+    assert 'method="post"' in response.text
     assert 'name="name"' in response.text
     assert 'id="dependency-groups"' in response.text
 

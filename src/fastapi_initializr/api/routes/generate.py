@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, Query, Request, Response
 
-from fastapi_initializr.api.params import split_dependencies
+from fastapi_initializr.api.params import build_spec, spec_from_request
 from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
@@ -21,43 +20,6 @@ from fastapi_initializr.services.generator import (
 )
 
 router = APIRouter(tags=["generate"])
-
-
-def _build_spec(
-    *,
-    name: str,
-    package: str | None,
-    description: str,
-    version: str,
-    author: str,
-    python: str,
-    preset: str,
-    base_dir: str | None,
-    application_name: str | None,
-    dependencies: list[str] | None,
-) -> ProjectSpec:
-    try:
-        return ProjectSpec(
-            name=name,
-            package=package or None,
-            description=description,
-            version=version,
-            author=author,
-            python=python,
-            preset=preset,
-            base_dir=base_dir,
-            application_name=application_name,
-            dependencies=split_dependencies(dependencies),
-        )
-    except ValidationError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=exc.errors(
-                include_url=False,
-                include_context=False,
-                include_input=False,
-            ),
-        ) from exc
 
 
 def query_spec(
@@ -74,7 +36,7 @@ def query_spec(
     dependencies: Annotated[list[str] | None, Query()] = None,
 ) -> ProjectSpec:
     """Build a validated project spec from query parameters."""
-    return _build_spec(
+    return build_spec(
         name=name,
         package=package,
         description=description,
@@ -140,10 +102,20 @@ def generate_get(spec: SpecDep) -> Response:
     return _archive_response(generate_project(spec))
 
 
-@router.post("/api/generate")
-def generate_post(spec: ProjectSpec) -> Response:
-    """Generate a zip from a JSON project spec."""
-    return _archive_response(generate_project(spec))
+@router.post(
+    "/api/generate",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {"schema": {"$ref": "#/components/schemas/ProjectSpec"}},
+                "application/x-www-form-urlencoded": {"schema": {"type": "object"}},
+            }
+        }
+    },
+)
+async def generate_post(request: Request) -> Response:
+    """Generate a zip from a JSON or form-encoded project spec."""
+    return _archive_response(generate_project(await spec_from_request(request)))
 
 
 @router.get("/preview", response_model=Preview, include_in_schema=False)

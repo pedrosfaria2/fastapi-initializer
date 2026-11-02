@@ -533,14 +533,26 @@ def _validate_output_path(path: str) -> str:
     return pure.as_posix()
 
 
+def _user_markers(spec: ProjectSpec) -> frozenset[str]:
+    values = (spec.description, spec.author, spec.application_name or "")
+    return frozenset(marker for value in values for marker in ("{{", "{%", "{#") if marker in value)
+
+
 def _validate_content(
     path: str,
     content: str,
     *,
     allow_template_markers: bool = False,
+    allowed_markers: frozenset[str] = frozenset(),
 ) -> None:
-    if not allow_template_markers and any(marker in content for marker in ("{{", "{%", "{#")):
-        raise ValueError(f"Unresolved template marker in {path}")
+    if not allow_template_markers:
+        unresolved = [
+            marker
+            for marker in ("{{", "{%", "{#")
+            if marker in content and marker not in allowed_markers
+        ]
+        if unresolved:
+            raise ValueError(f"Unresolved template marker in {path}")
     if path.endswith(".py"):
         ast.parse(content, filename=path)
     elif path == "pyproject.toml":
@@ -550,6 +562,7 @@ def _validate_content(
 def render_project(spec: ProjectSpec) -> dict[str, str]:
     """Render every selected file for a project spec."""
     context = build_context(spec)
+    allowed_markers = _user_markers(spec)
     rendered: dict[str, str] = {}
     for file_spec in FILES:
         if not file_spec.condition(spec):
@@ -564,6 +577,7 @@ def render_project(spec: ProjectSpec) -> dict[str, str]:
             output,
             content,
             allow_template_markers=file_spec.runtime_template,
+            allowed_markers=allowed_markers,
         )
         rendered[output] = content
     for plugin_file in plugin_files():
@@ -574,7 +588,7 @@ def render_project(spec: ProjectSpec) -> dict[str, str]:
         if output in rendered:
             raise ValueError(f"Duplicate output path: {output}")
         content = _INLINE_ENVIRONMENT.from_string(plugin_file.template).render(context)
-        _validate_content(output, content)
+        _validate_content(output, content, allowed_markers=allowed_markers)
         rendered[output] = content
     rendered[MANIFEST_NAME] = render_manifest(spec, rendered)
     return dict(sorted(rendered.items()))

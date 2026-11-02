@@ -48,7 +48,10 @@ def test_preview_escapes_user_text_in_highlighted_html() -> None:
     )
     config = next(file for file in preview.files if file.path == "src/my_service/core/config.py")
 
-    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in config.highlighted
+    assert "<script>" not in config.content
+    assert "<script>" not in config.highlighted
+    assert "\\u003c" in config.content
+    assert "\\u003c" in config.highlighted
     assert "<script>" not in config.highlighted
 
 
