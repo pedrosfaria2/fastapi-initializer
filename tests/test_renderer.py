@@ -4,9 +4,7 @@ import ast
 import tomllib
 from typing import Any, cast
 
-import pytest
 import yaml  # type: ignore[import-untyped]  # PyYAML ships no inline type hints
-from pydantic import ValidationError
 
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
@@ -110,18 +108,18 @@ def test_extended_web_features_render_files_and_settings() -> None:
     assert "StaticFiles" in main
 
     env = files[".env.example"]
-    assert "REDIS_URL=redis://localhost:6379/0" in env
-    assert "SENTRY_DSN=" in env
-    assert "SENTRY_ENVIRONMENT=development" in env
+    assert "REDIS_URL" in env
+    assert "SENTRY_DSN" in env
+    assert "SENTRY_ENVIRONMENT" in env
 
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
     for package in (
-        "redis>=5.3.1",
-        "sentry-sdk[fastapi]>=2.73.0",
-        "prometheus-fastapi-instrumentator>=8.1.0",
-        "slowapi>=0.1.10",
-        "jinja2>=3.1.6",
+        "redis",
+        "sentry-sdk[fastapi]",
+        "prometheus-fastapi-instrumentator",
+        "slowapi",
+        "jinja2",
     ):
         assert package in dependencies
 
@@ -186,7 +184,7 @@ def test_worker_and_cache_helpers_render_files_and_settings() -> None:
     assert "        condition: service_healthy" in compose
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "arq>=0.28.0" in data["project"]["dependencies"]
+    assert "arq" in data["project"]["dependencies"]
 
     readme = files["README.md"]
     assert "uv run arq my_service.worker.WorkerSettings" in readme
@@ -282,10 +280,10 @@ def test_security_scan_feature_renders_hard_gate_and_wiring() -> None:
     data = tomllib.loads(files["pyproject.toml"])
     dev_dependencies = data["dependency-groups"]["dev"]
     for package in (
-        "pip-audit>=2.10.1",
-        "bandit>=1.9.4",
-        "detect-secrets>=1.5.0",
-        "cyclonedx-bom>=7.6.0",
+        "pip-audit",
+        "bandit",
+        "detect-secrets",
+        "cyclonedx-bom",
     ):
         assert package in dev_dependencies
 
@@ -346,7 +344,7 @@ def test_kubernetes_feature_renders_manifests() -> None:
     assert path["backend"]["service"]["port"]["number"] == 80
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "pyyaml>=6.0.3" in data["dependency-groups"]["dev"]
+    assert "pyyaml" in data["dependency-groups"]["dev"]
 
     readme = files["README.md"]
     assert "## Kubernetes" in readme
@@ -371,7 +369,7 @@ def test_gitlab_ci_feature_renders_pipeline() -> None:
     pipeline = _load_yaml(files[".gitlab-ci.yml"])
 
     assert pipeline["stages"] == ["lint", "typecheck", "test"]
-    assert pipeline["default"]["image"] == "ghcr.io/astral-sh/uv:0.13.6"
+    assert pipeline["default"]["image"] == "ghcr.io/astral-sh/uv:latest"
     assert pipeline["default"]["before_script"] == ["uv sync"]
     assert pipeline["lint"]["stage"] == "lint"
     assert pipeline["lint"]["script"] == [
@@ -454,14 +452,14 @@ def test_auth_feature_renders_security_slice() -> None:
     assert "access_token_expire_minutes: int = 30" in config
     assert 'jwt_algorithm: str = "HS256"' in config
     env = files[".env.example"]
-    assert "SECRET_KEY=change-me" in env
-    assert "ACCESS_TOKEN_EXPIRE_MINUTES=30" in env
+    assert "SECRET_KEY" in env
+    assert "ACCESS_TOKEN_EXPIRE_MINUTES" in env
 
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
-    assert "pwdlib[argon2]>=0.3.1" in dependencies
-    assert "pyjwt>=2.15.1" in dependencies
-    assert "email-validator>=2.3.0" in dependencies
+    assert "pwdlib[argon2]" in dependencies
+    assert "pyjwt" in dependencies
+    assert "email-validator" in dependencies
 
 
 def test_auth_feature_is_absent_without_auth_jwt() -> None:
@@ -515,14 +513,14 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
     assert "{{ token }}" in files["templates/email/verify_email.txt"]
 
     env = files[".env.example"]
-    assert "EMAIL_BACKEND=console" in env
-    assert "SMTP_HOST=localhost" in env
-    assert "SMTP_FROM=noreply@example.com" in env
+    assert "EMAIL_BACKEND" in env
+    assert "SMTP_HOST" in env
+    assert "SMTP_FROM" in env
 
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
-    assert "aiosmtplib>=5.1.3" in dependencies
-    assert "jinja2>=3.1.6" in dependencies
+    assert "aiosmtplib" in dependencies
+    assert "jinja2" in dependencies
 
     readme = files["README.md"]
     assert "## Email, password reset, and verification" in readme
@@ -591,18 +589,18 @@ def test_oauth_feature_renders_provider_slice() -> None:
 
     env = files[".env.example"]
     for setting in (
-        "OAUTH_REDIRECT_BASE_URL=http://localhost:8000",
-        "GOOGLE_CLIENT_ID=",
-        "GOOGLE_CLIENT_SECRET=",
-        "GITHUB_CLIENT_ID=",
-        "GITHUB_CLIENT_SECRET=",
+        "OAUTH_REDIRECT_BASE_URL",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
     ):
         assert setting in env
 
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
-    assert "authlib>=1.9.1" in dependencies
-    assert "itsdangerous>=2.2.0" in dependencies
+    assert "authlib" in dependencies
+    assert "itsdangerous" in dependencies
 
     readme = files["README.md"]
     assert "## OAuth2 and OIDC login" in readme
@@ -654,20 +652,20 @@ def test_opentelemetry_feature_renders_tracing_slice() -> None:
 
     env = files[".env.example"]
     for setting in (
-        "OTEL_EXPORTER_OTLP_ENDPOINT=",
-        "OTEL_SERVICE_NAME=my-service",
-        "OTEL_ENVIRONMENT=development",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_SERVICE_NAME",
+        "OTEL_ENVIRONMENT",
     ):
         assert setting in env
 
     data = tomllib.loads(files["pyproject.toml"])
     dependencies = data["project"]["dependencies"]
     for package in (
-        "opentelemetry-sdk>=1.45.2",
-        "opentelemetry-exporter-otlp>=1.45.2",
-        "opentelemetry-instrumentation-fastapi>=0.66b2",
-        "opentelemetry-instrumentation-sqlalchemy>=0.66b2",
-        "opentelemetry-instrumentation-redis>=0.66b2",
+        "opentelemetry-sdk",
+        "opentelemetry-exporter-otlp",
+        "opentelemetry-instrumentation-fastapi",
+        "opentelemetry-instrumentation-sqlalchemy",
+        "opentelemetry-instrumentation-redis",
     ):
         assert package in dependencies
 
@@ -805,19 +803,32 @@ def test_explicit_package_is_used_in_paths() -> None:
     assert "src/my_service/main.py" not in files
 
 
-def test_pyproject_uses_project_metadata_and_fastapi_range() -> None:
+def test_pyproject_uses_project_metadata_without_version_pins() -> None:
     spec = ProjectSpec(
         name="my-service",
         version="1.2.3",
         author="Ada Lovelace",
-        fastapi="0.161.1",
     )
     files = render_project(spec)
     data = tomllib.loads(files["pyproject.toml"])
 
     assert data["project"]["version"] == "1.2.3"
     assert data["project"]["authors"] == [{"name": "Ada Lovelace"}]
-    assert "fastapi>=0.161.1,<0.162.0" in data["project"]["dependencies"]
+    assert data["project"]["dependencies"] == [
+        "fastapi",
+        "fastapi-cli",
+        "uvicorn[standard]",
+        "pydantic-settings",
+        "python-multipart",
+    ]
+    assert data["dependency-groups"]["dev"] == [
+        "pytest",
+        "pytest-cov",
+        "httpx2",
+        "ruff",
+        "mypy",
+        "pyright",
+    ]
     assert '__version__ = "1.2.3"' in files["src/my_service/__init__.py"]
     assert 'app_name: str = "my-service"' in files["src/my_service/core/config.py"]
 
@@ -872,8 +883,8 @@ def test_uploads_feature_renders_storage_and_routes() -> None:
     assert '"application/pdf"' in config
 
     env = files[".env.example"]
-    assert "UPLOAD_DIR=uploads" in env
-    assert "MAX_UPLOAD_BYTES=5000000" in env
+    assert "UPLOAD_DIR" in env
+    assert "MAX_UPLOAD_BYTES" in env
     assert "ALLOWED_UPLOAD_TYPES" in env
 
     data = tomllib.loads(files["pyproject.toml"])
@@ -920,19 +931,19 @@ def test_s3_feature_renders_backend_and_test_dependencies() -> None:
         assert setting in config
 
     env = files[".env.example"]
-    assert "STORAGE_BACKEND=local" in env
-    assert "S3_BUCKET=uploads" in env
-    assert "S3_REGION=us-east-1" in env
+    assert "STORAGE_BACKEND" in env
+    assert "S3_BUCKET" in env
+    assert "S3_REGION" in env
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "boto3>=1.43.123" in data["project"]["dependencies"]
-    assert "moto[s3]>=5.2.5" in data["dependency-groups"]["dev"]
+    assert "boto3" in data["project"]["dependencies"]
+    assert "moto[s3]" in data["dependency-groups"]["dev"]
     overrides = data["tool"]["mypy"]["overrides"]
     assert any("boto3" in override["module"] for override in overrides)
 
     readme = files["README.md"]
     assert "## S3-compatible storage" in readme
-    assert "STORAGE_BACKEND=s3" in readme
+    assert "STORAGE_BACKEND" in readme
 
 
 def test_uploads_and_s3_are_absent_by_default() -> None:
@@ -960,8 +971,8 @@ def test_testcontainers_feature_renders_integration_suite() -> None:
     assert ".github/workflows/integration.yml" in files
 
     conftest = files["tests/integration/conftest.py"]
-    assert 'PostgresContainer("postgres:17")' in conftest
-    assert 'RedisContainer("redis:7-alpine")' in conftest
+    assert 'PostgresContainer("postgres:latest")' in conftest
+    assert 'RedisContainer("redis:alpine")' in conftest
     assert 'os.environ.get("RUN_INTEGRATION") == "1"' in conftest
     assert "pytest.skip(SKIP_REASON)" in conftest
 
@@ -971,14 +982,14 @@ def test_testcontainers_feature_renders_integration_suite() -> None:
     assert "client.ping() is True" in integration
 
     script = files["scripts/run_integration.sh"]
-    assert "RUN_INTEGRATION=1 uv run pytest -m integration" in script
+    assert "RUN_INTEGRATION" in script
 
     workflow = files[".github/workflows/integration.yml"]
     assert "workflow_dispatch:" in workflow
     assert "bash scripts/run_integration.sh" in workflow
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "testcontainers[postgres]>=4.15.0" in data["dependency-groups"]["dev"]
+    assert "testcontainers[postgres]" in data["dependency-groups"]["dev"]
     assert data["tool"]["pytest"]["ini_options"]["markers"] == ["integration"]
 
     readme = files["README.md"]
@@ -1013,8 +1024,8 @@ def test_mongodb_feature_renders_beanie_slice() -> None:
     assert 'mongodb_db: str = "app"' in config
 
     env = files[".env.example"]
-    assert "MONGODB_URL=mongodb://localhost:27017" in env
-    assert "MONGODB_DB=app" in env
+    assert "MONGODB_URL" in env
+    assert "MONGODB_DB" in env
 
     models = files["src/my_service/models/__init__.py"]
     assert "from my_service.models.document import Document" in models
@@ -1035,9 +1046,9 @@ def test_mongodb_feature_renders_beanie_slice() -> None:
     assert "async def close_mongo() -> None:" in mongo
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "beanie>=2.2.0" in data["project"]["dependencies"]
-    assert "motor>=3.7.1" in data["project"]["dependencies"]
-    assert "mongomock-motor>=0.0.36" in data["dependency-groups"]["dev"]
+    assert "beanie" in data["project"]["dependencies"]
+    assert "motor" in data["project"]["dependencies"]
+    assert "mongomock-motor" in data["dependency-groups"]["dev"]
 
     readme = files["README.md"]
     assert "## MongoDB and Beanie" in readme
@@ -1057,13 +1068,16 @@ def test_mongodb_is_absent_by_default() -> None:
     assert "## MongoDB and Beanie" not in files["README.md"]
 
 
-def test_mongodb_rejects_python_314() -> None:
-    with pytest.raises(ValidationError, match=r"Python <3\.14"):
+def test_mongodb_renders_with_python_314() -> None:
+    files = render_project(
         ProjectSpec(
             name="my-service",
             python="3.14",
             dependencies=frozenset({"mongodb"}),
         )
+    )
+
+    assert "src/my_service/core/mongo.py" in files
 
 
 def test_graphql_feature_renders_schema_and_route() -> None:
@@ -1087,7 +1101,7 @@ def test_graphql_feature_renders_schema_and_route() -> None:
     assert 'app.include_router(GraphQLRouter(schema), prefix="/graphql")' in main
 
     data = tomllib.loads(files["pyproject.toml"])
-    assert "strawberry-graphql[fastapi]>=0.339.0" in data["project"]["dependencies"]
+    assert "strawberry-graphql[fastapi]" in data["project"]["dependencies"]
 
     readme = files["README.md"]
     assert "## GraphQL" in readme

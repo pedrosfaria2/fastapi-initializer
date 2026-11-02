@@ -9,11 +9,31 @@ from collections.abc import Iterator
 
 import pytest
 import uvicorn
-from playwright.sync_api import Page
+from playwright.sync_api import Browser, Page, sync_playwright
 
 from fastapi_initializr.main import create_app
 
 pytestmark = pytest.mark.browser
+
+
+@pytest.fixture(scope="module")
+def browser() -> Iterator[Browser]:
+    with sync_playwright() as playwright:
+        chromium = playwright.chromium.launch()
+        try:
+            yield chromium
+        finally:
+            chromium.close()
+
+
+@pytest.fixture
+def page(browser: Browser) -> Iterator[Page]:
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        yield page
+    finally:
+        context.close()
 
 
 @pytest.fixture(scope="module")

@@ -32,7 +32,7 @@ services:
 {% endif %}
 {% if spec.has("postgres") %}
   db:
-    image: postgres:17
+    image: postgres:latest
     environment:
       POSTGRES_DB: app
       POSTGRES_USER: postgres
@@ -49,7 +49,7 @@ services:
 {% endif %}
 {% if spec.has("redis") %}
   redis:
-    image: redis:7-alpine
+    image: redis:alpine
     ports:
       - "6379:6379"
     volumes:

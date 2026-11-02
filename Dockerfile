@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM python:3.14-slim-trixie AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=0

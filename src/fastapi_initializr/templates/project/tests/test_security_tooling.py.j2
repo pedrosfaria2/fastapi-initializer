@@ -33,10 +33,10 @@ def test_security_tools_are_development_dependencies() -> None:
     dev_dependencies = cast(list[str], data["dependency-groups"]["dev"])
 
     for package in (
-        "pip-audit>=2.10.1",
-        "bandit>=1.9.4",
-        "detect-secrets>=1.5.0",
-        "cyclonedx-bom>=7.6.0",
+        "pip-audit",
+        "bandit",
+        "detect-secrets",
+        "cyclonedx-bom",
     ):
         assert package in dev_dependencies
 {% if spec.has("ci") %}

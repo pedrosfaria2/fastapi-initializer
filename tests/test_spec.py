@@ -64,13 +64,14 @@ def test_rejects_invalid_python_version() -> None:
         ProjectSpec(name="my-service", python="3.10")
 
 
-def test_rejects_mongodb_with_python_314() -> None:
-    with pytest.raises(ValidationError, match=r"MongoDB with Beanie requires Python <3\.14"):
-        ProjectSpec(
-            name="my-service",
-            python="3.14",
-            dependencies=frozenset({"mongodb"}),
-        )
+def test_accepts_mongodb_with_python_314() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        python="3.14",
+        dependencies=frozenset({"mongodb"}),
+    )
+
+    assert spec.has("mongodb")
 
 
 def test_accepts_mongodb_with_python_313() -> None:
@@ -118,14 +119,12 @@ def test_accepts_project_metadata() -> None:
         name="my-service",
         version="1.2.3",
         author="Ada Lovelace",
-        fastapi="0.161.1",
         base_dir="custom-root",
         application_name="My Service",
     )
 
     assert spec.version == "1.2.3"
     assert spec.author == "Ada Lovelace"
-    assert spec.fastapi_range == ">=0.161.1,<0.162.0"
     assert spec.archive_root == "custom-root"
     assert spec.app_title == "My Service"
 
@@ -134,11 +133,6 @@ def test_accepts_project_metadata() -> None:
 def test_rejects_invalid_project_versions(version: str) -> None:
     with pytest.raises(ValidationError, match=r"MAJOR\.MINOR\.PATCH"):
         ProjectSpec(name="my-service", version=version)
-
-
-def test_rejects_unknown_fastapi_version() -> None:
-    with pytest.raises(ValidationError, match="FastAPI version"):
-        ProjectSpec(name="my-service", fastapi="0.100.0")
 
 
 @pytest.mark.parametrize("base_dir", ["../evil", "a/b", "a\\b", ".hidden", "a..b"])

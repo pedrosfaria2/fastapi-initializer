@@ -3,9 +3,7 @@
 from dataclasses import dataclass
 
 from fastapi_initializr.generation.constants import (
-    DEFAULT_FASTAPI_VERSION,
     DEFAULT_PYTHON_VERSION,
-    SUPPORTED_FASTAPI_VERSIONS,
     SUPPORTED_PYTHON_VERSIONS,
 )
 from fastapi_initializr.schemas.metadata import (
@@ -35,7 +33,6 @@ class Dependency:
     group: str
     requires: tuple[str, ...] = ()
     conflicts: tuple[str, ...] = ()
-    version_range: str | None = None
     packages: tuple[str, ...] = ()
     dev_packages: tuple[str, ...] = ()
     files: tuple[str, ...] = ()
@@ -53,7 +50,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Async SQLAlchemy session and SQLite driver.",
         group="Database",
         conflicts=("mongodb",),
-        packages=("sqlalchemy[asyncio]>=2.1.6", "aiosqlite>=0.22.1"),
+        packages=("sqlalchemy[asyncio]", "aiosqlite"),
         files=(
             "src/{package}/db/base.py",
             "src/{package}/db/session.py",
@@ -69,7 +66,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Database migrations for SQLAlchemy.",
         group="Database",
         requires=("sqlalchemy",),
-        packages=("alembic>=1.20.1",),
+        packages=("alembic",),
         files=(
             "alembic.ini",
             "migrations/env.py",
@@ -86,7 +83,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Async PostgreSQL driver.",
         group="Database",
         requires=("sqlalchemy",),
-        packages=("asyncpg>=0.32.0",),
+        packages=("asyncpg",),
         guide="https://magicstack.github.io/asyncpg/current/usage.html",
         guide_title="asyncpg usage",
         reference="https://magicstack.github.io/asyncpg/current/",
@@ -96,7 +93,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Redis",
         description="Async Redis client and cache settings.",
         group="Database",
-        packages=("redis>=5.3.1",),
+        packages=("redis",),
         files=("src/{package}/core/cache.py",),
         guide="https://redis.readthedocs.io/en/stable/",
         guide_title="Redis Python client",
@@ -108,8 +105,8 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Async MongoDB documents through Beanie and Motor.",
         group="Database",
         conflicts=("sqlalchemy",),
-        packages=("beanie>=2.2.0", "motor>=3.7.1"),
-        dev_packages=("mongomock-motor>=0.0.36",),
+        packages=("beanie", "motor"),
+        dev_packages=("mongomock-motor",),
         files=(
             "src/{package}/core/mongo.py",
             "src/{package}/models/document.py",
@@ -142,7 +139,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Redis-backed background job worker.",
         group="Messaging",
         requires=("redis",),
-        packages=("arq>=0.28.0",),
+        packages=("arq",),
         files=(
             "src/{package}/worker.py",
             "src/{package}/tasks/__init__.py",
@@ -167,7 +164,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="GraphQL with Strawberry",
         description="Strawberry GraphQL schema mounted at /graphql.",
         group="Web",
-        packages=("strawberry-graphql[fastapi]>=0.339.0",),
+        packages=("strawberry-graphql[fastapi]",),
         files=(
             "src/{package}/graphql/__init__.py",
             "src/{package}/graphql/schema.py",
@@ -182,7 +179,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Static files and templates",
         description="Jinja2 templates, static assets, and a welcome page.",
         group="Web",
-        packages=("jinja2>=3.1.6",),
+        packages=("jinja2",),
         files=(
             "src/{package}/api/routes/pages.py",
             "templates/index.html",
@@ -207,7 +204,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Rate limiting",
         description="SlowAPI limiter middleware and an example route.",
         group="Web",
-        packages=("slowapi>=0.1.10",),
+        packages=("slowapi",),
         files=(
             "src/{package}/core/rate_limit.py",
             "src/{package}/api/routes/limited.py",
@@ -237,9 +234,9 @@ DEPENDENCIES: dict[str, Dependency] = {
         group="Security",
         requires=("sqlalchemy",),
         packages=(
-            "pwdlib[argon2]>=0.3.1",
-            "pyjwt>=2.15.1",
-            "email-validator>=2.3.0",
+            "pwdlib[argon2]",
+            "pyjwt",
+            "email-validator",
         ),
         files=(
             "src/{package}/models/user.py",
@@ -259,7 +256,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Email backends, password reset, and account verification.",
         group="Security",
         requires=("auth-jwt",),
-        packages=("aiosmtplib>=5.1.3", "jinja2>=3.1.6"),
+        packages=("aiosmtplib", "jinja2"),
         files=(
             "src/{package}/core/email.py",
             "src/{package}/services/auth_email.py",
@@ -278,7 +275,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Google and GitHub login through Authlib with local account linking.",
         group="Security",
         requires=("auth-jwt",),
-        packages=("authlib>=1.9.1", "itsdangerous>=2.2.0"),
+        packages=("authlib", "itsdangerous"),
         files=(
             "src/{package}/core/oauth.py",
             "src/{package}/services/oauth.py",
@@ -294,7 +291,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Sentry",
         description="Sentry error reporting, disabled without a DSN.",
         group="Observability",
-        packages=("sentry-sdk[fastapi]>=2.73.0",),
+        packages=("sentry-sdk[fastapi]",),
         files=("src/{package}/core/observability.py",),
         guide="https://docs.sentry.io/platforms/python/integrations/fastapi/",
         guide_title="Sentry FastAPI integration",
@@ -305,7 +302,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Prometheus metrics",
         description="Prometheus instrumentation and a /metrics endpoint.",
         group="Observability",
-        packages=("prometheus-fastapi-instrumentator>=8.1.0",),
+        packages=("prometheus-fastapi-instrumentator",),
         guide="https://github.com/trallnag/prometheus-fastapi-instrumentator",
         guide_title="Prometheus FastAPI instrumentator",
         reference="https://prometheus.io/docs/introduction/overview/",
@@ -316,11 +313,11 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="OTLP trace export with FastAPI, SQLAlchemy, and Redis instrumentation.",
         group="Observability",
         packages=(
-            "opentelemetry-sdk>=1.45.2",
-            "opentelemetry-exporter-otlp>=1.45.2",
-            "opentelemetry-instrumentation-fastapi>=0.66b2",
-            "opentelemetry-instrumentation-sqlalchemy>=0.66b2",
-            "opentelemetry-instrumentation-redis>=0.66b2",
+            "opentelemetry-sdk",
+            "opentelemetry-exporter-otlp",
+            "opentelemetry-instrumentation-fastapi",
+            "opentelemetry-instrumentation-sqlalchemy",
+            "opentelemetry-instrumentation-redis",
         ),
         files=(
             "src/{package}/core/tracing.py",
@@ -356,8 +353,8 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Store uploads in an S3-compatible bucket through boto3.",
         group="Operations",
         requires=("uploads",),
-        packages=("boto3>=1.43.123",),
-        dev_packages=("moto[s3]>=5.2.5",),
+        packages=("boto3",),
+        dev_packages=("moto[s3]",),
         files=(
             "src/{package}/core/storage_s3.py",
             "tests/test_storage_s3.py",
@@ -391,7 +388,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="pre-commit",
         description="Ruff, mypy and pyright hooks.",
         group="Operations",
-        dev_packages=("pre-commit>=4.7.0",),
+        dev_packages=("pre-commit",),
         files=(".pre-commit-config.yaml",),
         guide="https://pre-commit.com/#quick-start",
         guide_title="pre-commit quick start",
@@ -403,10 +400,10 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Dependency audit, static analysis, secret scanning, and SBOM generation.",
         group="Operations",
         dev_packages=(
-            "pip-audit>=2.10.1",
-            "bandit>=1.9.4",
-            "detect-secrets>=1.5.0",
-            "cyclonedx-bom>=7.6.0",
+            "pip-audit",
+            "bandit",
+            "detect-secrets",
+            "cyclonedx-bom",
         ),
         files=(
             "scripts/security.sh",
@@ -421,7 +418,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Kubernetes manifests",
         description="Deployment, service, ConfigMap, and ingress manifests.",
         group="Operations",
-        dev_packages=("pyyaml>=6.0.3",),
+        dev_packages=("pyyaml",),
         files=(
             "k8s/deployment.yaml",
             "k8s/service.yaml",
@@ -459,7 +456,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Docker-backed PostgreSQL and Redis integration tests.",
         group="Testing",
         requires=("postgres", "redis"),
-        dev_packages=("testcontainers[postgres]>=4.15.0",),
+        dev_packages=("testcontainers[postgres]",),
         files=(
             "tests/integration/conftest.py",
             "tests/integration/test_integration.py",
@@ -575,7 +572,9 @@ PRESETS: tuple[Preset, ...] = (
 
 PRESETS_BY_ID: dict[str, Preset] = {preset.id: preset for preset in PRESETS}
 
-_GENERATION_PARAMS = "name,package,description,version,author,python,fastapi,preset,baseDir,applicationName,dependencies"
+_GENERATION_PARAMS = (
+    "name,package,description,version,author,python,preset,baseDir,applicationName,dependencies"
+)
 
 
 def _dependency_links(dependency: Dependency) -> dict[str, Link]:
@@ -603,7 +602,6 @@ def metadata() -> Metadata:
                 description=dependency.description,
                 requires=list(dependency.requires),
                 conflicts=list(dependency.conflicts),
-                version_range=dependency.version_range,
                 packages=list(dependency.packages),
                 dev_packages=list(dependency.dev_packages),
                 files=list(dependency.files),
@@ -636,10 +634,7 @@ def metadata() -> Metadata:
                 href=f"/preview{{?{_GENERATION_PARAMS}}}",
                 templated=True,
             ),
-            "dependencies": Link(
-                href="/dependencies{?fastapiVersion}",
-                templated=True,
-            ),
+            "dependencies": Link(href="/dependencies"),
         },
         type=ActionOption(
             default="uv-project",
@@ -655,13 +650,6 @@ def metadata() -> Metadata:
         language=SelectOption(
             default="python",
             values=[SelectValue(id="python", name="Python")],
-        ),
-        fastapi=SelectOption(
-            default=DEFAULT_FASTAPI_VERSION,
-            values=[
-                SelectValue(id=version, name=f"FastAPI {version}")
-                for version in SUPPORTED_FASTAPI_VERSIONS
-            ],
         ),
         python=SelectOption(
             default=DEFAULT_PYTHON_VERSION,
@@ -705,10 +693,9 @@ def resolve_packages(dependencies: frozenset[str]) -> tuple[list[str], list[str]
     return sorted(packages), sorted(dev_packages)
 
 
-def resolved_dependencies(fastapi_version: str) -> dict[str, object]:
-    """Return resolved coordinates for every dependency."""
+def dependency_catalog() -> dict[str, object]:
+    """Return package names and files for every dependency."""
     return {
-        "fastapiVersion": fastapi_version,
         "dependencies": {
             dependency.id: {
                 "packages": list(dependency.packages),

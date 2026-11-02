@@ -11,11 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from fastapi_initializr.generation.catalog import DEPENDENCIES, PRESETS, PRESETS_BY_ID
 from fastapi_initializr.generation.constants import (
-    DEFAULT_FASTAPI_VERSION,
     DEFAULT_PYTHON_VERSION,
-    SUPPORTED_FASTAPI_VERSIONS,
     SUPPORTED_PYTHON_VERSIONS,
-    fastapi_version_range,
 )
 
 PROJECT_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -53,7 +50,6 @@ class ProjectSpec(BaseModel):
     version: str = Field(default="0.1.0", max_length=32)
     author: str = Field(default="", max_length=100)
     python: str = Field(default=DEFAULT_PYTHON_VERSION)
-    fastapi: str = Field(default=DEFAULT_FASTAPI_VERSION)
     base_dir: str | None = Field(default=None, max_length=64)
     application_name: str | None = Field(default=None, max_length=100)
     preset: str = Field(default="custom", max_length=32)
@@ -117,9 +113,6 @@ class ProjectSpec(BaseModel):
         if self.python not in SUPPORTED_PYTHON_VERSIONS:
             allowed = ", ".join(SUPPORTED_PYTHON_VERSIONS)
             raise ValueError(f"Python version must be one of: {allowed}.")
-        if self.fastapi not in SUPPORTED_FASTAPI_VERSIONS:
-            allowed = ", ".join(SUPPORTED_FASTAPI_VERSIONS)
-            raise ValueError(f"FastAPI version must be one of: {allowed}.")
 
         preset = PRESETS_BY_ID.get(self.preset)
         if preset is None:
@@ -129,11 +122,6 @@ class ProjectSpec(BaseModel):
         dependencies = self.dependencies | frozenset(preset.dependencies)
         if dependencies != self.dependencies:
             object.__setattr__(self, "dependencies", dependencies)
-
-        if self.has("mongodb") and self.python == "3.14":
-            raise ValueError(
-                "MongoDB with Beanie requires Python <3.14; select Python 3.11, 3.12, or 3.13."
-            )
 
         unknown = sorted(self.dependencies - DEPENDENCIES.keys())
         if unknown:
@@ -188,8 +176,3 @@ class ProjectSpec(BaseModel):
     def app_title(self) -> str:
         """Return the application title used by FastAPI."""
         return self.application_name or self.name
-
-    @property
-    def fastapi_range(self) -> str:
-        """Return the bounded FastAPI dependency range."""
-        return fastapi_version_range(self.fastapi)

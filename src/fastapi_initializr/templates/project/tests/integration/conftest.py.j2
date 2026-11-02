@@ -18,7 +18,7 @@ def postgres_container() -> Iterator[PostgresContainer]:
     """Start a PostgreSQL container for integration tests."""
     if not RUN_INTEGRATION:
         pytest.skip(SKIP_REASON)
-    with PostgresContainer("postgres:17") as container:
+    with PostgresContainer("postgres:latest") as container:
         yield container
 
 
@@ -27,5 +27,5 @@ def redis_container() -> Iterator[RedisContainer]:
     """Start a Redis container for integration tests."""
     if not RUN_INTEGRATION:
         pytest.skip(SKIP_REASON)
-    with RedisContainer("redis:7-alpine") as container:
+    with RedisContainer("redis:alpine") as container:
         yield container

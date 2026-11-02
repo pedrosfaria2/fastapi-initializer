@@ -110,6 +110,17 @@ def test_update_plan_ignores_unsafe_manifest_paths(tmp_path: Path) -> None:
     assert "../escape.txt" not in plan.obsolete
 
 
+def test_update_plan_accepts_a_legacy_fastapi_selector(tmp_path: Path) -> None:
+    files = _write_project(tmp_path, ProjectSpec(name="my-service"))
+    manifest = json.loads(files[MANIFEST_NAME])
+    manifest["spec"]["fastapi"] = "0.161.1"
+    (tmp_path / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+
+    plan = plan_update(tmp_path)
+
+    assert plan.has_conflicts is False
+
+
 def test_update_plan_rejects_unknown_template_versions(tmp_path: Path) -> None:
     files = _write_project(tmp_path, ProjectSpec(name="my-service"))
     manifest = json.loads(files[MANIFEST_NAME])

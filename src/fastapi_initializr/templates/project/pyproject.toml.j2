@@ -18,12 +18,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>={{ pytest_version }}",
-    "pytest-cov>=7.1.0",
-    "httpx2>={{ httpx2_version }}",
-    "ruff>={{ ruff_version }}",
-    "mypy>={{ mypy_version }}",
-    "pyright>={{ pyright_version }}",
+{% for package in core_dev_packages %}
+    "{{ package }}",
+{% endfor %}
 {% for package in dev_packages %}
     "{{ package }}",
 {% endfor %}
@@ -36,12 +33,11 @@ dev = [
 entrypoint = "{{ spec.package }}.main:app"
 
 [build-system]
-requires = ["uv_build>={{ uv_build_version }},<0.14.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.uv.build-backend]
-module-name = "{{ spec.package }}"
-module-root = "src"
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{ spec.package }}"]
 
 [tool.ruff]
 line-length = 100

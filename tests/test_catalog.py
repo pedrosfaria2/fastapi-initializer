@@ -5,9 +5,9 @@ from typing import cast
 from fastapi_initializr.generation.catalog import (
     DEPENDENCIES,
     GROUP_ORDER,
+    dependency_catalog,
     metadata,
     resolve_packages,
-    resolved_dependencies,
 )
 
 
@@ -69,7 +69,6 @@ def test_metadata_exposes_spring_style_capabilities() -> None:
     assert catalog.links["starter.zip"].templated is True
     assert catalog.type.default == "uv-project"
     assert catalog.language.default == "python"
-    assert catalog.fastapi.default == "0.162.0"
     assert catalog.project.version.default == "0.1.0"
     assert catalog.project.author.default == ""
     assert catalog.base_dir.default == ""
@@ -89,12 +88,18 @@ def test_dependency_metadata_includes_packages_files_and_links() -> None:
     assert sqlalchemy.links["guide"].href.startswith("https://docs.sqlalchemy.org")
 
 
-def test_resolved_dependencies_returns_coordinates() -> None:
-    resolved = resolved_dependencies("0.162.0")
-    dependencies = cast(dict[str, dict[str, list[str]]], resolved["dependencies"])
+def test_dependency_catalog_returns_packages() -> None:
+    catalog = dependency_catalog()
+    dependencies = cast(dict[str, dict[str, list[str]]], catalog["dependencies"])
 
-    assert resolved["fastapiVersion"] == "0.162.0"
-    assert isinstance(dependencies, dict)
-    assert dependencies["sqlalchemy"]["packages"]
-    assert dependencies["alembic"]["packages"]
+    assert dependencies["sqlalchemy"]["packages"] == ["sqlalchemy[asyncio]", "aiosqlite"]
+    assert dependencies["alembic"]["packages"] == ["alembic"]
     assert dependencies["docker"]["files"] == ["Dockerfile", ".dockerignore"]
+
+
+def test_catalog_packages_have_no_version_specifiers() -> None:
+    for dependency in DEPENDENCIES.values():
+        for package in (*dependency.packages, *dependency.dev_packages):
+            assert not any(
+                marker in package for marker in (">=", "<=", "==", "~=", "!=", ">", "<")
+            ), package

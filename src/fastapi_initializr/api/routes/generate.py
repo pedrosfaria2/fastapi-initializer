@@ -7,10 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 
-from fastapi_initializr.generation.constants import (
-    DEFAULT_FASTAPI_VERSION,
-    DEFAULT_PYTHON_VERSION,
-)
+from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.requirements import render_requirements
@@ -42,7 +39,6 @@ def _build_spec(
     version: str,
     author: str,
     python: str,
-    fastapi: str,
     preset: str,
     base_dir: str | None,
     application_name: str | None,
@@ -56,7 +52,6 @@ def _build_spec(
             version=version,
             author=author,
             python=python,
-            fastapi=fastapi,
             preset=preset,
             base_dir=base_dir,
             application_name=application_name,
@@ -81,8 +76,6 @@ def query_spec(
     author: Annotated[str, Query()] = "",
     python: Annotated[str, Query()] = DEFAULT_PYTHON_VERSION,
     python_version: Annotated[str | None, Query(alias="pythonVersion")] = None,
-    fastapi: Annotated[str, Query()] = DEFAULT_FASTAPI_VERSION,
-    fastapi_version: Annotated[str | None, Query(alias="fastapiVersion")] = None,
     preset: Annotated[str, Query()] = "custom",
     base_dir: Annotated[str | None, Query(alias="baseDir")] = None,
     application_name: Annotated[str | None, Query(alias="applicationName")] = None,
@@ -96,7 +89,6 @@ def query_spec(
         version=version,
         author=author,
         python=python_version or python,
-        fastapi=fastapi_version or fastapi,
         preset=preset,
         base_dir=base_dir,
         application_name=application_name,

@@ -11,28 +11,27 @@ def test_minimal_requirements_contain_core_runtime_packages() -> None:
     content = render_requirements(ProjectSpec(name="my-service"))
 
     assert content.splitlines() == [
-        "fastapi-cli>=0.0.32",
-        "fastapi>=0.162.0,<0.163.0",
-        "pydantic-settings>=2.16.2",
-        "python-multipart>=0.0.32",
-        "uvicorn[standard]>=0.54.0",
+        "fastapi",
+        "fastapi-cli",
+        "pydantic-settings",
+        "python-multipart",
+        "uvicorn[standard]",
     ]
 
 
-def test_feature_packages_follow_the_selected_versions() -> None:
+def test_feature_packages_are_unpinned() -> None:
     content = render_requirements(
         ProjectSpec(
             name="my-service",
-            fastapi="0.161.1",
             dependencies=frozenset({"sqlalchemy", "postgres"}),
         )
     )
     lines = content.splitlines()
 
-    assert "fastapi>=0.161.1,<0.162.0" in lines
-    assert "sqlalchemy[asyncio]>=2.1.6" in lines
-    assert "aiosqlite>=0.22.1" in lines
-    assert "asyncpg>=0.32.0" in lines
+    assert "fastapi" in lines
+    assert "sqlalchemy[asyncio]" in lines
+    assert "aiosqlite" in lines
+    assert "asyncpg" in lines
     assert not any(line.startswith("pytest") for line in lines)
 
 

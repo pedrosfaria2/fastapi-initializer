@@ -8,5 +8,5 @@ from fastapi_initializr.generation.spec import ProjectSpec
 def render_requirements(spec: ProjectSpec) -> str:
     """Return runtime requirements in pip's requirements file format."""
     packages, _ = resolve_packages(spec.dependencies)
-    lines = sorted({*core_packages(spec.fastapi_range), *packages})
+    lines = sorted({*core_packages(), *packages})
     return "\n".join(lines) + "\n"

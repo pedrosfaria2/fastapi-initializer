@@ -10,7 +10,6 @@
   const baseDirInput = document.getElementById("base-dir");
   const applicationNameInput = document.getElementById("application-name");
   const pythonSelect = document.getElementById("python");
-  const fastapiSelect = document.getElementById("fastapi");
   const presetSelect = document.getElementById("preset");
   const dependencyGroups = document.getElementById("dependency-groups");
   const dependencySearch = document.getElementById("dependency-search");
@@ -43,7 +42,6 @@
     !baseDirInput ||
     !applicationNameInput ||
     !pythonSelect ||
-    !fastapiSelect ||
     !presetSelect ||
     !dependencyGroups ||
     !dependencySearch ||
@@ -218,7 +216,6 @@
       version: versionInput.value,
       author: authorInput.value,
       python: pythonSelect.value,
-      fastapi: fastapiSelect.value,
       preset: presetSelect.value,
       baseDir: baseDirInput.value,
       applicationName: applicationNameInput.value,
@@ -234,7 +231,6 @@
     params.set("version", state.version);
     params.set("author", state.author);
     params.set("python", state.python);
-    params.set("fastapi", state.fastapi);
     params.set("preset", state.preset);
     params.set("baseDir", state.baseDir);
     params.set("applicationName", state.applicationName);
@@ -688,15 +684,6 @@
       initialSelectValue(params, ["python", "pythonVersion"], metadata.python),
     );
     renderSelect(
-      fastapiSelect,
-      metadata.fastapi.values,
-      initialSelectValue(
-        params,
-        ["fastapi", "fastapiVersion"],
-        metadata.fastapi,
-      ),
-    );
-    renderSelect(
       presetSelect,
       metadata.preset.values,
       initialSelectValue(params, ["preset"], metadata.preset),
@@ -1096,7 +1083,6 @@
     baseDirInput.value = metadata.baseDir.default;
     applicationNameInput.value = metadata.applicationName.default;
     pythonSelect.value = metadata.python.default;
-    fastapiSelect.value = metadata.fastapi.default;
     presetSelect.value = metadata.preset.default;
     packageTouched = false;
     dependencySearch.value = "";
@@ -1290,8 +1276,6 @@
         !payload.project ||
         !payload.python ||
         !Array.isArray(payload.python.values) ||
-        !payload.fastapi ||
-        !Array.isArray(payload.fastapi.values) ||
         !payload.preset ||
         !Array.isArray(payload.preset.values) ||
         !payload.dependencies ||

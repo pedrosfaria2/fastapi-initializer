@@ -14,6 +14,10 @@ Create the virtual environment and install the dependencies:
 ```sh
 uv sync
 ```
+
+Dependencies are unpinned so `uv sync` resolves the newest compatible versions.
+Run `uv lock` when you need a reproducible snapshot.
+
 {% if spec.has_environment or spec.has("redis") or spec.has("sentry") or spec.has("email") or spec.has("uploads") or spec.has("oauth2") or spec.has("opentelemetry") or spec.has("mongodb") %}
 
 Copy the example environment file and adjust it for your machine:
@@ -30,9 +34,9 @@ The generated `docker-compose.yml` uses local placeholder credentials and
 includes only the selected services:
 
 - The application image when Docker or Compose is selected.
-- PostgreSQL 17 when PostgreSQL is selected, with database `app` and the
+- PostgreSQL when PostgreSQL is selected, with database `app` and the
   credentials `postgres` / `postgres`.
-- Redis 7 when Redis is selected, with a persistent volume.
+- Redis when Redis is selected, with a persistent volume.
 - An ARQ worker when ARQ is selected, built from the same image as the app.
 
 PostgreSQL and Redis include healthchecks. Start the stack with:
@@ -425,7 +429,7 @@ without a PostgreSQL server even when PostgreSQL is selected.
 
 ### Integration tests
 
-`tests/integration/` uses Testcontainers to start PostgreSQL 17 and Redis 7. The
+`tests/integration/` uses Testcontainers to start PostgreSQL and Redis. The
 tests are skipped unless `RUN_INTEGRATION=1` is set, so the normal test suite
 does not require Docker. Run them with:
 
@@ -525,7 +529,7 @@ kubectl apply -f k8s/ingress.yaml
 
 ## GitLab CI
 
-`.gitlab-ci.yml` uses the `ghcr.io/astral-sh/uv:0.13.6` image and runs three
+`.gitlab-ci.yml` uses the `ghcr.io/astral-sh/uv:latest` image and runs three
 stages: `lint`, `typecheck`, and `test`. Each job runs `uv sync` first, then Ruff
 format and lint checks, mypy, pyright, or pytest. The pipeline starts
 automatically when the repository is hosted on GitLab.

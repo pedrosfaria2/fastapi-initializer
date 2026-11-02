@@ -20,9 +20,7 @@ from fastapi_initializr.generation.catalog import (
     metadata,
 )
 from fastapi_initializr.generation.constants import (
-    DEFAULT_FASTAPI_VERSION,
     DEFAULT_PYTHON_VERSION,
-    SUPPORTED_FASTAPI_VERSIONS,
     SUPPORTED_PYTHON_VERSIONS,
 )
 from fastapi_initializr.generation.plugins import install_plugins
@@ -37,7 +35,6 @@ _NEW_OPTIONS = (
     "--version",
     "--author",
     "--python",
-    "--fastapi",
     "--preset",
     "--base-dir",
     "--application-name",
@@ -63,7 +60,6 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--version", default="0.1.0", help="Project version.")
     parser.add_argument("--author", default="", help="Optional author name.")
     parser.add_argument("--python", default=DEFAULT_PYTHON_VERSION)
-    parser.add_argument("--fastapi", default=DEFAULT_FASTAPI_VERSION)
     parser.add_argument(
         "--preset",
         default="custom",
@@ -223,7 +219,6 @@ def _new(args: argparse.Namespace) -> int:
             version=args.version,
             author=args.author,
             python=args.python,
-            fastapi=args.fastapi,
             preset=args.preset,
             base_dir=args.base_dir,
             application_name=args.application_name,
@@ -335,7 +330,6 @@ def _bash_completion() -> str:
     dependencies = " ".join(sorted(DEPENDENCIES))
     presets = " ".join(preset.id for preset in PRESETS)
     pythons = " ".join(SUPPORTED_PYTHON_VERSIONS)
-    fastapis = " ".join(SUPPORTED_FASTAPI_VERSIONS)
     options = " ".join(_NEW_OPTIONS)
     commands = " ".join(_COMMANDS)
     return f"""\
@@ -347,7 +341,6 @@ _fastapi_initializr() {{
         --dependency) COMPREPLY=($(compgen -W "{dependencies}" -- "$cur")); return ;;
         --preset) COMPREPLY=($(compgen -W "{presets}" -- "$cur")); return ;;
         --python) COMPREPLY=($(compgen -W "{pythons}" -- "$cur")); return ;;
-        --fastapi) COMPREPLY=($(compgen -W "{fastapis}" -- "$cur")); return ;;
     esac
     if [[ "$cur" == -* ]]; then
         COMPREPLY=($(compgen -W "{options}" -- "$cur")); return

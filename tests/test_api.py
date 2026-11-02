@@ -180,7 +180,6 @@ def test_index_server_renders_options_without_javascript(client: TestClient) -> 
 
     assert response.status_code == 200
     assert "Python 3.11" in response.text
-    assert "FastAPI 0.162.0" in response.text
     assert "SQLAlchemy" in response.text
     assert 'name="dependencies"' in response.text
     assert 'name="version"' in response.text
@@ -193,7 +192,6 @@ def test_index_server_renders_options_without_javascript(client: TestClient) -> 
     assert 'id="reset"' in response.text
     assert 'id="output"' in response.text
     assert 'value="requirements"' in response.text
-    assert 'id="fastapi"' in response.text
     assert 'id="preset"' in response.text
     assert 'name="preset"' in response.text
 
@@ -210,7 +208,7 @@ def test_metadata_supports_versioned_media_type(client: TestClient) -> None:
     assert "starter.zip" in body["links"]
     assert "requirements.txt" in body["links"]
     assert body["type"]["default"] == "uv-project"
-    assert body["fastapi"]["default"] == "0.162.0"
+    assert "fastapi" not in body
 
 
 def test_metadata_defaults_to_json(client: TestClient) -> None:
@@ -221,19 +219,15 @@ def test_metadata_defaults_to_json(client: TestClient) -> None:
 
 
 def test_dependencies_returns_resolved_coordinates(client: TestClient) -> None:
-    response = client.get("/dependencies", params={"fastapiVersion": "0.161.1"})
+    response = client.get("/dependencies")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["fastapiVersion"] == "0.161.1"
-    assert body["dependencies"]["sqlalchemy"]["packages"]
-
-
-def test_dependencies_rejects_unknown_fastapi_version(client: TestClient) -> None:
-    response = client.get("/dependencies", params={"fastapiVersion": "0.100.0"})
-
-    assert response.status_code == 400
-    assert "Unknown FastAPI version" in response.json()["detail"]
+    assert body["dependencies"]["sqlalchemy"]["packages"] == [
+        "sqlalchemy[asyncio]",
+        "aiosqlite",
+    ]
+    assert "fastapiVersion" not in body
 
 
 def test_starter_zip_alias(client: TestClient) -> None:
@@ -254,14 +248,12 @@ def test_starter_tgz_returns_tar_gz(client: TestClient) -> None:
 
 
 def test_pyproject_output(client: TestClient) -> None:
-    response = client.get(
-        "/pyproject.toml",
-        params={"name": "my-service", "fastapiVersion": "0.161.1"},
-    )
+    response = client.get("/pyproject.toml", params={"name": "my-service"})
 
     assert response.status_code == 200
     assert 'name = "my-service"' in response.text
-    assert "fastapi>=0.161.1,<0.162.0" in response.text
+    assert '"fastapi",' in response.text
+    assert "fastapi>=" not in response.text
 
 
 def test_requirements_output(client: TestClient) -> None:
@@ -269,7 +261,6 @@ def test_requirements_output(client: TestClient) -> None:
         "/requirements.txt",
         params={
             "name": "my-service",
-            "fastapiVersion": "0.161.1",
             "dependencies": ["sqlalchemy", "postgres"],
         },
     )
@@ -278,9 +269,9 @@ def test_requirements_output(client: TestClient) -> None:
     assert response.headers["content-type"].startswith("text/plain")
     assert 'filename="requirements.txt"' in response.headers["content-disposition"]
     lines = response.text.splitlines()
-    assert "fastapi>=0.161.1,<0.162.0" in lines
-    assert "sqlalchemy[asyncio]>=2.1.6" in lines
-    assert "asyncpg>=0.32.0" in lines
+    assert "fastapi" in lines
+    assert "sqlalchemy[asyncio]" in lines
+    assert "asyncpg" in lines
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
@@ -291,20 +282,18 @@ def test_requirements_post_accepts_json(client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    assert "redis>=5.3.1" in response.text
-    assert "arq>=0.28.0" in response.text
+    lines = response.text.splitlines()
+    assert "redis" in lines
+    assert "arq" in lines
 
 
-def test_generate_uses_base_dir_version_author_and_fastapi_version(
-    client: TestClient,
-) -> None:
+def test_generate_uses_base_dir_version_and_author(client: TestClient) -> None:
     response = client.get(
         "/api/generate",
         params={
             "name": "my-service",
             "version": "1.2.3",
             "author": "Ada Lovelace",
-            "fastapiVersion": "0.161.1",
             "baseDir": "custom-root",
         },
     )
@@ -316,17 +305,7 @@ def test_generate_uses_base_dir_version_author_and_fastapi_version(
         pyproject = archive.read("custom-root/pyproject.toml").decode()
         assert 'version = "1.2.3"' in pyproject
         assert 'name = "Ada Lovelace"' in pyproject
-        assert "fastapi>=0.161.1,<0.162.0" in pyproject
-
-
-def test_generate_rejects_unknown_fastapi_version(client: TestClient) -> None:
-    response = client.get(
-        "/api/generate",
-        params={"name": "my-service", "fastapi": "0.100.0"},
-    )
-
-    assert response.status_code == 422
-    assert "FastAPI version" in str(response.json())
+        assert '"fastapi",' in pyproject
 
 
 def test_generate_rejects_unsafe_base_dir(client: TestClient) -> None:

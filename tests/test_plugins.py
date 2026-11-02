@@ -21,8 +21,8 @@ def _plugin_directory(tmp_path: Path, **overrides: Any) -> Path:
         "name": "Custom feature",
         "description": "Adds a custom module and dependency.",
         "group": "Custom",
-        "packages": ["example-lib>=1.0"],
-        "devPackages": ["example-dev>=2.0"],
+        "packages": ["example-lib"],
+        "devPackages": ["example-dev"],
         "files": [
             {
                 "path": "src/{{ spec.package }}/custom.py",
@@ -50,9 +50,9 @@ def test_install_adds_the_feature_to_metadata_and_rendering(tmp_path: Path) -> N
     spec = ProjectSpec(name="my-service", dependencies=frozenset({"custom-feature"}))
     files = render_project(spec)
     assert files["src/my_service/custom.py"] == 'FEATURE = "my-service"\n'
-    assert "example-lib>=1.0" in files["pyproject.toml"]
-    assert "example-dev>=2.0" in files["pyproject.toml"]
-    assert "example-lib>=1.0" in render_requirements(spec).splitlines()
+    assert "example-lib" in files["pyproject.toml"]
+    assert "example-dev" in files["pyproject.toml"]
+    assert "example-lib" in render_requirements(spec).splitlines()
     manifest = json.loads(files[".fastapi-initializr.json"])
     assert "src/my_service/custom.py" in manifest["files"]
 

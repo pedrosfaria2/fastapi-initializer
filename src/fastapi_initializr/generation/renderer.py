@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from fastapi_initializr.generation.catalog import plugin_files, resolve_packages
-from fastapi_initializr.generation.constants import core_packages
+from fastapi_initializr.generation.constants import core_dev_packages, core_packages
 from fastapi_initializr.generation.manifest import MANIFEST_NAME, render_manifest
 from fastapi_initializr.generation.spec import ProjectSpec
 
@@ -464,7 +464,8 @@ def build_context(spec: ProjectSpec) -> dict[str, object]:
     packages, dev_packages = resolve_packages(spec.dependencies)
     return {
         "spec": spec,
-        "core_packages": core_packages(spec.fastapi_range),
+        "core_packages": core_packages(),
+        "core_dev_packages": core_dev_packages(),
         "packages": packages,
         "dev_packages": dev_packages,
         "project_version": spec.version,
@@ -472,12 +473,6 @@ def build_context(spec: ProjectSpec) -> dict[str, object]:
         "app_title": spec.app_title,
         "base_dir": spec.archive_root,
         "supports_pep695": tuple(int(part) for part in spec.python.split(".")) >= (3, 12),
-        "pytest_version": "9.2.0",
-        "httpx2_version": "2.16.0",
-        "ruff_version": "0.17.3",
-        "mypy_version": "2.4.1",
-        "pyright_version": "1.1.414",
-        "uv_build_version": "0.13.6",
     }
 
 

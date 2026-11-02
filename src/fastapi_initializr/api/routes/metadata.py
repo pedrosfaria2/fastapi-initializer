@@ -1,15 +1,9 @@
 """Option catalog endpoints."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from fastapi_initializr.generation.catalog import metadata, resolved_dependencies
-from fastapi_initializr.generation.constants import (
-    DEFAULT_FASTAPI_VERSION,
-    SUPPORTED_FASTAPI_VERSIONS,
-)
+from fastapi_initializr.generation.catalog import dependency_catalog, metadata
 from fastapi_initializr.schemas.metadata import Metadata
 
 router = APIRouter(tags=["metadata"])
@@ -35,14 +29,6 @@ def get_metadata_alias(request: Request) -> JSONResponse:
 
 
 @router.get("/dependencies")
-def get_dependencies(
-    fastapi_version: Annotated[str, Query(alias="fastapiVersion")] = DEFAULT_FASTAPI_VERSION,
-) -> dict[str, object]:
-    """Return resolved dependency coordinates for a FastAPI version."""
-    if fastapi_version not in SUPPORTED_FASTAPI_VERSIONS:
-        allowed = ", ".join(SUPPORTED_FASTAPI_VERSIONS)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown FastAPI version '{fastapi_version}'. Use one of: {allowed}.",
-        )
-    return resolved_dependencies(fastapi_version)
+def get_dependencies() -> dict[str, object]:
+    """Return package names and files for every catalog feature."""
+    return dependency_catalog()

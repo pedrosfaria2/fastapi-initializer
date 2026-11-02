@@ -36,7 +36,7 @@ panels stack on narrow screens.
 
 ## Quick start
 
-Requires Python 3.12+ and uv 0.13.6 (0.13.x).
+Requires Python 3.12+ and uv.
 
 ```sh
 uv sync --locked
@@ -55,7 +55,7 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | `GET` | `/ready` | Readiness |
 | `GET` | `/metadata` | Capability document |
 | `GET` | `/api/metadata` | Option catalog alias |
-| `GET` | `/dependencies` | Resolved dependency coordinates |
+| `GET` | `/dependencies` | Package names and files for every feature |
 | `GET` | `/preview` | Rendered file list and contents |
 | `GET` | `/starter.zip` | Download a zip |
 | `GET` | `/starter.tgz` | Download a tar.gz |
@@ -90,10 +90,10 @@ Preview the same project:
 curl 'http://127.0.0.1:8000/preview?name=my-service&dependencies=sqlalchemy&dependencies=alembic'
 ```
 
-Resolve dependency coordinates:
+List package names and files for every feature:
 
 ```sh
-curl 'http://127.0.0.1:8000/dependencies?fastapiVersion=0.161.1'
+curl 'http://127.0.0.1:8000/dependencies'
 ```
 
 The capability document supports a versioned media type:
@@ -119,11 +119,18 @@ Parameters:
 - `version`: project version, `MAJOR.MINOR.PATCH` (default `0.1.0`).
 - `author`: optional author name.
 - `python` / `pythonVersion`: `3.11`, `3.12`, `3.13`, or `3.14`.
-- `fastapi` / `fastapiVersion`: supported FastAPI version.
 - `preset`: `custom` (default), `api`, `db-auth`, `worker`, or `full`.
 - `baseDir`: root directory inside the archive (defaults to `name`).
 - `applicationName`: OpenAPI application title (defaults to `name`).
 - `dependencies`: repeated ids or a comma-separated list.
+
+## Dependency versions
+
+Generated `pyproject.toml` files declare package names and extras without version
+specifiers. `uv sync` resolves the newest compatible versions at install time,
+and the generated project's tests run against that resolution. Run `uv lock` in
+the generated project when you need a reproducible snapshot; the CLI `--lock`
+does this after generation.
 
 ## Presets
 
@@ -331,7 +338,7 @@ docker build -t fastapi-initializr .
 docker run --rm -p 8000:8000 fastapi-initializr
 ```
 
-The image uses `python:3.14-slim-trixie` with a pinned uv 0.13.6 binary,
+The image uses `python:3.14-slim-trixie` with the current uv image,
 installs the project non-editable from `uv.lock`, runs as the unprivileged
 numeric user `10001`, and exposes `/health` for its healthcheck. Build it with
 the commands above; the repository gate covers the Dockerfile invariants but

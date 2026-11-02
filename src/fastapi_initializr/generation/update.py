@@ -71,6 +71,8 @@ def plan_update(project_dir: Path) -> UpdatePlan:
         raise UpdateError(f"{MANIFEST_NAME} is missing the spec or file digests.")
     spec_values = cast("dict[str, Any]", spec_data)
     file_values = cast("dict[str, Any]", file_data)
+    # Older manifests recorded the removed FastAPI selector.
+    spec_values.pop("fastapi", None)
     try:
         spec = ProjectSpec(**spec_values)
     except (TypeError, ValueError) as exc:

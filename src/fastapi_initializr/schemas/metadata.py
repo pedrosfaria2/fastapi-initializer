@@ -61,7 +61,6 @@ class DependencyValue(BaseModel):
     description: str
     requires: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
-    version_range: str | None = Field(default=None, serialization_alias="versionRange")
     packages: list[str] = Field(default_factory=list)
     dev_packages: list[str] = Field(default_factory=list, serialization_alias="devPackages")
     files: list[str] = Field(default_factory=list)
@@ -112,7 +111,6 @@ class Metadata(BaseModel):
     links: dict[str, Link]
     type: ActionOption
     language: SelectOption
-    fastapi: SelectOption
     python: SelectOption
     preset: PresetOption
     base_dir: TextOption = Field(serialization_alias="baseDir")

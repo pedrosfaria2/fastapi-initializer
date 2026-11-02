@@ -56,14 +56,6 @@
       {% set python_value = metadata.python.default %}
     {% endif %}
 
-    {% set requested_fastapi = query.get("fastapi") or query.get("fastapiVersion") %}
-    {% set fastapi_ids = metadata.fastapi.values | map(attribute="id") | list %}
-    {% if requested_fastapi and requested_fastapi in fastapi_ids %}
-      {% set fastapi_value = requested_fastapi %}
-    {% else %}
-      {% set fastapi_value = metadata.fastapi.default %}
-    {% endif %}
-
     {% set requested_preset = query.get("preset") %}
     {% set preset_ids = metadata.preset.values | map(attribute="id") | list %}
     {% if requested_preset and requested_preset in preset_ids %}
@@ -241,16 +233,6 @@
                 </div>
 
                 <div class="field">
-                  <label for="fastapi">FastAPI version</label>
-                  <select id="fastapi" name="fastapi" aria-describedby="fastapi-hint">
-                    {% for value in metadata.fastapi.values %}
-                      <option value="{{ value.id }}"{% if value.id == fastapi_value %} selected{% endif %}>{{ value.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <p id="fastapi-hint" class="hint">Framework version pinned in pyproject.toml.</p>
-                </div>
-
-                <div class="field">
                   <label for="preset">Preset</label>
                   <select id="preset" name="preset" aria-describedby="preset-hint">
                     {% for value in metadata.preset.values %}
@@ -392,9 +374,6 @@
                             </div>
                             <p id="dependency-description-{{ dependency.id }}" class="dependency-description">{{ dependency.description }}</p>
                             <div class="dependency-meta">
-                              {% if dependency.version_range %}
-                                <span class="dependency-version">{{ dependency.version_range }}</span>
-                              {% endif %}
                               {% set guide = dependency.links.get("guide") %}
                               {% set reference = dependency.links.get("reference") %}
                               {% set home = dependency.links.get("home") %}

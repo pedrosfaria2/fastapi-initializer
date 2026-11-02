@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_dockerfile_pins_tools_and_runs_unprivileged() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    assert "ghcr.io/astral-sh/uv:0.13.6" in dockerfile
+    assert "ghcr.io/astral-sh/uv:latest" in dockerfile
     assert "--locked --no-dev --no-editable" in dockerfile
     assert "USER 10001:10001" in dockerfile
     assert "HEALTHCHECK" in dockerfile
