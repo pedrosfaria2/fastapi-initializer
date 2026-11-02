@@ -1,8 +1,9 @@
 """Item schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class ItemCreate(BaseModel):
@@ -15,7 +16,7 @@ class ItemCreate(BaseModel):
 class ItemUpdate(BaseModel):
     """Fields accepted when updating an item."""
 
-    name: str | None = Field(default=None, min_length=1, max_length=200)
+    name: str = Field(default=cast(str, None), min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
 
 
@@ -28,3 +29,8 @@ class ItemRead(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> datetime:
+        """Return an aware UTC timestamp for the API contract."""
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

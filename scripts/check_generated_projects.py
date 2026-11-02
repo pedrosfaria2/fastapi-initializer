@@ -64,6 +64,7 @@ CASES: dict[str, ProjectSpec] = {
                 "graphql",
                 "rate-limit",
                 "uploads",
+                "schemathesis",
             }
         ),
     ),
@@ -71,6 +72,10 @@ CASES: dict[str, ProjectSpec] = {
         name="feature-mongo-service",
         structure="feature",
         dependencies=frozenset({"mongodb", "cors"}),
+    ),
+    "contract": ProjectSpec(
+        name="contract-service",
+        dependencies=frozenset({"sqlalchemy", "schemathesis"}),
     ),
     "auth": ProjectSpec(
         name="auth-service",
@@ -168,6 +173,7 @@ CASES: dict[str, ProjectSpec] = {
                 "rate-limit",
                 "uploads",
                 "s3",
+                "schemathesis",
                 "testcontainers",
                 "docker",
                 "compose",

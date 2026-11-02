@@ -1,0 +1,33 @@
+"""OpenAPI contract tests with Schemathesis."""
+
+import pytest
+import schemathesis
+from fastapi.testclient import TestClient
+from hypothesis import settings
+
+
+@pytest.fixture
+def contract_schema(client: TestClient) -> schemathesis.BaseSchema:
+    """Load the OpenAPI schema from the running test application."""
+    return schemathesis.openapi.from_asgi("/openapi.json", client.app)
+
+
+schema = (
+    schemathesis.pytest.from_fixture("contract_schema")
+    .exclude(path_regex="^/auth")
+    .exclude(path_regex="^/limited")
+    .exclude(path_regex="^/uploads")
+    .exclude(path="/graphql")
+    .exclude(path="/metrics")
+)
+
+
+@schema.parametrize()
+@settings(max_examples=5, deadline=None)
+def test_api_contract(case: schemathesis.Case) -> None:
+    """Every generated request should match the OpenAPI contract."""
+    # Starlette's automatic 405 Allow header lists only the first matching
+    # method, so this framework-specific check is not useful for this app.
+    case.call_and_validate(
+        excluded_checks=[schemathesis.checks.allow_header_conformance],
+    )

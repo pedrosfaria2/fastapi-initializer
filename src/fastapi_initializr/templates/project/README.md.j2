@@ -450,6 +450,19 @@ uv run pytest
 Database tests override `DATABASE_URL` with a temporary SQLite file, so they run
 without a PostgreSQL or MySQL server even when one is selected.
 {% endif %}
+{% if spec.has("schemathesis") %}
+
+## Contract tests
+
+`tests/test_contract.py` uses Schemathesis to exercise the generated app through
+its `/openapi.json` schema. Auth, rate-limited, upload, GraphQL, and metrics
+operations are excluded because they need credentials, external services, or
+non-JSON responses.
+
+```sh
+uv run pytest tests/test_contract.py
+```
+{% endif %}
 {% if spec.has("testcontainers") %}
 
 ### Integration tests
@@ -874,6 +887,9 @@ the project root when selected.
 {% endif %}
 {% if spec.has("security-scan") %}
     ├── test_security_tooling.py
+{% endif %}
+{% if spec.has("schemathesis") %}
+    ├── test_contract.py
 {% endif %}
     ├── test_health.py
 {% if spec.has_database %}

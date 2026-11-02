@@ -1,8 +1,15 @@
 """Document schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+)
 
 
 class DocumentCreate(BaseModel):
@@ -15,7 +22,7 @@ class DocumentCreate(BaseModel):
 class DocumentUpdate(BaseModel):
     """Fields accepted when updating a document."""
 
-    name: str | None = Field(default=None, min_length=1, max_length=200)
+    name: str = Field(default=cast(str, None), min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
 
 
@@ -34,3 +41,8 @@ class DocumentRead(BaseModel):
     def stringify_id(cls, value: object) -> str:
         """Convert the MongoDB ObjectId into a JSON-friendly string."""
         return str(value)
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> datetime:
+        """Return an aware UTC timestamp for the API contract."""
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

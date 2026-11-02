@@ -534,6 +534,17 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="Testcontainers for Python",
         reference="https://testcontainers.com/",
     ),
+    "schemathesis": Dependency(
+        id="schemathesis",
+        name="Schemathesis contract tests",
+        description="OpenAPI property-based contract tests.",
+        group="Testing",
+        dev_packages=("schemathesis",),
+        files=("tests/test_contract.py",),
+        guide="https://schemathesis.readthedocs.io/en/stable/tutorials/pytest/",
+        guide_title="Schemathesis pytest tutorial",
+        reference="https://schemathesis.readthedocs.io/en/stable/",
+    ),
 }
 
 HELP_STEPS: dict[str, tuple[str, ...]] = {
@@ -582,6 +593,7 @@ HELP_STEPS: dict[str, tuple[str, ...]] = {
     "security-scan": ("Run `bash scripts/security.sh`.",),
     "kubernetes": ("Apply manifests with `kubectl apply -f k8s/`.",),
     "pre-commit": ("Install hooks with `uv run pre-commit install`.",),
+    "schemathesis": ("Run contract tests with `uv run pytest tests/test_contract.py`.",),
 }
 
 

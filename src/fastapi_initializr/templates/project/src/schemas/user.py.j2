@@ -1,8 +1,8 @@
 """User and authentication schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer
 
 
 class UserCreate(BaseModel):
@@ -24,6 +24,11 @@ class UserRead(BaseModel):
     is_verified: bool
 {% endif %}
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> datetime:
+        """Return an aware UTC timestamp for the API contract."""
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 class Token(BaseModel):

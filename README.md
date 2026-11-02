@@ -10,7 +10,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   clients and IDE integrations.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
   `requirements.txt` outputs.
-- Searchable catalog with 34 selectable features, docs links, compatibility
+- Searchable catalog with 35 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
 - Presets for API only, database + auth, Redis worker, and full stack.
 - Explore preview with server-side Pygments highlighting, language labels, file
@@ -27,6 +27,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   `list`, `metadata`, `completion`, `--lock`, `--dry-run`, `--json`, and
   `--preset`.
 - Local JSON plugins can add catalog features without changing the generator.
+- Optional Schemathesis contract tests generated from the app's OpenAPI schema.
 - Generated projects pass Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
   generated code.
@@ -238,6 +239,7 @@ features only, so select plugin features explicitly.
 | `graphql` | Web | Strawberry GraphQL query and mutation | — |
 | `s3` | Operations | S3-compatible storage backend | `uploads` |
 | `testcontainers` | Testing | PostgreSQL/Redis integration fixtures | `postgres`, `redis` |
+| `schemathesis` | Testing | OpenAPI property-based contract tests | — |
 | `sentry` | Observability | Sentry error reporting, disabled without a DSN | — |
 | `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
 | `opentelemetry` | Observability | OTLP tracing for FastAPI, SQLAlchemy, and Redis | — |

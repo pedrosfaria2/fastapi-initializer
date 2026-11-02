@@ -27,7 +27,12 @@ def _read(document: object) -> DocumentRead:
     return DocumentRead.model_validate(document)
 
 
-@router.post("", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=DocumentRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"description": "Malformed request body"}},
+)
 async def create_document_endpoint(payload: DocumentCreate) -> DocumentRead:
     """Create a document."""
     return _read(await create_document(payload))
@@ -36,14 +41,18 @@ async def create_document_endpoint(payload: DocumentCreate) -> DocumentRead:
 @router.get("", response_model=list[DocumentRead])
 async def list_documents_endpoint(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
 ) -> list[DocumentRead]:
     """List documents with bounded pagination."""
     documents = await list_documents(limit=limit, offset=offset)
     return [_read(document) for document in documents]
 
 
-@router.get("/{document_id}", response_model=DocumentRead)
+@router.get(
+    "/{document_id}",
+    response_model=DocumentRead,
+    responses={404: {"description": "Document not found"}},
+)
 async def get_document_endpoint(document_id: str) -> DocumentRead:
     """Return one document."""
     try:
@@ -56,7 +65,14 @@ async def get_document_endpoint(document_id: str) -> DocumentRead:
     return _read(document)
 
 
-@router.patch("/{document_id}", response_model=DocumentRead)
+@router.patch(
+    "/{document_id}",
+    response_model=DocumentRead,
+    responses={
+        400: {"description": "Malformed request body"},
+        404: {"description": "Document not found"},
+    },
+)
 async def update_document_endpoint(
     document_id: str,
     payload: DocumentUpdate,
@@ -72,7 +88,11 @@ async def update_document_endpoint(
     return _read(document)
 
 
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": "Document not found"}},
+)
 async def delete_document_endpoint(document_id: str) -> None:
     """Delete a document."""
     try:

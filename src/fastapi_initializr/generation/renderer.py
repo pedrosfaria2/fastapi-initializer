@@ -567,6 +567,11 @@ FILES: tuple[FileSpec, ...] = (
         "tests/test_security_tooling.py",
         _has("security-scan"),
     ),
+    FileSpec(
+        "tests/test_contract.py.j2",
+        "tests/test_contract.py",
+        _has("schemathesis"),
+    ),
 )
 
 

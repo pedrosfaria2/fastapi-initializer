@@ -37,6 +37,25 @@ def test_minimal_project_contains_core_files() -> None:
     assert "tests/test_items.py" not in files
 
 
+def test_schemathesis_feature_renders_contract_test() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "schemathesis"}),
+    )
+
+    files = render_project(spec)
+
+    assert "tests/test_contract.py" in files
+    contract = files["tests/test_contract.py"]
+    assert "from_asgi" in contract
+    assert "allow_header_conformance" in contract
+    assert 'exclude(path_regex="^/auth")' in contract
+    dependencies = tomllib.loads(files["pyproject.toml"])["dependency-groups"]["dev"]
+    assert "schemathesis" in dependencies
+    assert "## Contract tests" in files["README.md"]
+    assert "tests/test_contract.py" in files["HELP.md"]
+
+
 def test_minimal_structure_keeps_a_small_module_set() -> None:
     files = render_project(ProjectSpec(name="my-service", structure="minimal"))
 
