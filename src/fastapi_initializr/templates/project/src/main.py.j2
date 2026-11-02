@@ -1,14 +1,18 @@
 """Application entry point."""
-{% if spec.structure == "minimal" %}
 
-from fastapi import FastAPI
+{% if spec.structure == "minimal" %}
+from collections.abc import Awaitable, Callable
+
+from fastapi import FastAPI, Request
 {% if spec.has("cors") %}
 from fastapi.middleware.cors import CORSMiddleware
 {% endif %}
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 {% if spec.has("prometheus") %}
 from prometheus_fastapi_instrumentator import Instrumentator
 {% endif %}
+from starlette.responses import Response
 
 from {{ spec.package }} import __version__
 from {{ spec.package }}.config import get_settings
@@ -45,6 +49,28 @@ def create_app() -> FastAPI:
 {% endif %}
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    @app.middleware("http")
+    async def security_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        if not settings.forwarded_allow_ips and request.headers.get("x-forwarded-for"):
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Untrusted proxy headers"},
+            )
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
+
     install_error_handlers(app)
 
     @app.get("/health")
@@ -70,24 +96,29 @@ def main() -> None:
     """Run the development server."""
     import uvicorn
 
-    uvicorn.run("{{ spec.package }}.main:app", host="127.0.0.1", port=8000)
+    uvicorn.run(
+        "{{ spec.package }}.main:app",
+        host="127.0.0.1",
+        port=8000,
+        forwarded_allow_ips=get_settings().forwarded_allow_ips,
+    )
 {% else %}
-{% if spec.has_database or spec.has("mongodb") or spec.has("static-templates") %}
-
 {% if spec.has_database or spec.has("mongodb") %}
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+{% else %}
+from collections.abc import Awaitable, Callable
 {% endif %}
 {% if spec.has("static-templates") %}
 from pathlib import Path
 {% endif %}
-{% endif %}
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 {% if spec.has("cors") %}
 from fastapi.middleware.cors import CORSMiddleware
 {% endif %}
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 {% if spec.has("static-templates") %}
 from fastapi.staticfiles import StaticFiles
 {% endif %}
@@ -104,6 +135,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 {% if spec.has("oauth2") %}
 from starlette.middleware.sessions import SessionMiddleware
 {% endif %}
+from starlette.responses import Response
 {% if spec.has("graphql") %}
 from strawberry.fastapi import GraphQLRouter
 {% endif %}
@@ -202,6 +234,28 @@ def create_app() -> FastAPI:
 {% endif %}
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    @app.middleware("http")
+    async def security_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        if not settings.forwarded_allow_ips and request.headers.get("x-forwarded-for"):
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Untrusted proxy headers"},
+            )
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
+
     install_error_handlers(app)
     app.include_router(api_router)
 {% if spec.has("graphql") %}
@@ -227,5 +281,10 @@ def main() -> None:
     """Run the development server."""
     import uvicorn
 
-    uvicorn.run("{{ spec.package }}.main:app", host="127.0.0.1", port=8000)
+    uvicorn.run(
+        "{{ spec.package }}.main:app",
+        host="127.0.0.1",
+        port=8000,
+        forwarded_allow_ips=get_settings().forwarded_allow_ips,
+    )
 {% endif %}

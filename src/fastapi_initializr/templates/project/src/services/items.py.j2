@@ -31,9 +31,19 @@ def _validate_pagination(limit: int, offset: int) -> None:
         raise ValueError("offset must be greater than or equal to 0")
 
 
-async def create_item(session: AsyncSession, payload: ItemCreate) -> Item:
+async def create_item(
+    session: AsyncSession,
+    payload: ItemCreate,
+{% if spec.has("auth-jwt") %}
+    owner_id: int,
+{% endif %}
+) -> Item:
     """Create and persist a new item."""
-    item = Item(**payload.model_dump())
+    data = payload.model_dump()
+{% if spec.has("auth-jwt") %}
+    data["owner_id"] = owner_id
+{% endif %}
+    item = Item(**data)
     session.add(item)
     await session.commit()
     await session.refresh(item)
@@ -42,6 +52,9 @@ async def create_item(session: AsyncSession, payload: ItemCreate) -> Item:
 
 async def list_items(
     session: AsyncSession,
+{% if spec.has("auth-jwt") %}
+    owner_id: int,
+{% endif %}
     *,
     limit: int = DEFAULT_PAGE_SIZE,
     offset: int = 0,
@@ -49,27 +62,66 @@ async def list_items(
     """Return a bounded page of items ordered by id."""
     _validate_pagination(limit, offset)
 {% if spec.has("sqlmodel") %}
-    statement = select(Item).order_by("id").limit(limit).offset(offset)
+    statement = select(Item)
+{% if spec.has("auth-jwt") %}
+    statement = statement.where(Item.owner_id == owner_id)
+{% endif %}
+    statement = statement.order_by("id").limit(limit).offset(offset)
     result = await session.exec(statement)
     return list(result.all())
 {% else %}
-    statement = select(Item).order_by(Item.id).limit(limit).offset(offset)
+    statement = select(Item)
+{% if spec.has("auth-jwt") %}
+    statement = statement.where(Item.owner_id == owner_id)
+{% endif %}
+    statement = statement.order_by(Item.id).limit(limit).offset(offset)
     result = await session.execute(statement)
     return list(result.scalars().all())
 {% endif %}
 
 
-async def get_item(session: AsyncSession, item_id: int) -> Item:
+async def get_item(
+    session: AsyncSession,
+    item_id: int,
+{% if spec.has("auth-jwt") %}
+    owner_id: int,
+{% endif %}
+) -> Item:
     """Return one item or raise a domain error."""
+{% if spec.has("auth-jwt") %}
+{% if spec.has("sqlmodel") %}
+    result = await session.exec(
+        select(Item).where(Item.id == item_id, Item.owner_id == owner_id)
+    )
+    item = result.first()
+{% else %}
+    result = await session.execute(
+        select(Item).where(Item.id == item_id, Item.owner_id == owner_id)
+    )
+    item = result.scalar_one_or_none()
+{% endif %}
+{% else %}
     item = await session.get(Item, item_id)
+{% endif %}
     if item is None:
         raise ItemNotFoundError(item_id)
     return item
 
 
-async def update_item(session: AsyncSession, item_id: int, payload: ItemUpdate) -> Item:
+async def update_item(
+    session: AsyncSession,
+    item_id: int,
+    payload: ItemUpdate,
+{% if spec.has("auth-jwt") %}
+    owner_id: int,
+{% endif %}
+) -> Item:
     """Apply the provided fields to an existing item."""
+{% if spec.has("auth-jwt") %}
+    item = await get_item(session, item_id, owner_id)
+{% else %}
     item = await get_item(session, item_id)
+{% endif %}
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
     await session.commit()
@@ -77,8 +129,18 @@ async def update_item(session: AsyncSession, item_id: int, payload: ItemUpdate) 
     return item
 
 
-async def delete_item(session: AsyncSession, item_id: int) -> None:
+async def delete_item(
+    session: AsyncSession,
+    item_id: int,
+{% if spec.has("auth-jwt") %}
+    owner_id: int,
+{% endif %}
+) -> None:
     """Delete an existing item."""
+{% if spec.has("auth-jwt") %}
+    item = await get_item(session, item_id, owner_id)
+{% else %}
     item = await get_item(session, item_id)
+{% endif %}
     await session.delete(item)
     await session.commit()

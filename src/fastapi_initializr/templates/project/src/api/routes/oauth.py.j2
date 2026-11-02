@@ -8,6 +8,7 @@ from starlette.responses import Response
 from {{ spec.package }}.api.dependencies import SessionDep
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.oauth import (
+    OAuthCallbackError,
     OAuthClient,
     ensure_supported_provider,
     get_oauth_client,
@@ -51,7 +52,14 @@ async def login(provider: str, request: Request, client: OAuthClientDep) -> Resp
     return await client.authorize_redirect(request, _callback_url(provider))
 
 
-@router.get("/{provider}/callback", response_model=Token)
+@router.get(
+    "/{provider}/callback",
+    response_model=Token,
+    responses={
+        400: {"description": "Invalid callback, state, or provider identity"},
+        409: {"description": "Email already belongs to a password account"},
+    },
+)
 {% if spec.has("rate-limit") %}
 @rate_limit("20/minute")
 {% endif %}
@@ -63,7 +71,13 @@ async def callback(
 ) -> Token:
     """Exchange a provider callback for a local access token."""
     ensure_supported_provider(provider)
-    token = await client.authorize_access_token(request)
+    try:
+        token = await client.authorize_access_token(request)
+    except OAuthCallbackError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth callback rejected",
+        ) from error
     identity = await fetch_provider_identity(provider, token, client)
     if identity is None:
         raise HTTPException(

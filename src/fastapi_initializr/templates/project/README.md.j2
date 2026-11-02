@@ -80,6 +80,12 @@ served at <http://127.0.0.1:8000/docs>.
 | `PATCH` | `/items/{item_id}` | Update the provided fields or return `404`. |
 | `DELETE` | `/items/{item_id}` | Delete one item and return `204`, or `404`. |
 
+{% if spec.has("auth-jwt") %}
+These endpoints require a bearer token and only expose items owned by the caller.
+{% else %}
+These demo endpoints are public; add authorization before storing private data.
+{% endif %}
+
 List requests accept `limit` (1 to 100, default 50) and `offset` (0 or greater,
 default 0):
 
@@ -103,6 +109,7 @@ curl -X POST "http://127.0.0.1:8000/items" \
 | --- | --- | --- |
 | `POST` | `/auth/register` | Create an account when the email is available; the `202` response is identical for new and existing emails. |
 | `POST` | `/auth/login` | Accept form fields `username` and `password` and return a bearer token. |
+| `POST` | `/auth/logout` | Invalidate every access token for the account and return `204`. |
 | `GET` | `/auth/me` | Return the authenticated user or `401`. |
 
 The application reads the JWT signing key from `SECRET_KEY`. The value in
@@ -113,7 +120,17 @@ token lifetime and defaults to `30`.
 
 Registration returns the same message for new and existing emails. Access tokens
 are bound to the account token version, so a password reset invalidates older
-access tokens.
+access tokens. `POST /auth/logout` increments that version and invalidates every
+access token for the account.
+
+In production, `EMAIL_BACKEND=console` is rejected so reset and verification
+tokens are not written to logs. Set `EMAIL_BACKEND=smtp` and configure SMTP.
+
+Responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+and `Referrer-Policy: no-referrer`; HTTPS responses also include HSTS. Proxy
+headers are rejected by default. If a reverse proxy fronts the app, set
+`FORWARDED_ALLOW_IPS` and `uvicorn --forwarded-allow-ips` to only the proxy IPs;
+an empty value disables `X-Forwarded-*` trust.
 
 Register a user, request a token, and call the protected route:
 

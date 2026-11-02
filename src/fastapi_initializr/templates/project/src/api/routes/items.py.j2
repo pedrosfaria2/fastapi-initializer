@@ -5,7 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from {{ spec.package }}.api.dependencies import SessionDep
+{% if spec.has("auth-jwt") and layout.is_feature %}
+from {{ spec.package }}.{{ layout.service("auth") }} import CurrentUser
+{% endif %}
 from {{ spec.package }}.{{ layout.schema("item") }} import ItemCreate, ItemRead, ItemUpdate
+{% if spec.has("auth-jwt") and not layout.is_feature %}
+from {{ spec.package }}.{{ layout.service("auth") }} import CurrentUser
+{% endif %}
 from {{ spec.package }}.{{ layout.service("items") }} import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -26,20 +32,37 @@ router = APIRouter(prefix="/items", tags=["items"])
     status_code=status.HTTP_201_CREATED,
     responses={400: {"description": "Malformed request body"}},
 )
-async def create_item_endpoint(payload: ItemCreate, session: SessionDep) -> ItemRead:
+async def create_item_endpoint(
+    payload: ItemCreate,
+    session: SessionDep,
+{% if spec.has("auth-jwt") %}
+    current_user: CurrentUser,
+{% endif %}
+) -> ItemRead:
     """Create an item."""
+{% if spec.has("auth-jwt") %}
+    item = await create_item(session, payload, current_user.id)
+{% else %}
     item = await create_item(session, payload)
+{% endif %}
     return ItemRead.model_validate(item)
 
 
 @router.get("", response_model=list[ItemRead])
 async def list_items_endpoint(
     session: SessionDep,
+{% if spec.has("auth-jwt") %}
+    current_user: CurrentUser,
+{% endif %}
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     offset: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
 ) -> list[ItemRead]:
     """List items with bounded pagination."""
+{% if spec.has("auth-jwt") %}
+    items = await list_items(session, current_user.id, limit=limit, offset=offset)
+{% else %}
     items = await list_items(session, limit=limit, offset=offset)
+{% endif %}
     return [ItemRead.model_validate(item) for item in items]
 
 
@@ -51,10 +74,17 @@ async def list_items_endpoint(
 async def get_item_endpoint(
     item_id: Annotated[int, Path(ge=1, le=9_223_372_036_854_775_807)],
     session: SessionDep,
+{% if spec.has("auth-jwt") %}
+    current_user: CurrentUser,
+{% endif %}
 ) -> ItemRead:
     """Return one item."""
     try:
+{% if spec.has("auth-jwt") %}
+        item = await get_item(session, item_id, current_user.id)
+{% else %}
         item = await get_item(session, item_id)
+{% endif %}
     except ItemNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -75,10 +105,17 @@ async def update_item_endpoint(
     item_id: Annotated[int, Path(ge=1, le=9_223_372_036_854_775_807)],
     payload: ItemUpdate,
     session: SessionDep,
+{% if spec.has("auth-jwt") %}
+    current_user: CurrentUser,
+{% endif %}
 ) -> ItemRead:
     """Update an item."""
     try:
+{% if spec.has("auth-jwt") %}
+        item = await update_item(session, item_id, payload, current_user.id)
+{% else %}
         item = await update_item(session, item_id, payload)
+{% endif %}
     except ItemNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -95,10 +132,17 @@ async def update_item_endpoint(
 async def delete_item_endpoint(
     item_id: Annotated[int, Path(ge=1, le=9_223_372_036_854_775_807)],
     session: SessionDep,
+{% if spec.has("auth-jwt") %}
+    current_user: CurrentUser,
+{% endif %}
 ) -> None:
     """Delete an item."""
     try:
+{% if spec.has("auth-jwt") %}
+        await delete_item(session, item_id, current_user.id)
+{% else %}
         await delete_item(session, item_id)
+{% endif %}
     except ItemNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

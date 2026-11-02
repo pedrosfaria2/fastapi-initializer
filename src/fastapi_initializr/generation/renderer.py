@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from fastapi_initializr.generation.catalog import (
     DEPENDENCIES,
@@ -32,7 +32,10 @@ def _python_string(value: object) -> str:
 _ENVIRONMENT = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     undefined=StrictUndefined,
-    autoescape=False,  # noqa: S701 - code/TOML/YAML templates, never HTML
+    autoescape=select_autoescape(
+        enabled_extensions=("html", "htm", "xml"),
+        default=False,
+    ),
     keep_trailing_newline=True,
     trim_blocks=True,
     lstrip_blocks=True,
@@ -41,13 +44,19 @@ _ENVIRONMENT.filters["py_string"] = _python_string
 
 _PATH_ENVIRONMENT = Environment(
     undefined=StrictUndefined,
-    autoescape=False,  # noqa: S701 - renders relative paths only
+    autoescape=select_autoescape(
+        enabled_extensions=("html", "htm", "xml"),
+        default=False,
+    ),
     keep_trailing_newline=True,
 )
 
 _INLINE_ENVIRONMENT = Environment(
     undefined=StrictUndefined,
-    autoescape=False,  # noqa: S701 - plugin code templates, never HTML
+    autoescape=select_autoescape(
+        enabled_extensions=("html", "htm", "xml"),
+        default=False,
+    ),
     keep_trailing_newline=True,
     trim_blocks=True,
     lstrip_blocks=True,
@@ -495,6 +504,12 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "templates/email/verify_email.txt.j2",
         "templates/email/verify_email.txt",
+        _has("email"),
+        runtime_template=True,
+    ),
+    FileSpec(
+        "templates/email/password_changed.txt.j2",
+        "templates/email/password_changed.txt",
         _has("email"),
         runtime_template=True,
     ),

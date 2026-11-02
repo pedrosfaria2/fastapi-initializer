@@ -20,7 +20,7 @@ from {{ spec.package }}.core.security import (
 from {{ spec.package }}.{{ layout.model("user") }} import User
 from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
 
-RESET_TOKEN_PURPOSE = "password_reset"  # noqa: S105 - token purpose, not a credential
+RECOVERY_PURPOSE = "recovery"
 EMAIL_VERIFY_PURPOSE = "email_verify"
 PASSWORD_RESET_EXPIRE_MINUTES = 30
 EMAIL_VERIFY_EXPIRE_MINUTES = 1440
@@ -44,7 +44,7 @@ async def request_password_reset(
         return
     token = create_action_token(
         user.email,
-        RESET_TOKEN_PURPOSE,
+        RECOVERY_PURPOSE,
         PASSWORD_RESET_EXPIRE_MINUTES,
         user.password_reset_version,
     )
@@ -56,9 +56,10 @@ async def reset_password(
     session: AsyncSession,
     token: str,
     new_password: str,
+    backend: EmailBackend,
 ) -> None:
     """Replace a user's password using a valid, unused reset token."""
-    action = decode_action_token(token, RESET_TOKEN_PURPOSE)
+    action = decode_action_token(token, RECOVERY_PURPOSE)
     if action is None:
         raise InvalidActionTokenError("Invalid or expired password reset token")
     result = await session.execute(
@@ -76,6 +77,14 @@ async def reset_password(
     if cast(CursorResult[Any], result).rowcount != 1:
         raise InvalidActionTokenError("Invalid or expired password reset token")
     await session.commit()
+    body = render_email_template("password_changed.txt", {})
+    await backend.send(
+        EmailMessage(
+            to=action.subject,
+            subject="Your password was changed",
+            body=body,
+        )
+    )
 
 
 async def request_email_verification(

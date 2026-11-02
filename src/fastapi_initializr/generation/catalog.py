@@ -347,6 +347,7 @@ DEPENDENCIES: dict[str, Dependency] = {
             "src/{package}/api/routes/auth_email.py",
             "templates/email/password_reset.txt",
             "templates/email/verify_email.txt",
+            "templates/email/password_changed.txt",
             "tests/test_email_auth.py",
         ),
         guide="https://aiosmtplib.readthedocs.io/en/stable/",

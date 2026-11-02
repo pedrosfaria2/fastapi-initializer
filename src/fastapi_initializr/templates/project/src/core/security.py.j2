@@ -34,6 +34,8 @@ class _JwtModule(Protocol):
         key: str,
         *,
         algorithms: list[str],
+        issuer: str | None = None,
+        audience: str | None = None,
     ) -> dict[str, object]: ...
 
 
@@ -65,6 +67,8 @@ def create_access_token(
         "exp": expires_at,
         "ver": version,
         "typ": "access",
+        "iss": settings.app_name,
+        "aud": settings.app_name,
     }
     return _PYJWT.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
@@ -77,6 +81,8 @@ def decode_access_token(token: str) -> TokenPayload | None:
             token,
             settings.secret_key,
             algorithms=[settings.jwt_algorithm],
+            issuer=settings.app_name,
+            audience=settings.app_name,
         )
         return TokenPayload.model_validate(payload)
     except (InvalidTokenError, ValidationError):

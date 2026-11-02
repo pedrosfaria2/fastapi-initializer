@@ -18,6 +18,7 @@ from {{ spec.package }}.{{ layout.service("auth") }} import (
     authenticate_user,
     create_user,
     issue_access_token,
+    revoke_user_tokens,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,6 +36,7 @@ class RegistrationResponse(BaseModel):
     "/register",
     response_model=RegistrationResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    responses={400: {"description": "Malformed request body"}},
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("5/minute")
@@ -51,7 +53,14 @@ async def register(
     return RegistrationResponse(message=REGISTRATION_MESSAGE)
 
 
-@router.post("/login", response_model=Token)
+@router.post(
+    "/login",
+    response_model=Token,
+    responses={
+        400: {"description": "Malformed request body"},
+        401: {"description": "Invalid credentials"},
+    },
+)
 {% if spec.has("rate-limit") %}
 @rate_limit("10/minute")
 {% endif %}
@@ -66,7 +75,29 @@ async def login(
     return Token(access_token=issue_access_token(user))
 
 
-@router.get("/me", response_model=UserRead)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"description": "Not authenticated"}},
+)
+{% if spec.has("rate-limit") %}
+@rate_limit("10/minute")
+{% endif %}
+async def logout(
+    request: Request,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> None:
+    """Invalidate every access token for the authenticated account."""
+    _ = request
+    await revoke_user_tokens(session, current_user)
+
+
+@router.get(
+    "/me",
+    response_model=UserRead,
+    responses={401: {"description": "Not authenticated"}},
+)
 async def read_current_user(current_user: CurrentUser) -> UserRead:
     """Return the authenticated user."""
     return UserRead.model_validate(current_user)

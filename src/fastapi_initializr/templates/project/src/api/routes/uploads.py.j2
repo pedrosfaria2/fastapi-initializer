@@ -24,7 +24,15 @@ def _owned_key(owner_id: int, key: str) -> str:
     return key
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        401: {"description": "Not authenticated"},
+        413: {"description": "Upload exceeds the size limit"},
+        415: {"description": "Upload type is not allowed"},
+    },
+)
 async def upload_file(
     file: UploadFile,
     storage: StorageDep,
@@ -48,7 +56,13 @@ async def upload_file(
     return {"key": key}
 
 
-@router.get("/{key}")
+@router.get(
+    "/{key}",
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "File not found"},
+    },
+)
 async def download_file(
     key: str,
     storage: StorageDep,
@@ -71,7 +85,14 @@ async def download_file(
     return Response(content=data, media_type="application/octet-stream")
 
 
-@router.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "File not found"},
+    },
+)
 async def delete_file(
     key: str,
     storage: StorageDep,

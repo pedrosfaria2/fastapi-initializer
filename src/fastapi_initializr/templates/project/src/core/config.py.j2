@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     app_name: str = {{ app_title | py_string }}
     environment: str = "development"
     log_level: str = "INFO"
+    forwarded_allow_ips: str = ""
 {% if spec.has_database %}
     database_url: str = "{{ spec.database_url }}"
 {% endif %}
@@ -84,7 +85,7 @@ class Settings(BaseSettings):
 {% if spec.has("auth-jwt") %}
 
 
-def _validate_production_secret(settings: Settings) -> None:
+def _validate_production_settings(settings: Settings) -> None:
     """Refuse development secrets when the app runs in production."""
     placeholders = frozenset(
         {
@@ -98,6 +99,10 @@ def _validate_production_secret(settings: Settings) -> None:
         raise ValueError(
             "SECRET_KEY must be a non-placeholder value with at least 32 characters in production."
         )
+{% if spec.has("email") %}
+    if settings.environment.lower() == "production" and settings.email_backend == "console":
+        raise ValueError("EMAIL_BACKEND must be smtp in production.")
+{% endif %}
 {% endif %}
 
 
@@ -106,7 +111,7 @@ def get_settings() -> Settings:
     """Return the cached application settings."""
 {% if spec.has("auth-jwt") %}
     settings = Settings()
-    _validate_production_secret(settings)
+    _validate_production_settings(settings)
     return settings
 {% else %}
     return Settings()

@@ -26,7 +26,7 @@ class PasswordResetConfirm(BaseModel):
     """Fields accepted when completing a password reset."""
 
     token: str = Field(min_length=1)
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
 
 
 class EmailVerificationRequest(BaseModel):
@@ -51,6 +51,7 @@ class MessageResponse(BaseModel):
     "/request-password-reset",
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    responses={400: {"description": "Malformed request body"}},
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("5/minute")
@@ -67,7 +68,11 @@ async def request_password_reset(
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
 
-@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={400: {"description": "Invalid or expired token"}},
+)
 {% if spec.has("rate-limit") %}
 @rate_limit("10/minute")
 {% endif %}
@@ -75,16 +80,18 @@ async def reset_password(
     request: Request,
     payload: PasswordResetConfirm,
     session: SessionDep,
+    backend: EmailBackendDep,
 ) -> None:
     """Replace the password for a valid reset token."""
     _ = request
-    await auth_email.reset_password(session, payload.token, payload.new_password)
+    await auth_email.reset_password(session, payload.token, payload.new_password, backend)
 
 
 @router.post(
     "/request-verification",
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    responses={400: {"description": "Malformed request body"}},
 )
 {% if spec.has("rate-limit") %}
 @rate_limit("5/minute")
@@ -101,7 +108,11 @@ async def request_verification(
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
 
-@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/verify-email",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={400: {"description": "Invalid or expired token"}},
+)
 {% if spec.has("rate-limit") %}
 @rate_limit("10/minute")
 {% endif %}

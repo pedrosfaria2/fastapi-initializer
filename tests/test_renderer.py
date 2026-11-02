@@ -690,6 +690,7 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
     assert "src/my_service/api/routes/auth_email.py" in files
     assert "templates/email/password_reset.txt" in files
     assert "templates/email/verify_email.txt" in files
+    assert "templates/email/password_changed.txt" in files
     assert "tests/test_email_auth.py" in files
 
     routes = files["src/my_service/api/routes/__init__.py"]
@@ -709,7 +710,7 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
     assert "password_reset_version: Mapped[int]" in files["src/my_service/models/user.py"]
     assert "email_verification_version: Mapped[int]" in files["src/my_service/models/user.py"]
     assert "is_verified: bool" in files["src/my_service/schemas/user.py"]
-    assert "def _validate_production_secret(" in config
+    assert "def _validate_production_settings(" in config
 
     security = files["src/my_service/core/security.py"]
     assert "def create_action_token(" in security

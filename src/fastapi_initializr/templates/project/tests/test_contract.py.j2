@@ -15,6 +15,9 @@ def contract_schema(client: TestClient) -> schemathesis.BaseSchema:
 schema = (
     schemathesis.pytest.from_fixture("contract_schema")
     .exclude(path_regex="^/auth")
+{% if spec.has("auth-jwt") %}
+    .exclude(path_regex="^/items")
+{% endif %}
     .exclude(path_regex="^/limited")
     .exclude(path_regex="^/uploads")
     .exclude(path="/graphql")

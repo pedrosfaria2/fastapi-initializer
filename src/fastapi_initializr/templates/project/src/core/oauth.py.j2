@@ -52,6 +52,10 @@ class OAuthClient(Protocol):
     async def get_json(self, path: str, token: Mapping[str, object]) -> object: ...
 
 
+class OAuthCallbackError(Exception):
+    """The provider callback could not be validated."""
+
+
 class AuthlibOAuthClient:
     """Adapt an Authlib client to the typed provider interface."""
 
@@ -64,7 +68,10 @@ class AuthlibOAuthClient:
 
     async def authorize_access_token(self, request: Request) -> Mapping[str, object]:
         """Exchange the callback request for an access token."""
-        return await self._client.authorize_access_token(request)
+        try:
+            return await self._client.authorize_access_token(request)
+        except Exception as error:
+            raise OAuthCallbackError("OAuth callback rejected") from error
 
     async def get_json(self, path: str, token: Mapping[str, object]) -> object:
         """Call a provider API path and decode its JSON response."""
@@ -90,6 +97,7 @@ def _build_registry() -> _OAuthRegistry:
         client_secret=settings.google_client_secret,
         server_metadata_url=GOOGLE_METADATA_URL,
         client_kwargs={"scope": "openid email profile"},
+        code_challenge_method="S256",
     )
     registry.register(
         name="github",
@@ -99,6 +107,7 @@ def _build_registry() -> _OAuthRegistry:
         access_token_url=GITHUB_OAUTH_ACCESS_URL,
         api_base_url=GITHUB_API_BASE_URL,
         client_kwargs={"scope": "user:email"},
+        code_challenge_method="S256",
     )
     return registry
 

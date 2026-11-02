@@ -95,6 +95,22 @@ class SyncAuthlibClient:
         return SyncResponse()
 
 
+class BrokenAuthlibClient:
+    """An Authlib-like client that rejects the callback state."""
+
+    async def authorize_redirect(self, request: Request, redirect_uri: str) -> Response:
+        _ = (request, redirect_uri)
+        raise AssertionError("not used")
+
+    async def authorize_access_token(self, request: Request) -> Mapping[str, object]:
+        _ = request
+        raise RuntimeError("state mismatch")
+
+    async def get(self, path: str, *, token: Mapping[str, object]) -> object:
+        _ = (path, token)
+        raise AssertionError("not used")
+
+
 def _install_fake(
     client: TestClient,
     email: str,
@@ -300,11 +316,35 @@ def test_authlib_adapter_accepts_sync_json() -> None:
     assert asyncio.run(adapter.get_json("user", {})) == {"id": 12345}
 
 
+def test_callback_with_invalid_state_returns_bad_request(client: TestClient) -> None:
+    app = cast(FastAPI, client.app)
+    app.dependency_overrides[get_oauth_client] = lambda: AuthlibOAuthClient(BrokenAuthlibClient())
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "local", "state": "wrong"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_login_uses_pkce(client: TestClient) -> None:
+    response = client.get("/auth/oauth/github/login", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    location = response.headers["location"]
+    assert "code_challenge=" in location
+    assert "code_challenge_method=S256" in location
+
+
 def test_oauth_session_cookie_is_secure_in_production(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("SECRET_KEY", "x" * 32)
+{% if spec.has("email") %}
+    monkeypatch.setenv("EMAIL_BACKEND", "smtp")
+{% endif %}
     get_settings.cache_clear()
     try:
         app = create_app()

@@ -456,17 +456,25 @@ src/fastapi_initializr/
 - Archives are built from a fixed relative manifest with a constant timestamp.
   Path traversal, absolute paths, and symlinks are rejected.
 - Generated auth links OAuth accounts by the provider subject and a verified
-  email, and refuses to merge an existing password account automatically.
-- Access tokens are typed and bound to an account token version; password reset
-  revokes older access tokens. Password-reset and verification tokens are typed
-  separately and consumed atomically, so concurrent reuse succeeds once.
-- Registration returns the same response for new and existing emails. Auth
-  endpoints are rate-limited when the rate-limit feature is selected.
+  email, refuses to merge an existing password account automatically, uses
+  PKCE, and rejects an invalid or cross-session callback state with `400`.
+- Access tokens carry issuer, audience, type, and account version claims;
+  password reset and logout revoke older access tokens. Password-reset and
+  verification tokens are typed separately and consumed atomically, so
+  concurrent reuse succeeds once.
+- Registration and password reset use a minimum of 12 characters. Registration
+  returns the same response for new and existing emails, and a password reset
+  sends a notification. Auth endpoints are rate-limited when selected.
 - Generated uploads require a bearer token, and storage keys are scoped to the
-  owning user. Production startup rejects placeholder or short JWT secrets.
-- The initial Alembic migration creates the selected users, OAuth columns, and
-  items tables. Project updates stage and back up every changed file, roll back
-  on failure, and recover an interrupted update on the next run.
+  owning user. Item CRUD is owner-scoped when JWT auth is selected. Production
+  startup rejects placeholder or short JWT secrets and the console email backend.
+- Generated responses set `nosniff`, `X-Frame-Options`, and `Referrer-Policy`;
+  HTTPS also gets HSTS. Proxy headers are rejected unless trusted proxy IPs are
+  configured.
+- The initial Alembic migration creates the selected users, OAuth columns, item
+  owner column, and items tables. Project updates stage and back up every
+  changed file, roll back on failure, and recover an interrupted update on the
+  next run.
 - Generated projects are never executed inside a web request.
 - Generation is bounded by file-count, preview-byte, and archive-size limits.
 

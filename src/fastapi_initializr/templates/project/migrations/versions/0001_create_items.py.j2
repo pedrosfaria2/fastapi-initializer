@@ -61,12 +61,21 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("description", sa.String(length=1000), nullable=True, server_default=""),
+{% if spec.has("auth-jwt") %}
+        sa.Column("owner_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
+{% endif %}
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
+{% if spec.has("auth-jwt") %}
+    op.create_index("ix_items_owner_id", "items", ["owner_id"])
+{% endif %}
 
 
 def downgrade() -> None:
     """Drop the core tables."""
+{% if spec.has("auth-jwt") %}
+    op.drop_index("ix_items_owner_id", table_name="items")
+{% endif %}
     op.drop_table("items")
 {% if spec.has("auth-jwt") %}
     op.drop_index("ix_users_email", table_name="users")
