@@ -19,9 +19,11 @@ from {{ spec.package }}.{{ layout.schema("user") }} import Token, UserCreate, Us
 from {{ spec.package }}.{{ layout.service("auth") }} import (
     CurrentUser,
     EmailAlreadyRegisteredError,
+    TokenPayloadDep,
     authenticate_user,
     create_user,
     issue_access_token,
+    revoke_access_token,
     revoke_user_tokens,
 )
 
@@ -81,15 +83,23 @@ async def login(
 @router.post(
     "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={401: {"description": "Not authenticated"}},
+    responses={
+        401: {"description": "Not authenticated"},
+        429: {"description": "Rate limit exceeded"},
+    },
     dependencies=[Depends(auth_rate_limit("logout", LOGOUT_LIMIT))],
 )
 async def logout(
     current_user: CurrentUser,
+    token_payload: TokenPayloadDep,
     session: SessionDep,
+    all_devices: bool = True,
 ) -> None:
-    """Invalidate every access token for the authenticated account."""
-    await revoke_user_tokens(session, current_user)
+    """Invalidate the current token, or every token when all_devices is true."""
+    if all_devices:
+        await revoke_user_tokens(session, current_user)
+    else:
+        await revoke_access_token(session, token_payload)
 
 
 @router.get(

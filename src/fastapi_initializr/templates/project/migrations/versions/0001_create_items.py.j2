@@ -55,6 +55,16 @@ def upgrade() -> None:
 {% endif %}
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
+    op.create_table(
+        "revoked_tokens",
+        sa.Column("jti", sa.String(length=64), primary_key=True, nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+    )
+    op.create_index(
+        "ix_revoked_tokens_expires_at",
+        "revoked_tokens",
+        ["expires_at"],
+    )
 {% endif %}
     op.create_table(
         "items",
@@ -78,6 +88,8 @@ def downgrade() -> None:
 {% endif %}
     op.drop_table("items")
 {% if spec.has("auth-jwt") %}
+    op.drop_index("ix_revoked_tokens_expires_at", table_name="revoked_tokens")
+    op.drop_table("revoked_tokens")
     op.drop_index("ix_users_email", table_name="users")
     op.drop_table("users")
 {% endif %}

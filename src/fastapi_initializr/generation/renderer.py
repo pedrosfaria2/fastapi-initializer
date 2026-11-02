@@ -436,6 +436,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("auth-jwt"),
     ),
     FileSpec(
+        "src/models/revoked_token.py.j2",
+        "src/{{ spec.package }}/models/revoked_token.py",
+        _has("auth-jwt"),
+    ),
+    FileSpec(
         "src/schemas/__init__.py.j2",
         "src/{{ spec.package }}/schemas/__init__.py",
         _layered_structure,
@@ -672,6 +677,7 @@ def build_context(spec: ProjectSpec) -> dict[str, object]:
         model_imports.append({"module": layout.model("item"), "name": "Item"})
     if spec.has("auth-jwt"):
         model_imports.append({"module": layout.model("user"), "name": "User"})
+        model_imports.append({"module": layout.model("revoked_token"), "name": "RevokedToken"})
     if spec.has("mongodb"):
         model_imports.append({"module": layout.model("document"), "name": "Document"})
     model_imports.sort(key=lambda model: model["module"])

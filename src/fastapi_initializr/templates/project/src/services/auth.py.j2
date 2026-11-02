@@ -1,10 +1,11 @@
 """Authentication service functions."""
 
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,8 +20,14 @@ from {{ spec.package }}.core.security import (
     hash_password,
     verify_password,
 )
+{% if layout.is_feature %}
 from {{ spec.package }}.{{ layout.model("user") }} import User
-from {{ spec.package }}.{{ layout.schema("user") }} import UserCreate, normalize_email
+from {{ spec.package }}.{{ layout.model("revoked_token") }} import RevokedToken
+{% else %}
+from {{ spec.package }}.{{ layout.model("revoked_token") }} import RevokedToken
+from {{ spec.package }}.{{ layout.model("user") }} import User
+{% endif %}
+from {{ spec.package }}.{{ layout.schema("user") }} import TokenPayload, UserCreate, normalize_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -98,33 +105,74 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     return user
 
 
-async def get_current_user(
-    session: SessionDep,
-    token: Annotated[str, Depends(oauth2_scheme)],
-) -> User:
-    """Return the user identified by the bearer token."""
-    credentials_error = HTTPException(
+def _credentials_error() -> HTTPException:
+    return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+async def get_token_payload(
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> TokenPayload:
+    """Return the claims of a valid access token."""
     token_payload = decode_access_token(token)
     if token_payload is None:
-        raise credentials_error
+        raise _credentials_error()
+    return token_payload
+
+
+TokenPayloadDep = Annotated[TokenPayload, Depends(get_token_payload)]
+
+
+async def get_current_user(
+    session: SessionDep,
+    token_payload: TokenPayloadDep,
+) -> User:
+    """Return the user identified by the bearer token."""
     user = await get_user_by_email(session, token_payload.sub)
     if user is None or not user.is_active or token_payload.ver != user.token_version:
-        raise credentials_error
+        raise _credentials_error()
+    if await session.get(RevokedToken, token_payload.jti) is not None:
+        raise _credentials_error()
     return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-async def revoke_user_tokens(session: AsyncSession, user: User) -> None:
-    """Invalidate every access token issued for the account."""
-    await session.execute(
-        update(User).where(User.id == user.id).values(token_version=User.token_version + 1)
+async def revoke_access_token(
+    session: AsyncSession,
+    token_payload: TokenPayload,
+) -> None:
+    """Revoke one access token until its expiry."""
+    await session.execute(delete(RevokedToken).where(RevokedToken.expires_at <= datetime.now(UTC)))
+    session.add(
+        RevokedToken(
+            jti=token_payload.jti,
+            expires_at=datetime.fromtimestamp(token_payload.exp, UTC),
+        )
     )
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+
+
+async def revoke_user_tokens(session: AsyncSession, user: User) -> None:
+    """Invalidate every access and pending action token for the account."""
+    statement = update(User).where(User.id == user.id)
+{% if spec.has("email") %}
+    statement = statement.values(
+        token_version=User.token_version + 1,
+        password_reset_version=User.password_reset_version + 1,
+        email_verification_version=User.email_verification_version + 1,
+    )
+{% else %}
+    statement = statement.values(token_version=User.token_version + 1)
+{% endif %}
+    await session.execute(statement)
     await session.commit()
 
 

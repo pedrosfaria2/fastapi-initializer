@@ -326,6 +326,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         ),
         files=(
             "src/{package}/models/user.py",
+            "src/{package}/models/revoked_token.py",
             "src/{package}/schemas/user.py",
             "src/{package}/core/auth_throttle.py",
             "src/{package}/core/security.py",

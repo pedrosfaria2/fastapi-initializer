@@ -9,6 +9,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictInt,
     WithJsonSchema,
     field_serializer,
 )
@@ -66,10 +67,10 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     """Decoded access token claims."""
 
-    sub: str
-    exp: int
-    ver: int
+    sub: str = Field(min_length=1)
+    exp: StrictInt
+    ver: StrictInt
     typ: Literal["access"]
-    iss: str
-    aud: str
-    jti: str
+    iss: str = Field(min_length=1)
+    aud: str = Field(min_length=1)
+    jti: str = Field(min_length=1)

@@ -205,7 +205,7 @@ GATES: tuple[tuple[str, ...], ...] = (
     ("uv", "run", "pytest", "-q"),
 )
 
-_MIGRATION_CHECK = """import sqlite3; connection=sqlite3.connect('app.db'); tables={row[0] for row in connection.execute("select name from sqlite_master where type='table'")}; assert {'alembic_version', 'items', 'users'} <= tables, tables; columns={row[1] for row in connection.execute('pragma table_info(users)')}; assert {'token_version', 'oauth_provider', 'oauth_subject', 'is_verified', 'password_reset_version', 'email_verification_version'} <= columns, columns; item_columns={row[1] for row in connection.execute('pragma table_info(items)')}; assert {'owner_id'} <= item_columns, item_columns"""
+_MIGRATION_CHECK = """import sqlite3; connection=sqlite3.connect('app.db'); tables={row[0] for row in connection.execute("select name from sqlite_master where type='table'")}; assert {'alembic_version', 'items', 'users', 'revoked_tokens'} <= tables, tables; columns={row[1] for row in connection.execute('pragma table_info(users)')}; assert {'token_version', 'oauth_provider', 'oauth_subject', 'is_verified', 'password_reset_version', 'email_verification_version'} <= columns, columns; item_columns={row[1] for row in connection.execute('pragma table_info(items)')}; assert {'owner_id'} <= item_columns, item_columns"""
 MIGRATION_GATES: tuple[tuple[str, ...], ...] = (
     ("uv", "run", "alembic", "upgrade", "head"),
     ("uv", "run", "python", "-c", _MIGRATION_CHECK),

@@ -71,6 +71,7 @@ async def reset_password(
         .values(
             hashed_password=hash_password(new_password),
             password_reset_version=User.password_reset_version + 1,
+            email_verification_version=User.email_verification_version + 1,
             token_version=User.token_version + 1,
         )
     )

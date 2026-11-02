@@ -37,6 +37,7 @@ class _JwtModule(Protocol):
         algorithms: list[str],
         issuer: str | None = None,
         audience: str | None = None,
+        options: dict[str, object] | None = None,
     ) -> dict[str, object]: ...
 
 
@@ -106,6 +107,9 @@ def create_action_token(
         "ver": version,
         "typ": "action",
         "exp": expires_at,
+        "iss": settings.app_name,
+        "aud": settings.app_name,
+        "jti": secrets.token_urlsafe(16),
     }
     return _PYJWT.encode(payload, settings.action_secret, algorithm=settings.jwt_algorithm)
 
@@ -118,6 +122,20 @@ def decode_action_token(token: str, purpose: str) -> ActionToken | None:
             token,
             settings.action_secret,
             algorithms=[settings.jwt_algorithm],
+            issuer=settings.app_name,
+            audience=settings.app_name,
+            options={
+                "require": [
+                    "exp",
+                    "iss",
+                    "aud",
+                    "jti",
+                    "sub",
+                    "purpose",
+                    "typ",
+                    "ver",
+                ]
+            },
         )
     except InvalidTokenError:
         return None
@@ -127,8 +145,14 @@ def decode_action_token(token: str, purpose: str) -> ActionToken | None:
         return None
     subject = payload.get("sub")
     version = payload.get("ver")
+    expires_at = payload.get("exp")
+    token_id = payload.get("jti")
     if not isinstance(subject, str) or not subject:
         return None
     if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+        return None
+    if not isinstance(expires_at, int) or isinstance(expires_at, bool):
+        return None
+    if not isinstance(token_id, str) or not token_id:
         return None
     return ActionToken(subject=subject, version=version)

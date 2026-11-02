@@ -109,7 +109,7 @@ curl -X POST "http://127.0.0.1:8000/items" \
 | --- | --- | --- |
 | `POST` | `/auth/register` | Create an account when the email is available; the `202` response is identical for new and existing emails. |
 | `POST` | `/auth/login` | Accept form fields `username` and `password` and return a bearer token. |
-| `POST` | `/auth/logout` | Invalidate every access token for the account and return `204`. |
+| `POST` | `/auth/logout` | Invalidate every access token for the account and return `204`; `?all_devices=false` revokes only the presented token. |
 | `GET` | `/auth/me` | Return the authenticated user or `401`. |
 
 The application reads the master secret from `SECRET_KEY` and derives separate
@@ -122,8 +122,10 @@ replace it before deploying. Production normalizes `ENVIRONMENT` with
 secrets with fewer than 14 distinct characters, low-entropy or repeated-pattern
 secrets, `FORWARDED_ALLOW_IPS=*`, and `EMAIL_BACKEND=console`.
 `ACCESS_TOKEN_EXPIRE_MINUTES` controls the token lifetime and defaults to `5`
-minutes. Each token also carries a unique `jti` claim; logout and password reset
-invalidate every token through the account version.
+minutes. Each token also carries a unique `jti` claim. Logout revokes every
+token through the account version by default; `?all_devices=false` records the
+presented token in `revoked_tokens` and leaves other sessions active. Password
+reset invalidates every access token and pending reset/verification token.
 
 Registration returns the same message for new and existing emails. Access tokens
 are bound to the account token version, so a password reset invalidates older

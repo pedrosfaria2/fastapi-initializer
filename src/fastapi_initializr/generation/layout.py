@@ -29,11 +29,13 @@ _FEATURE_ROUTES = {
 _LAYERED_MODELS = {
     "item": "models.item",
     "user": "models.user",
+    "revoked_token": "models.revoked_token",  # nosec B105 - module path, not a secret
     "document": "models.document",
 }
 _FEATURE_MODELS = {
     "item": "features.items.models",
     "user": "features.auth.models",
+    "revoked_token": "features.auth.revoked_token",  # nosec B105 - module path, not a secret
     "document": "features.documents.models",
 }
 _LAYERED_SCHEMAS = {
@@ -66,6 +68,7 @@ _FEATURE_OUTPUTS = {
     "services/items.py": "features/items/service.py",
     "api/routes/items.py": "features/items/router.py",
     "models/user.py": "features/auth/models.py",
+    "models/revoked_token.py": "features/auth/revoked_token.py",
     "schemas/user.py": "features/auth/schemas.py",
     "services/auth.py": "features/auth/service.py",
     "api/routes/auth.py": "features/auth/router.py",
