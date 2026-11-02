@@ -1,6 +1,7 @@
 """File upload endpoint contract."""
 
 import asyncio
+import io
 import secrets
 from collections.abc import Iterator
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import cast
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
+from pypdf import PdfWriter
 
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.storage import LocalStorage, get_storage
@@ -16,6 +19,26 @@ from {{ spec.package }}.core.storage import LocalStorage, get_storage
 OWNER = "owner@example.com"
 OTHER = "other@example.com"
 CREDENTIAL = secrets.token_urlsafe(18)
+
+
+def _png_bytes() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), "red").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _jpeg_bytes() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), "blue").save(buffer, format="JPEG")
+    return buffer.getvalue()
+
+
+def _pdf_bytes() -> bytes:
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
 
 
 @pytest.fixture
@@ -134,17 +157,101 @@ def test_upload_accepts_a_valid_png(upload_client: TestClient) -> None:
 
     response = upload_client.post(
         "/uploads",
-        files={
-            "file": (
-                "image.png",
-                b"\x89PNG\r\n\x1a\n" + b"data",
-                "image/png",
-            )
-        },
+        files={"file": ("image.png", _png_bytes(), "image/png")},
         headers=headers,
     )
 
     assert response.status_code == 201
+
+
+def test_upload_accepts_a_valid_jpeg(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("image.jpg", _jpeg_bytes(), "image/jpeg")},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+
+
+def test_upload_accepts_a_valid_pdf(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("document.pdf", _pdf_bytes(), "application/pdf")},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+
+
+def test_upload_rejects_truncated_png(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("broken.png", _png_bytes()[:-8], "image/png")},
+        headers=headers,
+    )
+
+    assert response.status_code == 415
+
+
+def test_upload_rejects_pdf_without_pages(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+    buffer = io.BytesIO()
+    PdfWriter().write(buffer)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("empty.pdf", buffer.getvalue(), "application/pdf")},
+        headers=headers,
+    )
+
+    assert response.status_code == 415
+
+
+def test_upload_uses_the_validated_content_extension(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("evil.html", _png_bytes(), "image/png")},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    key = response.json()["key"]
+    assert key.endswith(".png")
+    download = upload_client.get(f"/uploads/{key}", headers=headers)
+    assert download.headers["content-disposition"] == f'attachment; filename="{key}"'
+
+
+def test_upload_rejects_unknown_configured_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ALLOWED_UPLOAD_TYPES", '["image/gif"]')
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="Unsupported upload types"):
+            get_settings()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_upload_rejects_nul_in_text(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("note.txt", b"hello\x00world", "text/plain")},
+        headers=headers,
+    )
+
+    assert response.status_code == 415
 
 
 def test_upload_rejects_disallowed_type(upload_client: TestClient) -> None:

@@ -12,4 +12,7 @@ __pycache__
 *.db
 *.sqlite
 *.sqlite3
+{% if spec.has("uploads") %}
+uploads/
+{% endif %}
 .DS_Store

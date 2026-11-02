@@ -29,9 +29,9 @@ class Storage(Protocol):
         ...
 
 
-def new_storage_key(filename: str, owner_id: int) -> str:
-    """Return a unique, owner-scoped storage key that keeps a safe extension."""
-    suffix = PurePosixPath(filename).suffix.lower()
+def new_storage_key(owner_id: int, extension: str) -> str:
+    """Return a unique, owner-scoped key with a validated extension."""
+    suffix = extension.lower()
     if not _SAFE_SUFFIX.fullmatch(suffix):
         suffix = ""
     return f"{owner_id}-{uuid4().hex}{suffix}"

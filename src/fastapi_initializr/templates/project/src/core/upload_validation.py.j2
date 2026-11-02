@@ -1,0 +1,76 @@
+"""Structural validation for uploaded files."""
+
+import io
+from collections.abc import Callable
+
+from PIL import Image
+from pypdf import PdfReader
+from pypdf.errors import PyPdfError
+
+MAX_IMAGE_PIXELS = 25_000_000
+SAFE_EXTENSIONS = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "application/pdf": ".pdf",
+    "text/plain": ".txt",
+}
+
+
+def _validate_image(data: bytes, expected_format: str) -> bool:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != expected_format:
+                return False
+            if image.width * image.height > MAX_IMAGE_PIXELS:
+                return False
+            image.verify()
+        with Image.open(io.BytesIO(data)) as image:
+            image.load()
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return False
+    return True
+
+
+def _validate_png(data: bytes) -> bool:
+    return _validate_image(data, "PNG")
+
+
+def _validate_jpeg(data: bytes) -> bool:
+    return _validate_image(data, "JPEG")
+
+
+def _validate_pdf(data: bytes) -> bool:
+    try:
+        reader = PdfReader(io.BytesIO(data), strict=True)
+        return len(reader.pages) > 0
+    except (PyPdfError, ValueError, OSError, KeyError, TypeError, RecursionError):
+        return False
+
+
+def _validate_text(data: bytes) -> bool:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return "\x00" not in text and all(
+        character in "\t\n\r" or ord(character) >= 32 for character in text
+    )
+
+
+CONTENT_VALIDATORS: dict[str, Callable[[bytes], bool]] = {
+    "image/png": _validate_png,
+    "image/jpeg": _validate_jpeg,
+    "application/pdf": _validate_pdf,
+    "text/plain": _validate_text,
+}
+
+
+def validate_content(content_type: str, data: bytes) -> bool:
+    """Return whether the bytes are structurally valid for the declared type."""
+    validator = CONTENT_VALIDATORS.get(content_type)
+    return validator is not None and validator(data)
+
+
+def extension_for(content_type: str) -> str:
+    """Return the safe extension derived from the validated content type."""
+    return SAFE_EXTENSIONS[content_type]

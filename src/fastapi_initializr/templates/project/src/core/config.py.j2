@@ -2,7 +2,14 @@
 
 from functools import lru_cache
 
+{% if spec.has("uploads") %}
+from pydantic import field_validator
+{% endif %}
 from pydantic_settings import BaseSettings, SettingsConfigDict
+{% if spec.has("uploads") %}
+
+from {{ spec.package }}.core.upload_validation import CONTENT_VALIDATORS
+{% endif %}
 
 
 class Settings(BaseSettings):
@@ -74,8 +81,18 @@ class Settings(BaseSettings):
         "application/pdf",
         "text/plain",
     ]
+
+    @field_validator("allowed_upload_types")
+    @classmethod
+    def validate_allowed_upload_types(cls, value: list[str]) -> list[str]:
+        """Reject configured types that have no content validator."""
+        unsupported = sorted(set(value) - set(CONTENT_VALIDATORS))
+        if unsupported:
+            raise ValueError(f"Unsupported upload types: {', '.join(unsupported)}")
+        return value
 {% endif %}
 {% if spec.has("s3") %}
+
     storage_backend: str = "local"
     s3_bucket: str = "uploads"
     s3_endpoint_url: str = ""

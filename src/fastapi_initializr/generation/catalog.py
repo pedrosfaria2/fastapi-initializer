@@ -302,8 +302,10 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Authenticated local file storage with upload, download, and delete endpoints.",
         group="Web",
         requires=("auth-jwt",),
+        packages=("pillow", "pypdf"),
         files=(
             "src/{package}/core/storage.py",
+            "src/{package}/core/upload_validation.py",
             "src/{package}/api/routes/uploads.py",
             "tests/test_uploads.py",
         ),

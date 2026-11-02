@@ -1091,7 +1091,7 @@ def test_uploads_feature_renders_storage_and_routes() -> None:
     storage = files["src/my_service/core/storage.py"]
     assert "class Storage(Protocol):" in storage
     assert "class LocalStorage:" in storage
-    assert "def new_storage_key(filename: str, owner_id: int) -> str:" in storage
+    assert "def new_storage_key(owner_id: int, extension: str) -> str:" in storage
     assert "def get_storage(" in storage
     assert "is_relative_to(root)" in storage
 

@@ -41,6 +41,11 @@ client/openapi.json
 *.db
 *.sqlite
 *.sqlite3
+{% if spec.has("uploads") %}
+
+# Runtime uploads
+uploads/
+{% endif %}
 
 # Editors and operating systems
 .idea/

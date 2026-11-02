@@ -336,6 +336,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("uploads"),
     ),
     FileSpec(
+        "src/core/upload_validation.py.j2",
+        "src/{{ spec.package }}/core/upload_validation.py",
+        _has("uploads"),
+    ),
+    FileSpec(
         "src/core/storage_s3.py.j2",
         "src/{{ spec.package }}/core/storage_s3.py",
         _has("s3"),

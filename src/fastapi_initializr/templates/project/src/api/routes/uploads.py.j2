@@ -7,29 +7,12 @@ from fastapi.responses import Response
 
 from {{ spec.package }}.core.config import Settings, get_settings
 from {{ spec.package }}.core.storage import Storage, get_storage, new_storage_key
+from {{ spec.package }}.core.upload_validation import extension_for, validate_content
 from {{ spec.package }}.{{ layout.service("auth") }} import CurrentUser
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 StorageDep = Annotated[Storage, Depends(get_storage)]
-
-_MAGIC_SIGNATURES = {
-    "image/png": (b"\x89PNG\r\n\x1a\n",),
-    "image/jpeg": (b"\xff\xd8\xff",),
-    "application/pdf": (b"%PDF-",),
-}
-
-
-def _content_matches(content_type: str | None, data: bytes) -> bool:
-    """Reject a file whose bytes do not match its declared type."""
-    if content_type == "text/plain":
-        try:
-            data.decode("utf-8")
-        except UnicodeDecodeError:
-            return False
-        return True
-    signatures = _MAGIC_SIGNATURES.get(content_type or "")
-    return signatures is None or any(data.startswith(signature) for signature in signatures)
 
 
 def _owned_key(owner_id: int, key: str) -> str:
@@ -59,7 +42,8 @@ async def upload_file(
     current_user: CurrentUser,
 ) -> dict[str, str]:
     """Validate and store an uploaded file for the authenticated user."""
-    if file.content_type not in settings.allowed_upload_types:
+    content_type = file.content_type
+    if content_type is None or content_type not in settings.allowed_upload_types:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Upload type is not allowed",
@@ -70,12 +54,12 @@ async def upload_file(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Upload exceeds the size limit",
         )
-    if not _content_matches(file.content_type, data):
+    if not validate_content(content_type, data):
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Upload content does not match its type",
         )
-    key = new_storage_key(file.filename or "upload", current_user.id)
+    key = new_storage_key(current_user.id, extension_for(content_type))
     await storage.save(key, data)
     return {"key": key}
 
@@ -106,7 +90,11 @@ async def download_file(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
-    return Response(content=data, media_type="application/octet-stream")
+    return Response(
+        content=data,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{key}"'},
+    )
 
 
 @router.delete(
