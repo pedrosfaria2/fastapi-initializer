@@ -14,6 +14,7 @@
   const presetSelect = document.getElementById("preset");
   const dependencyGroups = document.getElementById("dependency-groups");
   const dependencySearch = document.getElementById("dependency-search");
+  const dependencyCategory = document.getElementById("dependency-category");
   const clearSearchButton = document.getElementById("clear-search");
   const selectedCount = document.getElementById("selected-count");
   const dependencyEmpty = document.getElementById("dependency-empty");
@@ -47,6 +48,7 @@
     !presetSelect ||
     !dependencyGroups ||
     !dependencySearch ||
+    !dependencyCategory ||
     !clearSearchButton ||
     !selectedCount ||
     !dependencyEmpty ||
@@ -457,6 +459,7 @@
       }
     }
     updateSelectedCount();
+    applyFilter();
   }
 
   function addDependencyLink(container, link, fallbackLabel) {
@@ -766,13 +769,16 @@
     );
 
     ensureDependencyDom();
+    renderSelect(dependencyCategory, [
+      { id: "", name: "All categories" },
+      ...metadata.dependencies.groups.map((group) => ({ id: group.name, name: group.name })),
+    ], "");
     const initial = initialDependencies(params);
     for (const dependencyId of presetDependencies(presetSelect.value)) {
       initial.selected.add(dependencyId);
     }
     applySelection(reconcileSelection(initial.selected, initial.preferredId));
     syncDependencyState();
-    applyFilter();
     validateInline();
     projectLabel.textContent = nameInput.value;
   }
@@ -851,18 +857,30 @@
   function renderFiles() {
     fileList.replaceChildren();
     const fragment = document.createDocumentFragment();
+    let previousDirectory = "";
 
     for (const file of files) {
+      const separator = file.path.lastIndexOf("/");
+      const directory = file.path.slice(0, separator + 1);
+      if (directory !== previousDirectory) {
+        const heading = document.createElement("li");
+        heading.className = "file-directory";
+        heading.textContent = directory || "/";
+        heading.title = directory || "/";
+        fragment.append(heading);
+        previousDirectory = directory;
+      }
       const item = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
       button.className = "file-button";
       button.dataset.path = file.path;
       button.title = file.path;
+      button.setAttribute("aria-label", file.path);
 
       const path = document.createElement("span");
       path.className = "file-path";
-      path.textContent = file.path;
+      path.textContent = file.path.slice(separator + 1);
 
       const size = document.createElement("span");
       size.className = "file-size";
@@ -881,7 +899,9 @@
     treeEmpty.hidden = files.length > 0;
 
     if (!files.some((file) => file.path === selectedPath)) {
-      selectedPath = files.length > 0 ? files[0].path : null;
+      selectedPath = files.find((file) => file.path === "pyproject.toml")?.path
+        ?? files[0]?.path
+        ?? null;
     }
     renderFileContent();
   }
@@ -1021,6 +1041,8 @@
 
   function applyFilter() {
     const term = dependencySearch.value.trim().toLowerCase();
+    const category = dependencyCategory.value;
+    const selectedOnly = selectedCount.getAttribute("aria-pressed") === "true";
     let visibleTotal = 0;
     for (const group of dependencyGroups.querySelectorAll(
       ".dependency-group",
@@ -1029,7 +1051,9 @@
       for (const option of group.querySelectorAll(".dependency-option")) {
         const haystack =
           option instanceof HTMLElement ? option.dataset.search ?? "" : "";
-        const visible = term === "" || haystack.includes(term);
+        const visible = (term === "" || haystack.includes(term))
+          && (category === "" || group.dataset.groupName === category)
+          && (!selectedOnly || option.querySelector("input").checked);
         if (option instanceof HTMLElement) {
           option.hidden = !visible;
         }
@@ -1163,9 +1187,10 @@
     presetSelect.value = metadata.preset.default;
     packageTouched = false;
     dependencySearch.value = "";
+    dependencyCategory.value = "";
+    selectedCount.setAttribute("aria-pressed", "false");
     applySelection(new Set());
     syncDependencyState();
-    applyFilter();
     validateInline();
     projectLabel.textContent = nameInput.value;
     stateChanged();
@@ -1177,6 +1202,9 @@
       return;
     }
     const target = event.target;
+    if (target === dependencySearch || target === dependencyCategory) {
+      return;
+    }
     if (!(target instanceof HTMLElement)) {
       return;
     }
@@ -1300,8 +1328,17 @@
     applyFilter();
   });
 
+  dependencyCategory.addEventListener("change", applyFilter);
+  selectedCount.addEventListener("click", () => {
+    const pressed = selectedCount.getAttribute("aria-pressed") === "true";
+    selectedCount.setAttribute("aria-pressed", String(!pressed));
+    applyFilter();
+  });
+
   clearSearchButton.addEventListener("click", () => {
     dependencySearch.value = "";
+    dependencyCategory.value = "";
+    selectedCount.setAttribute("aria-pressed", "false");
     applyFilter();
     dependencySearch.focus();
   });

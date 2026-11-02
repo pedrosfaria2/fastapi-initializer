@@ -92,48 +92,33 @@
     {% set application_name_value = query.get("applicationName", metadata.application_name.default) %}
 
     <header class="site-header">
-      <div class="wrap header-inner">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">FI</span>
-          <div class="brand-copy">
-            <h1>FastAPI Initializr</h1>
-            <p class="tagline">
-              Generate a ready-to-run FastAPI service with a modern Python
-              toolchain in seconds.
-            </p>
-          </div>
-        </div>
-        <nav class="header-nav" aria-label="Project resources">
-          <a href="/docs">API docs</a>
-          <a href="/api/metadata">Metadata</a>
-          <a href="#preview">Explore</a>
-        </nav>
-      </div>
+      <a class="brand" href="/" aria-label="FastAPI Initializr home">
+        <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M18 3 6 18h9l-1 11L27 13h-9l1-10Z" fill="currentColor" />
+        </svg>
+        <span>fastapi<span class="brand-divider">/</span><strong>initializr</strong></span>
+      </a>
+      <nav class="header-nav" aria-label="Project resources">
+        <a href="/docs" target="_blank" rel="noopener">API docs <span aria-hidden="true">↗</span></a>
+        <a href="/api/metadata" target="_blank" rel="noopener">Metadata <span aria-hidden="true">↗</span></a>
+      </nav>
     </header>
 
-    <main class="wrap page">
+    <main class="page">
       <div class="page-intro">
-        <div>
-          <h2>Create your FastAPI project</h2>
-          <p>
-            Choose your project details, runtime versions, and the features you
-            need. Everything is generated from a reviewed catalog.
-          </p>
-        </div>
-        <p class="toolchain-badge">uv · Ruff · mypy · pyright · pytest</p>
+        <div class="intro-title"><span class="eyebrow">FASTAPI INITIALIZR</span><h1>New <em>project.</em></h1></div>
+        <p class="toolchain">uv / Ruff / mypy / pyright / pytest</p>
       </div>
-
+      <div id="error" class="error" role="alert" aria-live="assertive" hidden></div>
       <div class="workspace">
-        <section class="panel settings-panel" aria-labelledby="form-heading">
-          <h2 id="form-heading" class="visually-hidden">Project options</h2>
-
-          <div id="error" class="error" role="alert" aria-live="assertive" hidden></div>
-
-          <form id="project-form" action="/api/generate" method="post">
+        <form id="project-form" action="/api/generate" method="post">
+          <section class="settings-panel" aria-labelledby="form-heading">
+            <div class="panel-heading"><span class="section-index">01 / CONFIGURE</span><h2 id="form-heading">Project</h2></div>
+            <div class="settings-scroll">
             <section class="form-section" aria-labelledby="project-section">
               <div class="section-heading">
-                <h3 id="project-section">Project</h3>
-                <p>Metadata written into the generated project.</p>
+                <h3 id="project-section">Identity</h3>
+
               </div>
 
               <div class="field-grid">
@@ -151,8 +136,7 @@
                     required
                   />
                   <p id="name-hint" class="hint">
-                    Lowercase letters, digits, hyphens, or underscores. Must
-                    start with a letter.
+                    Lowercase; start with a letter.
                   </p>
                   <p id="name-error" class="field-error" role="status" hidden></p>
                 </div>
@@ -170,8 +154,7 @@
                     aria-describedby="package-hint package-error"
                   />
                   <p id="package-hint" class="hint">
-                    Python import package. Use lowercase letters, digits, and
-                    underscores.
+                    Import name; derived from the project name.
                   </p>
                   <p id="package-error" class="field-error" role="status" hidden></p>
                 </div>
@@ -192,41 +175,13 @@
                   </p>
                 </div>
 
-                <div class="field">
-                  <label for="version">Version</label>
-                  <input
-                    id="version"
-                    name="version"
-                    type="text"
-                    value="{{ version_value }}"
-                    maxlength="{{ metadata.project.version.max_length }}"
-                    autocomplete="off"
-                    spellcheck="false"
-                    aria-describedby="version-hint"
-                  />
-                  <p id="version-hint" class="hint">Semantic version, for example 0.1.0.</p>
-                </div>
-
-                <div class="field">
-                  <label for="author">Author</label>
-                  <input
-                    id="author"
-                    name="author"
-                    type="text"
-                    value="{{ author_value }}"
-                    maxlength="{{ metadata.project.author.max_length }}"
-                    autocomplete="name"
-                    aria-describedby="author-hint"
-                  />
-                  <p id="author-hint" class="hint">Optional name for project metadata.</p>
-                </div>
               </div>
             </section>
 
             <section class="form-section" aria-labelledby="runtime-section">
               <div class="section-heading">
-                <h3 id="runtime-section">Language &amp; runtime</h3>
-                <p>The generated project targets these versions.</p>
+                <h3 id="runtime-section">Runtime</h3>
+
               </div>
 
               <div class="field-grid">
@@ -264,13 +219,39 @@
               </div>
             </section>
 
-            <section class="form-section" aria-labelledby="advanced-section">
-              <div class="section-heading">
-                <h3 id="advanced-section">Advanced</h3>
-                <p>Optional layout and entrypoint overrides.</p>
-              </div>
+            <details class="form-section advanced-settings"{% if base_dir_value or application_name_value or author_value or version_value != metadata.project.version.default %} open{% endif %}>
+              <summary>Advanced settings <span aria-hidden="true">+</span></summary>
 
               <div class="field-grid">
+                <div class="field">
+                  <label for="version">Version</label>
+                  <input
+                    id="version"
+                    name="version"
+                    type="text"
+                    value="{{ version_value }}"
+                    maxlength="{{ metadata.project.version.max_length }}"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="version-hint"
+                  />
+                  <p id="version-hint" class="hint">Semantic version, for example 0.1.0.</p>
+                </div>
+
+                <div class="field">
+                  <label for="author">Author</label>
+                  <input
+                    id="author"
+                    name="author"
+                    type="text"
+                    value="{{ author_value }}"
+                    maxlength="{{ metadata.project.author.max_length }}"
+                    autocomplete="name"
+                    aria-describedby="author-hint"
+                  />
+                  <p id="author-hint" class="hint">Optional name for project metadata.</p>
+                </div>
+
                 <div class="field">
                   <label for="base-dir">Base directory</label>
                   <input
@@ -305,16 +286,18 @@
                   </p>
                 </div>
               </div>
-            </section>
+            </details>
 
+            </div>
+          </section>
             <fieldset class="form-section dependency-section" aria-labelledby="dependencies-section">
               <legend class="visually-hidden">Dependencies</legend>
               <div class="section-heading section-heading-inline">
                 <div>
-                  <h3 id="dependencies-section">Dependencies</h3>
-                  <p>Features add packages, configuration, and project files.</p>
+                  <span class="section-index">02 / COMPOSE</span><h3 id="dependencies-section">Dependencies</h3>
+
                 </div>
-                <span id="selected-count" class="count-badge">{{ dependency_ids.values | length }} selected</span>
+                <button id="selected-count" class="count-badge" type="button" aria-pressed="false" title="Show only selected dependencies">{{ dependency_ids.values | length }} selected</button>
               </div>
 
               <div class="dependency-toolbar">
@@ -322,19 +305,30 @@
                 <input
                   id="dependency-search"
                   type="search"
-                  placeholder="Search dependencies by name, id, or description"
+                  placeholder="Find a dependency…"
                   autocomplete="off"
                   spellcheck="false"
                 />
                 <button id="clear-search" class="button button-quiet" type="button">
-                  Clear search
+                  Clear
                 </button>
               </div>
 
+              <div class="category-filter">
+                <label for="dependency-category">Browse</label>
+                <select id="dependency-category">
+                  <option value="">All categories</option>
+                  {% for group in metadata.dependencies.groups %}
+                    <option value="{{ group.name }}">{{ group.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
               <p id="dependency-empty" class="hint dependency-empty" role="status" hidden>
-                No dependencies match that search.
+                No dependencies match these filters.
               </p>
 
+              <div class="catalog-scroll">
               <div id="dependency-groups" class="dependency-groups">
                 {% for group in metadata.dependencies.groups %}
                   {% set group_slug = group.name | lower | replace(" ", "-") | replace("/", "-") %}
@@ -419,66 +413,19 @@
                   </section>
                 {% endfor %}
               </div>
+              </div>
             </fieldset>
-          </form>
 
-          <noscript>
-            <p class="notice">
-              JavaScript enables the live preview, dependency search, and
-              shortcuts. Without it, this form still submits the selected
-              options and downloads a ZIP archive.
-            </p>
-          </noscript>
-        </section>
-
-        <aside class="sidebar" aria-label="Generate and explore">
-          <section class="panel action-panel" aria-labelledby="generate-heading">
-            <div class="section-heading">
-              <h2 id="generate-heading">Generate</h2>
-              <p>Download the project with the options selected on the left.</p>
-            </div>
-
-            <div class="field">
-              <label for="output">Output</label>
-              <select id="output">
-                <option value="zip">ZIP archive (.zip)</option>
-                <option value="tgz">tar.gz archive (.tar.gz)</option>
-                <option value="pyproject">pyproject.toml</option>
-                <option value="requirements">requirements.txt</option>
-              </select>
-            </div>
-
-            <button
-              id="generate"
-              class="button button-primary button-block"
-              type="submit"
-              form="project-form"
-            >
-              Generate
-            </button>
-
-            <div class="button-row">
-              <button id="share" class="button button-secondary" type="button" aria-live="polite">
-                Share
-              </button>
-              <button id="reset" class="button button-quiet" type="button">Reset</button>
-            </div>
-
-            <p class="hint keyboard-hint">
-              Tip: press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Enter</kbd> to generate.
-            </p>
-          </section>
-        </aside>
-
+        </form>
         <section id="preview" class="panel preview-panel" aria-labelledby="preview-heading">
             <div class="preview-header">
               <div>
-                <h2 id="preview-heading">Explore</h2>
+                <span class="section-index">03 / INSPECT</span><h2 id="preview-heading">Explore</h2>
                 <p id="preview-status" class="subtle" aria-live="polite">
                   Loading project options…
                 </p>
               </div>
-              <span id="project-label" class="project-label">{{ name_value }}</span>
+              <span class="source-badge">LIVE SOURCE</span>
             </div>
 
             <div class="preview-body">
@@ -501,16 +448,29 @@
               </div>
             </div>
         </section>
+
       </div>
+      <noscript><p class="notice">Live preview and search need JavaScript. You can still select options and generate a ZIP.</p></noscript>
     </main>
 
-    <footer class="site-footer wrap">
-      <p>
-        Deterministic output. No accounts, no database, no server-side execution
-        of generated code.
-      </p>
+    <footer class="action-bar" aria-label="Project actions">
+      <div class="project-summary"><span class="project-indicator" aria-hidden="true"></span><span id="project-label" class="project-label">{{ name_value }}</span><span class="summary-detail">/ uv project</span></div>
+      <div class="secondary-actions">
+        <button id="reset" class="button button-quiet" type="button">Reset</button>
+        <button id="share" class="button button-secondary" type="button" aria-live="polite">Share</button>
+      </div>
+      <div class="download-actions">
+        <label for="output" class="visually-hidden">Output</label>
+        <select id="output">
+          <option value="zip">ZIP archive</option>
+          <option value="tgz">tar.gz archive</option>
+          <option value="pyproject">pyproject.toml</option>
+          <option value="requirements">requirements.txt</option>
+        </select>
+        <button id="generate" class="button button-primary" type="submit" form="project-form">Generate project</button>
+        <kbd class="generate-shortcut" title="Ctrl or Command + Enter">⌘ / Ctrl ↵</kbd>
+      </div>
     </footer>
-
     <script src="{{ url_for('static', path='app.js') }}" defer></script>
   </body>
 </html>

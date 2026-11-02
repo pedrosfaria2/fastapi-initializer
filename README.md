@@ -33,11 +33,11 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 ## UI layout
 
-The project form and generation actions occupy the first row. The Generate
-panel scrolls with the form and cannot overlap Explore. Explore is a full-width
-panel below, with its own scrollable file tree and code pane. The code pane takes
-the remaining width, long lines scroll horizontally without wrapping, and the
-panels stack on narrow screens.
+The desktop workspace places project settings, dependencies, and Explore side by
+side. Each pane scrolls independently; the download bar stays visible. Filter
+dependencies by search, category, or the selected count. Clear resets the filters;
+Reset also restores the project defaults. Optional metadata is under Advanced
+settings. Explore opens `pyproject.toml` and groups files by directory.
 
 ## Quick start
 
