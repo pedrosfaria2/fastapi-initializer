@@ -77,6 +77,10 @@ CASES: dict[str, ProjectSpec] = {
         name="contract-service",
         dependencies=frozenset({"sqlalchemy", "schemathesis"}),
     ),
+    "typescript": ProjectSpec(
+        name="typescript-service",
+        dependencies=frozenset({"typescript-client"}),
+    ),
     "auth": ProjectSpec(
         name="auth-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
@@ -174,6 +178,7 @@ CASES: dict[str, ProjectSpec] = {
                 "uploads",
                 "s3",
                 "schemathesis",
+                "typescript-client",
                 "testcontainers",
                 "docker",
                 "compose",

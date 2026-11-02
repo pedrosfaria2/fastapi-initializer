@@ -28,6 +28,12 @@ coverage.xml
 {% if spec.has("security-scan") %}
 sbom.json
 {% endif %}
+{% if spec.has("typescript-client") %}
+
+# TypeScript client
+client/node_modules/
+client/openapi.json
+{% endif %}
 
 # Local database files
 *.db

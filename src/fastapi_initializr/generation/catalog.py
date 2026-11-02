@@ -226,6 +226,22 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide_title="FastAPI CORS",
         reference="https://fastapi.tiangolo.com/tutorial/cors/",
     ),
+    "typescript-client": Dependency(
+        id="typescript-client",
+        name="TypeScript API client",
+        description="Typed fetch client generated from the app's OpenAPI schema.",
+        group="Web",
+        files=(
+            "client/package.json",
+            "client/tsconfig.json",
+            "client/export_openapi.py",
+            "client/src/api/client.ts",
+            "client/src/api/schema.d.ts",
+        ),
+        guide="https://openapi-ts.dev/",
+        guide_title="OpenAPI TypeScript",
+        reference="https://github.com/openapi-ts/openapi-typescript",
+    ),
     "graphql": Dependency(
         id="graphql",
         name="GraphQL with Strawberry",
@@ -594,6 +610,9 @@ HELP_STEPS: dict[str, tuple[str, ...]] = {
     "kubernetes": ("Apply manifests with `kubectl apply -f k8s/`.",),
     "pre-commit": ("Install hooks with `uv run pre-commit install`.",),
     "schemathesis": ("Run contract tests with `uv run pytest tests/test_contract.py`.",),
+    "typescript-client": (
+        "Generate types with `cd client && npm install && npm run generate:api`.",
+    ),
 }
 
 

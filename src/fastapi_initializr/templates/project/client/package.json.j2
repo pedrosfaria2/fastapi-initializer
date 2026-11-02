@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "generate:api": "uv run python export_openapi.py && openapi-typescript openapi.json -o src/api/schema.d.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "latest"
+  },
+  "devDependencies": {
+    "openapi-typescript": "latest",
+    "typescript": "latest"
+  },
+  "overrides": {
+    "@redocly/openapi-core": {
+      "minimatch": "latest"
+    }
+  }
+}

@@ -37,6 +37,24 @@ def test_minimal_project_contains_core_files() -> None:
     assert "tests/test_items.py" not in files
 
 
+def test_typescript_client_feature_renders_client_package() -> None:
+    files = render_project(
+        ProjectSpec(name="my-service", dependencies=frozenset({"typescript-client"}))
+    )
+
+    assert "client/package.json" in files
+    assert '"openapi-fetch": "latest"' in files["client/package.json"]
+    assert '"openapi-typescript": "latest"' in files["client/package.json"]
+    assert '"minimatch": "latest"' in files["client/package.json"]
+    assert "generate:api" in files["client/package.json"]
+    assert "from my_service.main import app" in files["client/export_openapi.py"]
+    assert "createClient<paths>" in files["client/src/api/client.ts"]
+    assert "export type paths" in files["client/src/api/schema.d.ts"]
+    assert "client/node_modules/" in files[".gitignore"]
+    assert "## TypeScript client" in files["README.md"]
+    assert "cd client && npm install && npm run generate:api" in files["HELP.md"]
+
+
 def test_schemathesis_feature_renders_contract_test() -> None:
     spec = ProjectSpec(
         name="my-service",

@@ -10,7 +10,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   clients and IDE integrations.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
   `requirements.txt` outputs.
-- Searchable catalog with 35 selectable features, docs links, compatibility
+- Searchable catalog with 36 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
 - Presets for API only, database + auth, Redis worker, and full stack.
 - Explore preview with server-side Pygments highlighting, language labels, file
@@ -28,6 +28,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   `--preset`.
 - Local JSON plugins can add catalog features without changing the generator.
 - Optional Schemathesis contract tests generated from the app's OpenAPI schema.
+- Optional TypeScript client generation from the same OpenAPI schema.
 - Generated projects pass Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
   generated code.
@@ -151,9 +152,10 @@ Parameters:
   schemas, service, and router; shared infrastructure stays in `core/`, `db/`,
   and `api/`.
 - `minimal` uses a small `main.py` and top-level `config.py`, `errors.py`,
-  `logging.py`, and `middleware.py`. It supports cors, observability, and
-  operations features; database, auth, workers, GraphQL, uploads, WebSockets,
-  and similar domain features require `layered` or `feature`.
+  `logging.py`, and `middleware.py`. It supports cors, observability,
+  operations, and the TypeScript client; database, auth, workers, GraphQL,
+  uploads, WebSockets, and similar domain features require `layered` or
+  `feature`.
 
 ## Dependency versions
 
@@ -237,6 +239,7 @@ features only, so select plugin features explicitly.
 | `rate-limit` | Web | SlowAPI limiter and example route | — |
 | `uploads` | Web | Local file uploads with size/type validation | — |
 | `graphql` | Web | Strawberry GraphQL query and mutation | — |
+| `typescript-client` | Web | Typed `openapi-fetch` client and generated types | — |
 | `s3` | Operations | S3-compatible storage backend | `uploads` |
 | `testcontainers` | Testing | PostgreSQL/Redis integration fixtures | `postgres`, `redis` |
 | `schemathesis` | Testing | OpenAPI property-based contract tests | — |

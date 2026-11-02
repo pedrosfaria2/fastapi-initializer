@@ -20,6 +20,7 @@ MINIMAL_FEATURES: frozenset[str] = frozenset(
         "makefile",
         "security-scan",
         "kubernetes",
+        "typescript-client",
     }
 )
 

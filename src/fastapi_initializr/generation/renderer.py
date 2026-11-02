@@ -116,6 +116,31 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("python-version.j2", ".python-version"),
     FileSpec("env.example.j2", ".env.example", _needs_env),
     FileSpec(
+        "client/package.json.j2",
+        "client/package.json",
+        _has("typescript-client"),
+    ),
+    FileSpec(
+        "client/tsconfig.json.j2",
+        "client/tsconfig.json",
+        _has("typescript-client"),
+    ),
+    FileSpec(
+        "client/export_openapi.py.j2",
+        "client/export_openapi.py",
+        _has("typescript-client"),
+    ),
+    FileSpec(
+        "client/src/api/client.ts.j2",
+        "client/src/api/client.ts",
+        _has("typescript-client"),
+    ),
+    FileSpec(
+        "client/src/api/schema.d.ts.j2",
+        "client/src/api/schema.d.ts",
+        _has("typescript-client"),
+    ),
+    FileSpec(
         "Dockerfile.j2",
         "Dockerfile",
         _has_any("docker", "compose", "arq", "celery"),

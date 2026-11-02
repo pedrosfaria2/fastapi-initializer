@@ -608,6 +608,24 @@ uv run alembic revision --autogenerate -m "describe the change"
 ```
 {% endif %}
 
+{% if spec.has("typescript-client") %}
+
+## TypeScript client
+
+`client/` generates TypeScript types from the app's OpenAPI schema and exposes a
+typed `openapi-fetch` client in `client/src/api/client.ts`.
+
+```sh
+cd client
+npm install
+npm run generate:api
+npm run typecheck
+```
+
+`client/export_openapi.py` writes the schema to `client/openapi.json`;
+`openapi-typescript` turns it into `client/src/api/schema.d.ts`.
+{% endif %}
+
 ## Project structure
 
 {% if spec.structure == "minimal" %}
@@ -621,6 +639,15 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── .python-version
 {% if needs_env %}
 ├── .env.example
+{% endif %}
+{% if spec.has("typescript-client") %}
+├── client/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── export_openapi.py
+│   └── src/api/
+│       ├── client.ts
+│       └── schema.d.ts
 {% endif %}
 └── src/{{ spec.package }}/
     ├── __init__.py
