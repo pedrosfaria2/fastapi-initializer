@@ -779,11 +779,15 @@ def test_oauth_feature_renders_provider_slice() -> None:
     assert "get_oauth_client" in oauth
 
     service = files["src/my_service/services/oauth.py"]
-    assert "fetch_provider_email" in service
+    assert "fetch_provider_identity" in service
     assert "get_or_create_oauth_user" in service
+    assert "OAuthAccountExistsError" in service
     assert "email_verified" in service
     assert 'client.get_json("user/emails"' in service
-    assert 'client.get_json("user"' not in service
+    assert 'client.get_json("user"' in service
+    assert 'profile.get("id")' in service
+    assert "oauth_provider" in files["src/my_service/models/user.py"]
+    assert "oauth_subject" in files["src/my_service/models/user.py"]
 
     config = files["src/my_service/core/config.py"]
     for setting in (

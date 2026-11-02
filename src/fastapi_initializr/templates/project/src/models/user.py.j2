@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from sqlalchemy import (
     Boolean,
     DateTime,
-{% if spec.has("email") %}
     Integer,
-{% endif %}
     String,
+{% if spec.has("oauth2") %}
+    UniqueConstraint,
+{% endif %}
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +30,18 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    token_version: Mapped[int] = mapped_column(Integer, default=0)
+{% if spec.has("oauth2") %}
+    oauth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    oauth_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    __table_args__ = (
+        UniqueConstraint(
+            "oauth_provider",
+            "oauth_subject",
+            name="uq_users_oauth_identity",
+        ),
+    )
+{% endif %}
 {% if spec.has("email") %}
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     password_reset_version: Mapped[int] = mapped_column(Integer, default=0)

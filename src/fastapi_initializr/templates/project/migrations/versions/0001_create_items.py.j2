@@ -1,4 +1,4 @@
-"""Create the items table."""
+"""Create the core tables."""
 
 from collections.abc import Sequence
 
@@ -12,7 +12,50 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Create the items table."""
+    """Create the core tables."""
+{% if spec.has("auth-jwt") %}
+    op.create_table(
+        "users",
+        sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
+        sa.Column("email", sa.String(length=320), nullable=False),
+        sa.Column("hashed_password", sa.String(length=255), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("token_version", sa.Integer(), nullable=False, server_default=sa.text("0")),
+{% if spec.has("oauth2") %}
+        sa.Column("oauth_provider", sa.String(length=20), nullable=True),
+        sa.Column("oauth_subject", sa.String(length=255), nullable=True),
+{% endif %}
+{% if spec.has("email") %}
+        sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "password_reset_version",
+            sa.Integer(),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
+        sa.Column(
+            "email_verification_version",
+            sa.Integer(),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
+{% endif %}
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+{% if spec.has("oauth2") %}
+        sa.UniqueConstraint(
+            "oauth_provider",
+            "oauth_subject",
+            name="uq_users_oauth_identity",
+        ),
+{% endif %}
+    )
+    op.create_index("ix_users_email", "users", ["email"], unique=True)
+{% endif %}
     op.create_table(
         "items",
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
@@ -23,5 +66,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop the items table."""
+    """Drop the core tables."""
     op.drop_table("items")
+{% if spec.has("auth-jwt") %}
+    op.drop_index("ix_users_email", table_name="users")
+    op.drop_table("users")
+{% endif %}

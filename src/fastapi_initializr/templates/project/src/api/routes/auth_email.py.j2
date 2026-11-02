@@ -1,10 +1,13 @@
 """Password reset and email verification endpoints."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
 from {{ spec.package }}.api.dependencies import SessionDep
 from {{ spec.package }}.core.email import EmailBackendDep
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import rate_limit
+{% endif %}
 {% set auth_email_module = layout.service("auth_email").rsplit(".", 1) %}
 from {{ spec.package }}.{{ auth_email_module[0] }} import {{ auth_email_module[1] }} as auth_email
 
@@ -49,22 +52,32 @@ class MessageResponse(BaseModel):
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
+{% if spec.has("rate-limit") %}
+@rate_limit("5/minute")
+{% endif %}
 async def request_password_reset(
+    request: Request,
     payload: PasswordResetRequest,
     session: SessionDep,
     backend: EmailBackendDep,
 ) -> MessageResponse:
     """Send a password reset message when the email is registered."""
+    _ = request
     await auth_email.request_password_reset(session, payload.email, backend)
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+{% if spec.has("rate-limit") %}
+@rate_limit("10/minute")
+{% endif %}
 async def reset_password(
+    request: Request,
     payload: PasswordResetConfirm,
     session: SessionDep,
 ) -> None:
     """Replace the password for a valid reset token."""
+    _ = request
     await auth_email.reset_password(session, payload.token, payload.new_password)
 
 
@@ -73,20 +86,30 @@ async def reset_password(
     response_model=MessageResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
+{% if spec.has("rate-limit") %}
+@rate_limit("5/minute")
+{% endif %}
 async def request_verification(
+    request: Request,
     payload: EmailVerificationRequest,
     session: SessionDep,
     backend: EmailBackendDep,
 ) -> MessageResponse:
     """Send a verification message when the email is registered."""
+    _ = request
     await auth_email.request_email_verification(session, payload.email, backend)
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
 
 @router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+{% if spec.has("rate-limit") %}
+@rate_limit("10/minute")
+{% endif %}
 async def verify_email(
+    request: Request,
     payload: EmailVerificationConfirm,
     session: SessionDep,
 ) -> None:
     """Mark the email behind a valid verification token as verified."""
+    _ = request
     await auth_email.verify_email(session, payload.token)

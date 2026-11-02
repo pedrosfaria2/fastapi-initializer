@@ -101,7 +101,7 @@ curl -X POST "http://127.0.0.1:8000/items" \
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `POST` | `/auth/register` | Register a user and return it with status `201`. |
+| `POST` | `/auth/register` | Create an account when the email is available; the `202` response is identical for new and existing emails. |
 | `POST` | `/auth/login` | Accept form fields `username` and `password` and return a bearer token. |
 | `GET` | `/auth/me` | Return the authenticated user or `401`. |
 
@@ -110,6 +110,10 @@ The application reads the JWT signing key from `SECRET_KEY`. The value in
 deploying. When `ENVIRONMENT=production`, startup rejects placeholder values and
 secrets shorter than 32 characters. `ACCESS_TOKEN_EXPIRE_MINUTES` controls the
 token lifetime and defaults to `30`.
+
+Registration returns the same message for new and existing emails. Access tokens
+are bound to the account token version, so a password reset invalidates older
+access tokens.
 
 Register a user, request a token, and call the protected route:
 
@@ -180,9 +184,11 @@ provider, then set the matching client id and secret.
 | `GET` | `/auth/oauth/{provider}/callback` | Exchange the provider callback for a bearer token. |
 
 Supported providers are `google` and `github`; any other value returns `400`.
-OAuth accounts are linked only by an email address the provider marks as
-verified; an unverified or missing email returns `400`. A new local account gets
-an unusable random password, so social-only accounts cannot use the password
+OAuth identity is stored by provider subject and a verified email. An unverified
+or missing email, subject, or provider id returns `400`. If the verified email
+already belongs to a password account, the callback returns `409` and does not
+link automatically; sign in with the local password instead. A new OAuth account
+gets an unusable random password, so social-only accounts cannot use the password
 login form until a password is set separately.
 
 ```sh
@@ -364,8 +370,9 @@ curl -X POST "http://127.0.0.1:8000/graphql" \
 
 The application installs a SlowAPI limiter as `app.state.limiter` with a default
 limit of 100 requests per minute. The `/limited` endpoint demonstrates a tighter
-limit of 5 requests per minute. Exceeding a limit returns `429` with a JSON
-`detail` field.
+limit of 5 requests per minute. Auth registration and email-request routes use
+5 requests per minute; login, reset, verification, and OAuth callbacks use
+10–20. Exceeding a limit returns `429` with a JSON `detail` field.
 {% endif %}
 {% if spec.has("uploads") %}
 

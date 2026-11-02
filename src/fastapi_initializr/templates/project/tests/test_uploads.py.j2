@@ -39,7 +39,7 @@ def _auth_headers(client: TestClient, email: str) -> dict[str, str]:
         "/auth/register",
         json={"email": email, "password": CREDENTIAL},
     )
-    assert registration.status_code == 201
+    assert registration.status_code == 202
     login = client.post(
         "/auth/login",
         data={"username": email, "password": CREDENTIAL},

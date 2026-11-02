@@ -29,14 +29,31 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 {% if spec.has_database %}
 from {{ spec.package }}.core.config import get_settings
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import limiter
+{% endif %}
 from {{ spec.package }}.main import create_app
 from {{ spec.package }}.{{ layout.models_import }} import Base
 {% elif spec.has("mongodb") %}
 from {{ spec.package }} import main as main_module
 from {{ spec.package }}.core import mongo
 from {{ spec.package }}.core.config import get_settings
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import limiter
+{% endif %}
 {% else %}
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import limiter
+{% endif %}
 from {{ spec.package }}.main import create_app
+{% endif %}
+{% if spec.has("rate-limit") %}
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter() -> None:
+    """Reset the shared limiter before each test."""
+    limiter.reset()
 {% endif %}
 
 {% if spec.has("mongodb") %}

@@ -1,6 +1,7 @@
 """User and authentication schemas."""
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer
 
@@ -43,3 +44,5 @@ class TokenPayload(BaseModel):
 
     sub: str
     exp: int
+    ver: int
+    typ: Literal["access"]

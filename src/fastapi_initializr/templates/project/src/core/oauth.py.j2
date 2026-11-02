@@ -1,6 +1,7 @@
 """OAuth2 and OIDC provider configuration."""
 
-from collections.abc import Callable, Mapping
+import inspect
+from collections.abc import Awaitable, Callable, Mapping
 from importlib import import_module
 from typing import Protocol, cast
 
@@ -18,9 +19,9 @@ GITHUB_API_BASE_URL = "https://api.github.com/"
 
 
 class _OAuthResponse(Protocol):
-    """A provider API response that exposes decoded JSON."""
+    """A provider API response that decodes JSON synchronously."""
 
-    async def json(self) -> object: ...
+    def json(self) -> object: ...
 
 
 class _AuthlibClient(Protocol):
@@ -68,7 +69,10 @@ class AuthlibOAuthClient:
     async def get_json(self, path: str, token: Mapping[str, object]) -> object:
         """Call a provider API path and decode its JSON response."""
         response = await self._client.get(path, token=token)
-        return await response.json()
+        result = response.json()
+        if inspect.isawaitable(result):
+            return await cast(Awaitable[object], result)
+        return result
 
 
 def _oauth_factory() -> Callable[[], _OAuthRegistry]:

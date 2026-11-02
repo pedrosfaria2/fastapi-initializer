@@ -1,14 +1,20 @@
 """Authentication endpoints."""
 
+import contextlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 from {{ spec.package }}.api.dependencies import SessionDep
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import rate_limit
+{% endif %}
 from {{ spec.package }}.{{ layout.schema("user") }} import Token, UserCreate, UserRead
 from {{ spec.package }}.{{ layout.service("auth") }} import (
     CurrentUser,
+    EmailAlreadyRegisteredError,
     authenticate_user,
     create_user,
     issue_access_token,
@@ -16,20 +22,46 @@ from {{ spec.package }}.{{ layout.service("auth") }} import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+REGISTRATION_MESSAGE = "If the email is available, the account is ready to sign in."
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(payload: UserCreate, session: SessionDep) -> UserRead:
-    """Register a new user."""
-    user = await create_user(session, payload)
-    return UserRead.model_validate(user)
+
+class RegistrationResponse(BaseModel):
+    """A registration response that does not reveal account existence."""
+
+    message: str
+
+
+@router.post(
+    "/register",
+    response_model=RegistrationResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+{% if spec.has("rate-limit") %}
+@rate_limit("5/minute")
+{% endif %}
+async def register(
+    request: Request,
+    payload: UserCreate,
+    session: SessionDep,
+) -> RegistrationResponse:
+    """Create an account when the email is available."""
+    _ = request
+    with contextlib.suppress(EmailAlreadyRegisteredError):
+        await create_user(session, payload)
+    return RegistrationResponse(message=REGISTRATION_MESSAGE)
 
 
 @router.post("/login", response_model=Token)
+{% if spec.has("rate-limit") %}
+@rate_limit("10/minute")
+{% endif %}
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: SessionDep,
 ) -> Token:
     """Exchange username and password for an access token."""
+    _ = request
     user = await authenticate_user(session, form_data.username, form_data.password)
     return Token(access_token=issue_access_token(user))
 

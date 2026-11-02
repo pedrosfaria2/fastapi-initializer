@@ -2,14 +2,33 @@
 
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import cast
 
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from {{ spec.package }}.core.errors import DomainError
 from {{ spec.package }}.core.oauth import OAuthClient
 from {{ spec.package }}.core.security import hash_password
 from {{ spec.package }}.{{ layout.model("user") }} import User
 from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
+
+
+@dataclass(frozen=True, slots=True)
+class OAuthIdentity:
+    """A stable provider identity and its verified email."""
+
+    subject: str
+    email: str
+
+
+class OAuthAccountExistsError(DomainError):
+    """Raised when a verified provider email already has a local account."""
+
+    status_code = 409
+    code = "oauth_link_required"
 
 
 def _as_mapping(value: object) -> Mapping[str, object] | None:
@@ -53,32 +72,70 @@ def _primary_verified_email(value: object) -> str | None:
     return None
 
 
-async def fetch_provider_email(
+async def fetch_provider_identity(
     provider: str,
     token: Mapping[str, object],
     client: OAuthClient,
-) -> str | None:
-    """Return the verified email address reported by the provider."""
+) -> OAuthIdentity | None:
+    """Return the provider subject and verified email, or None."""
     if provider == "google":
-        return _verified_email_from(token.get("userinfo"))
+        userinfo = _as_mapping(token.get("userinfo"))
+        if userinfo is None:
+            return None
+        subject = userinfo.get("sub")
+        email = _verified_email_from(userinfo)
+        if not isinstance(subject, str) or not subject or email is None:
+            return None
+        return OAuthIdentity(subject=subject, email=email)
     if provider == "github":
-        return _primary_verified_email(await client.get_json("user/emails", token))
+        profile = _as_mapping(await client.get_json("user", token))
+        if profile is None:
+            return None
+        subject = profile.get("id")
+        if not isinstance(subject, int) or isinstance(subject, bool):
+            return None
+        email = _primary_verified_email(await client.get_json("user/emails", token))
+        if email is None:
+            return None
+        return OAuthIdentity(subject=str(subject), email=email)
     return None
 
 
-async def get_or_create_oauth_user(session: AsyncSession, email: str) -> User:
-    """Return the user for an email, creating an unusable local password if needed."""
-    user = await get_user_by_email(session, email)
+async def get_or_create_oauth_user(
+    session: AsyncSession,
+    provider: str,
+    identity: OAuthIdentity,
+) -> User:
+    """Return the account for a provider subject, creating it when absent."""
+    statement = select(User).where(
+        User.oauth_provider == provider,
+        User.oauth_subject == identity.subject,
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
     if user is not None:
         return user
+    existing = await get_user_by_email(session, identity.email)
+    if existing is not None:
+        raise OAuthAccountExistsError(
+            "An account with this email already exists. Sign in with your password instead."
+        )
     user = User(
-        email=email,
+        email=identity.email,
         hashed_password=hash_password(secrets.token_urlsafe(32)),
+        oauth_provider=provider,
+        oauth_subject=identity.subject,
     )
 {% if spec.has("email") %}
     user.is_verified = True
 {% endif %}
     session.add(user)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise OAuthAccountExistsError(
+            "An account with this email already exists. Sign in with your password instead."
+        ) from exc
     await session.refresh(user)
     return user

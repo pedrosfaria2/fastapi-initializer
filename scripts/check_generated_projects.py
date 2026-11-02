@@ -79,6 +79,10 @@ CASES: dict[str, ProjectSpec] = {
         name="typescript-service",
         dependencies=frozenset({"typescript-client"}),
     ),
+    "migration": ProjectSpec(
+        name="migration-service",
+        dependencies=frozenset({"sqlalchemy", "alembic", "auth-jwt", "email", "oauth2"}),
+    ),
     "auth": ProjectSpec(
         name="auth-service",
         dependencies=frozenset({"sqlalchemy", "auth-jwt"}),
@@ -201,6 +205,12 @@ GATES: tuple[tuple[str, ...], ...] = (
     ("uv", "run", "pytest", "-q"),
 )
 
+_MIGRATION_CHECK = """import sqlite3; connection=sqlite3.connect('app.db'); tables={row[0] for row in connection.execute("select name from sqlite_master where type='table'")}; assert {'alembic_version', 'items', 'users'} <= tables, tables; columns={row[1] for row in connection.execute('pragma table_info(users)')}; assert {'token_version', 'oauth_provider', 'oauth_subject', 'is_verified', 'password_reset_version', 'email_verification_version'} <= columns, columns"""
+MIGRATION_GATES: tuple[tuple[str, ...], ...] = (
+    ("uv", "run", "alembic", "upgrade", "head"),
+    ("uv", "run", "python", "-c", _MIGRATION_CHECK),
+)
+
 
 def run(command: tuple[str, ...], cwd: Path) -> None:
     """Run one command and fail immediately on error."""
@@ -231,6 +241,9 @@ def check_case(name: str, spec: ProjectSpec, root: Path) -> None:
     project_dir = extract_project(spec, root / name)
     for command in GATES:
         run(command, project_dir)
+    if name == "migration":
+        for command in MIGRATION_GATES:
+            run(command, project_dir)
     print(f"===== {name}: PASS", flush=True)
 
 

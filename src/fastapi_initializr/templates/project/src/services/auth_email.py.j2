@@ -1,5 +1,9 @@
 """Password reset and email verification service functions."""
 
+from typing import Any, cast
+
+from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from {{ spec.package }}.core.email import (
@@ -13,6 +17,7 @@ from {{ spec.package }}.core.security import (
     decode_action_token,
     hash_password,
 )
+from {{ spec.package }}.{{ layout.model("user") }} import User
 from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
 
 RESET_TOKEN_PURPOSE = "password_reset"  # noqa: S105 - token purpose, not a credential
@@ -56,11 +61,20 @@ async def reset_password(
     action = decode_action_token(token, RESET_TOKEN_PURPOSE)
     if action is None:
         raise InvalidActionTokenError("Invalid or expired password reset token")
-    user = await get_user_by_email(session, action.subject)
-    if user is None or user.password_reset_version != action.version:
+    result = await session.execute(
+        update(User)
+        .where(
+            User.email == action.subject,
+            User.password_reset_version == action.version,
+        )
+        .values(
+            hashed_password=hash_password(new_password),
+            password_reset_version=User.password_reset_version + 1,
+            token_version=User.token_version + 1,
+        )
+    )
+    if cast(CursorResult[Any], result).rowcount != 1:
         raise InvalidActionTokenError("Invalid or expired password reset token")
-    user.hashed_password = hash_password(new_password)
-    user.password_reset_version += 1
     await session.commit()
 
 
@@ -88,9 +102,17 @@ async def verify_email(session: AsyncSession, token: str) -> None:
     action = decode_action_token(token, EMAIL_VERIFY_PURPOSE)
     if action is None:
         raise InvalidActionTokenError("Invalid or expired email verification token")
-    user = await get_user_by_email(session, action.subject)
-    if user is None or user.email_verification_version != action.version:
+    result = await session.execute(
+        update(User)
+        .where(
+            User.email == action.subject,
+            User.email_verification_version == action.version,
+        )
+        .values(
+            is_verified=True,
+            email_verification_version=User.email_verification_version + 1,
+        )
+    )
+    if cast(CursorResult[Any], result).rowcount != 1:
         raise InvalidActionTokenError("Invalid or expired email verification token")
-    user.is_verified = True
-    user.email_verification_version += 1
     await session.commit()

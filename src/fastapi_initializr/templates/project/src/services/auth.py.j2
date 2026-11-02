@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from {{ spec.package }}.api.dependencies import SessionDep
@@ -19,6 +20,8 @@ from {{ spec.package }}.{{ layout.model("user") }} import User
 from {{ spec.package }}.{{ layout.schema("user") }} import UserCreate
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+_DUMMY_PASSWORD_HASH = hash_password("unused-password-for-timing")
 
 
 class EmailAlreadyRegisteredError(DomainError):
@@ -52,7 +55,11 @@ async def create_user(session: AsyncSession, payload: UserCreate) -> User:
         hashed_password=hash_password(payload.password),
     )
     session.add(user)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise EmailAlreadyRegisteredError("Email is already registered") from exc
     await session.refresh(user)
     return user
 
@@ -60,7 +67,11 @@ async def create_user(session: AsyncSession, payload: UserCreate) -> User:
 async def authenticate_user(session: AsyncSession, email: str, password: str) -> User:
     """Return the user matching the credentials or raise a domain error."""
     user = await get_user_by_email(session, email)
-    if user is None or not verify_password(password, user.hashed_password):
+    if user is None:
+        # Verify a dummy hash so missing and wrong-password attempts take similar time.
+        verify_password(password, _DUMMY_PASSWORD_HASH)
+        raise InvalidCredentialsError("Incorrect email or password")
+    if not verify_password(password, user.hashed_password):
         raise InvalidCredentialsError("Incorrect email or password")
     if not user.is_active:
         raise InvalidCredentialsError("Inactive user")
@@ -81,7 +92,7 @@ async def get_current_user(
     if token_payload is None:
         raise credentials_error
     user = await get_user_by_email(session, token_payload.sub)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or token_payload.ver != user.token_version:
         raise credentials_error
     return user
 
@@ -91,4 +102,4 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def issue_access_token(user: User) -> str:
     """Create an access token for a user."""
-    return create_access_token(user.email)
+    return create_access_token(user.email, user.token_version)

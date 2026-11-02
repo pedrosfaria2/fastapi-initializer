@@ -12,9 +12,12 @@ from {{ spec.package }}.core.oauth import (
     ensure_supported_provider,
     get_oauth_client,
 )
+{% if spec.has("rate-limit") %}
+from {{ spec.package }}.core.rate_limit import rate_limit
+{% endif %}
 {% if layout.is_feature %}
 from {{ spec.package }}.{{ layout.service("oauth") }} import (
-    fetch_provider_email,
+    fetch_provider_identity,
     get_or_create_oauth_user,
 )
 from {{ spec.package }}.{{ layout.schema("user") }} import Token
@@ -23,7 +26,7 @@ from {{ spec.package }}.{{ layout.service("auth") }} import issue_access_token
 from {{ spec.package }}.{{ layout.schema("user") }} import Token
 from {{ spec.package }}.{{ layout.service("auth") }} import issue_access_token
 from {{ spec.package }}.{{ layout.service("oauth") }} import (
-    fetch_provider_email,
+    fetch_provider_identity,
     get_or_create_oauth_user,
 )
 {% endif %}
@@ -39,6 +42,9 @@ def _callback_url(provider: str) -> str:
 
 
 @router.get("/{provider}/login")
+{% if spec.has("rate-limit") %}
+@rate_limit("20/minute")
+{% endif %}
 async def login(provider: str, request: Request, client: OAuthClientDep) -> Response:
     """Redirect the browser to the provider authorization page."""
     ensure_supported_provider(provider)
@@ -46,6 +52,9 @@ async def login(provider: str, request: Request, client: OAuthClientDep) -> Resp
 
 
 @router.get("/{provider}/callback", response_model=Token)
+{% if spec.has("rate-limit") %}
+@rate_limit("20/minute")
+{% endif %}
 async def callback(
     provider: str,
     request: Request,
@@ -55,11 +64,11 @@ async def callback(
     """Exchange a provider callback for a local access token."""
     ensure_supported_provider(provider)
     token = await client.authorize_access_token(request)
-    email = await fetch_provider_email(provider, token, client)
-    if email is None:
+    identity = await fetch_provider_identity(provider, token, client)
+    if identity is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provider did not return a verified email address",
+            detail="Provider did not return a verified identity",
         )
-    user = await get_or_create_oauth_user(session, email)
+    user = await get_or_create_oauth_user(session, provider, identity)
     return Token(access_token=issue_access_token(user))

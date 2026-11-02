@@ -455,12 +455,18 @@ src/fastapi_initializr/
   paths are rejected.
 - Archives are built from a fixed relative manifest with a constant timestamp.
   Path traversal, absolute paths, and symlinks are rejected.
-- Generated auth links OAuth accounts only by a provider-verified email and uses
-  single-use password-reset and email-verification tokens.
+- Generated auth links OAuth accounts by the provider subject and a verified
+  email, and refuses to merge an existing password account automatically.
+- Access tokens are typed and bound to an account token version; password reset
+  revokes older access tokens. Password-reset and verification tokens are typed
+  separately and consumed atomically, so concurrent reuse succeeds once.
+- Registration returns the same response for new and existing emails. Auth
+  endpoints are rate-limited when the rate-limit feature is selected.
 - Generated uploads require a bearer token, and storage keys are scoped to the
   owning user. Production startup rejects placeholder or short JWT secrets.
-- Project updates stage and back up every changed file, roll back on failure,
-  and recover an interrupted update on the next run.
+- The initial Alembic migration creates the selected users, OAuth columns, and
+  items tables. Project updates stage and back up every changed file, roll back
+  on failure, and recover an interrupted update on the next run.
 - Generated projects are never executed inside a web request.
 - Generation is bounded by file-count, preview-byte, and archive-size limits.
 

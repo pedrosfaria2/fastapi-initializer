@@ -13,7 +13,11 @@ def test_limiter_is_configured(client: TestClient) -> None:
     assert isinstance(cast(Limiter, app.state.limiter), Limiter)
 
 
-def test_limited_route_responds(client: TestClient) -> None:
-    response = client.get("/limited")
+def test_limited_route_is_rate_limited(client: TestClient) -> None:
+    app = cast(FastAPI, client.app)
+    cast(Limiter, app.state.limiter).reset()
 
-    assert response.status_code == 200
+    responses = [client.get("/limited") for _ in range(6)]
+
+    assert [response.status_code for response in responses[:5]] == [200] * 5
+    assert responses[5].status_code == 429

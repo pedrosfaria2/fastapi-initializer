@@ -1,11 +1,36 @@
 """Shared rate limiter configuration."""
 
+from collections.abc import Callable
+from typing import ParamSpec, Protocol, TypeVar, cast
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
+_Params = ParamSpec("_Params")
+_Return = TypeVar("_Return")
+
+
+class _Limiter(Protocol):
+    """The typed subset of SlowAPI's limiter used by this project."""
+
+    def limit(
+        self,
+        limit_value: str,
+    ) -> Callable[[Callable[_Params, _Return]], Callable[_Params, _Return]]: ...
+
+
+_LIMITER = cast(_Limiter, limiter)
+
+
+def rate_limit(
+    limit: str,
+) -> Callable[[Callable[_Params, _Return]], Callable[_Params, _Return]]:
+    """Return a typed SlowAPI limit decorator."""
+    return _LIMITER.limit(limit)
 
 
 async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:

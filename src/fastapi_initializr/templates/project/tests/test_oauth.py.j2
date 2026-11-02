@@ -1,15 +1,19 @@
 """OAuth login endpoint contract with a fake provider."""
 
+import asyncio
 from collections.abc import Mapping
 from typing import cast
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from {{ spec.package }}.core.oauth import get_oauth_client
+from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.core.oauth import AuthlibOAuthClient, get_oauth_client
+from {{ spec.package }}.main import create_app
 
 EMAIL = "user@example.com"
 NEW_EMAIL = "social@example.com"
@@ -24,11 +28,15 @@ class FakeOAuthClient:
         self,
         email: str,
         *,
+        subject: str = "provider-subject",
+        github_id: int = 12345,
         google_verified: bool | str = True,
         github_verified: bool = True,
         public_email: str | None = None,
     ) -> None:
         self.email = email
+        self.subject = subject
+        self.github_id = github_id
         self.google_verified = google_verified
         self.github_verified = github_verified
         self.public_email = public_email
@@ -46,6 +54,7 @@ class FakeOAuthClient:
         _ = request
         return {
             "userinfo": {
+                "sub": self.subject,
                 "email": self.email,
                 "email_verified": self.google_verified,
             },
@@ -57,22 +66,49 @@ class FakeOAuthClient:
         _ = token
         self.requested_paths.append(path)
         if path == "user":
-            return {"email": self.public_email or self.email}
+            return {"id": self.github_id, "email": self.public_email or self.email}
         if path == "user/emails":
             return [{"email": self.email, "primary": True, "verified": self.github_verified}]
         raise AssertionError(f"unexpected provider path: {path}")
+
+
+class SyncResponse:
+    """An Authlib-like response whose ``json`` method is synchronous."""
+
+    def json(self) -> object:
+        return {"id": 12345}
+
+
+class SyncAuthlibClient:
+    """The subset of Authlib used by the adapter, returning sync JSON."""
+
+    async def authorize_redirect(self, request: Request, redirect_uri: str) -> Response:
+        _ = (request, redirect_uri)
+        raise AssertionError("not used")
+
+    async def authorize_access_token(self, request: Request) -> Mapping[str, object]:
+        _ = request
+        raise AssertionError("not used")
+
+    async def get(self, path: str, *, token: Mapping[str, object]) -> SyncResponse:
+        _ = (path, token)
+        return SyncResponse()
 
 
 def _install_fake(
     client: TestClient,
     email: str,
     *,
+    subject: str = "provider-subject",
+    github_id: int = 12345,
     google_verified: bool | str = True,
     github_verified: bool = True,
     public_email: str | None = None,
 ) -> FakeOAuthClient:
     fake = FakeOAuthClient(
         email,
+        subject=subject,
+        github_id=github_id,
         google_verified=google_verified,
         github_verified=github_verified,
         public_email=public_email,
@@ -82,13 +118,12 @@ def _install_fake(
     return fake
 
 
-def _register(client: TestClient, email: str = EMAIL) -> int:
+def _register(client: TestClient, email: str = EMAIL) -> None:
     response = client.post(
         "/auth/register",
         json={"email": email, "password": CREDENTIAL},
     )
-    assert response.status_code == 201
-    return cast(int, response.json()["id"])
+    assert response.status_code == 202
 
 
 def _callback(client: TestClient, provider: str = "google") -> str:
@@ -132,7 +167,7 @@ def test_callback_returns_token(client: TestClient, provider: str) -> None:
     token = _callback(client, provider)
 
     assert token
-    expected_paths = ["user/emails"] if provider == "github" else []
+    expected_paths = ["user", "user/emails"] if provider == "github" else []
     assert fake.requested_paths == expected_paths
 
 
@@ -162,13 +197,24 @@ def test_google_accepts_a_string_verified_claim(client: TestClient) -> None:
     assert _me(client, token)["email"] == EMAIL
 
 
+def test_google_requires_a_subject(client: TestClient) -> None:
+    _install_fake(client, EMAIL, subject="")
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_github_ignores_the_unverified_profile_email(client: TestClient) -> None:
     fake = _install_fake(client, NEW_EMAIL, public_email=EMAIL)
 
     token = _callback(client, "github")
 
     assert _me(client, token)["email"] == NEW_EMAIL
-    assert fake.requested_paths == ["user/emails"]
+    assert fake.requested_paths == ["user", "user/emails"]
 
 
 def test_unverified_email_does_not_link_an_existing_account(client: TestClient) -> None:
@@ -183,6 +229,33 @@ def test_unverified_email_does_not_link_an_existing_account(client: TestClient) 
     assert response.status_code == 400
 
 
+def test_verified_email_does_not_link_an_existing_password_account(client: TestClient) -> None:
+    _register(client)
+    _install_fake(client, EMAIL)
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 409
+    login = client.post(
+        "/auth/login",
+        data={"username": EMAIL, "password": CREDENTIAL},
+    )
+    assert login.status_code == 200
+
+
+def test_callback_reuses_an_oauth_account(client: TestClient) -> None:
+    _install_fake(client, NEW_EMAIL)
+
+    first = _me(client, _callback(client))
+    second = _me(client, _callback(client))
+
+    assert first["id"] == second["id"]
+    assert first["email"] == NEW_EMAIL
+
+
 def test_callback_creates_new_user(client: TestClient) -> None:
     _install_fake(client, NEW_EMAIL)
 
@@ -193,22 +266,6 @@ def test_callback_creates_new_user(client: TestClient) -> None:
 {% if spec.has("email") %}
     assert body["is_verified"] is True
 {% endif %}
-
-
-def test_callback_reuses_existing_user(client: TestClient) -> None:
-    user_id = _register(client)
-    _install_fake(client, EMAIL)
-
-    token = _callback(client)
-    body = _me(client, token)
-
-    assert body["id"] == user_id
-    assert body["email"] == EMAIL
-    login = client.post(
-        "/auth/login",
-        data={"username": EMAIL, "password": CREDENTIAL},
-    )
-    assert login.status_code == 200
 
 
 @pytest.mark.parametrize("endpoint", ["login", "callback"])
@@ -226,7 +283,7 @@ def test_unknown_provider_returns_bad_request(
     assert response.status_code == 400
 
 
-def test_callback_without_email_returns_bad_request(client: TestClient) -> None:
+def test_callback_without_identity_returns_bad_request(client: TestClient) -> None:
     _install_fake(client, "")
 
     response = client.get(
@@ -235,3 +292,24 @@ def test_callback_without_email_returns_bad_request(client: TestClient) -> None:
     )
 
     assert response.status_code == 400
+
+
+def test_authlib_adapter_accepts_sync_json() -> None:
+    adapter = AuthlibOAuthClient(SyncAuthlibClient())
+
+    assert asyncio.run(adapter.get_json("user", {})) == {"id": 12345}
+
+
+def test_oauth_session_cookie_is_secure_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "x" * 32)
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+    finally:
+        get_settings.cache_clear()
+
+    session = next(item for item in app.user_middleware if item.cls is SessionMiddleware)
+    assert session.kwargs["https_only"] is True
