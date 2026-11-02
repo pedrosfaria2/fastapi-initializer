@@ -45,6 +45,7 @@ class Settings(BaseSettings):
 {% endif %}
 {% if spec.has("email") %}
     email_backend: str = "console"
+    require_verified_email: bool = False
     smtp_host: str = "localhost"
     smtp_port: int = 587
     smtp_username: str = ""

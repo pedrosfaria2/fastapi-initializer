@@ -62,6 +62,9 @@ async def register(
     responses={
         400: {"description": "Malformed request body"},
         401: {"description": "Invalid credentials"},
+{% if spec.has("email") %}
+        403: {"description": "Email address is not verified"},
+{% endif %}
         429: {"description": "Rate limit exceeded"},
     },
     dependencies=[Depends(auth_rate_limit("login", LOGIN_LIMIT))],

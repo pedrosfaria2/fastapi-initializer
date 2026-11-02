@@ -92,6 +92,22 @@ def test_login_returns_token(client: TestClient) -> None:
     assert _login(client)
 
 
+def test_email_case_variants_share_one_account(client: TestClient) -> None:
+    _register(client, "User@Example.COM")
+
+    assert _login(client, EMAIL)
+    duplicate = client.post(
+        "/auth/register",
+        json={"email": "USER@example.com", "password": DIFFERENT_CREDENTIAL},
+    )
+    assert duplicate.status_code == 202
+    wrong = client.post(
+        "/auth/login",
+        data={"username": EMAIL, "password": DIFFERENT_CREDENTIAL},
+    )
+    assert wrong.status_code == 401
+
+
 def test_wrong_password_returns_unauthorized(client: TestClient) -> None:
     _register(client)
 
@@ -237,6 +253,28 @@ def _action_token(client: TestClient, path: str) -> str:
     return next(
         line.removeprefix("Token: ") for line in body.splitlines() if line.startswith("Token: ")
     )
+
+
+def test_require_verified_email_blocks_login_until_verified(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _register(client)
+    monkeypatch.setenv("REQUIRE_VERIFIED_EMAIL", "true")
+    get_settings.cache_clear()
+    try:
+        blocked = client.post(
+            "/auth/login",
+            data={"username": EMAIL, "password": CREDENTIAL},
+        )
+        assert blocked.status_code == 403
+
+        token = _action_token(client, "/auth/request-verification")
+        verified = client.post("/auth/verify-email", json={"token": token})
+        assert verified.status_code == 204
+        assert _login(client)
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.mark.parametrize(

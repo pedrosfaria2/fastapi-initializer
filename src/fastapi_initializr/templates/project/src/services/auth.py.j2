@@ -9,6 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from {{ spec.package }}.api.dependencies import SessionDep
+{% if spec.has("email") %}
+from {{ spec.package }}.core.config import get_settings
+{% endif %}
 from {{ spec.package }}.core.errors import DomainError
 from {{ spec.package }}.core.security import (
     create_access_token,
@@ -17,7 +20,7 @@ from {{ spec.package }}.core.security import (
     verify_password,
 )
 from {{ spec.package }}.{{ layout.model("user") }} import User
-from {{ spec.package }}.{{ layout.schema("user") }} import UserCreate
+from {{ spec.package }}.{{ layout.schema("user") }} import UserCreate, normalize_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -38,9 +41,22 @@ class InvalidCredentialsError(DomainError):
     code = "invalid_credentials"
 
 
+{% if spec.has("email") %}
+class UnverifiedEmailError(DomainError):
+    """Raised when the account email has not been verified."""
+
+    status_code = 403
+    code = "email_not_verified"
+
+
+{% endif %}
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
-    """Return the user with the given email, if it exists."""
-    statement = select(User).where(User.email == email)
+    """Return the user with the given canonical email, if it exists."""
+    try:
+        normalized = normalize_email(email)
+    except ValueError:
+        return None
+    statement = select(User).where(User.email == normalized)
     result = await session.execute(statement)
     return result.scalar_one_or_none()
 
@@ -75,6 +91,10 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
         raise InvalidCredentialsError("Incorrect email or password")
     if not user.is_active:
         raise InvalidCredentialsError("Inactive user")
+{% if spec.has("email") %}
+    if get_settings().require_verified_email and not user.is_verified:
+        raise UnverifiedEmailError("Email address is not verified")
+{% endif %}
     return user
 
 

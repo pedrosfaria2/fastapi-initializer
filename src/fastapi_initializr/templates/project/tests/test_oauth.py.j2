@@ -263,6 +263,39 @@ def test_verified_email_does_not_link_an_existing_password_account(client: TestC
     assert login.status_code == 200
 
 
+def test_verified_email_case_variant_does_not_link_existing_account(
+    client: TestClient,
+) -> None:
+    _register(client, "Victim@Example.COM")
+    _install_fake(client, "victim@example.com")
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "not-an-email",
+        f"{'a' * 400}@example.com",
+        "crlf@example.com\r\nBcc: attacker@example.com",
+    ],
+)
+def test_provider_email_must_be_valid(client: TestClient, email: str) -> None:
+    _install_fake(client, email)
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_callback_reuses_an_oauth_account(client: TestClient) -> None:
     _install_fake(client, NEW_EMAIL)
 

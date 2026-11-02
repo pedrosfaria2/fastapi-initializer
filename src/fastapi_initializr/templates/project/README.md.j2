@@ -172,6 +172,13 @@ minutes; email verification tokens expire after 24 hours. Both token types are
 single-use: a successful request advances a per-account version, so replaying
 the same token returns `401`.
 
+Email addresses are canonicalized with `email-validator` and lowercased before
+storage and lookup, so `User@Example.com` and `user@example.com` are the same
+account. Reserved test domains such as `.test` remain accepted for local
+development. Set `REQUIRE_VERIFIED_EMAIL=true` to reject password login with
+`403` until the address is verified; the default is `false` so verification
+stays informational unless the deployment opts in.
+
 Request a reset and submit the token shown by the console backend:
 
 ```sh

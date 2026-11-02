@@ -13,6 +13,7 @@ from {{ spec.package }}.core.errors import DomainError
 from {{ spec.package }}.core.oauth import OAuthClient
 from {{ spec.package }}.core.security import hash_password
 from {{ spec.package }}.{{ layout.model("user") }} import User
+from {{ spec.package }}.{{ layout.schema("user") }} import normalize_email
 from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
 
 
@@ -42,9 +43,12 @@ def _email_from(value: object) -> str | None:
     if record is None:
         return None
     email = record.get("email")
-    if isinstance(email, str) and email:
-        return email
-    return None
+    if not isinstance(email, str) or not email:
+        return None
+    try:
+        return normalize_email(email)
+    except ValueError:
+        return None
 
 
 def _verified_email_from(value: object) -> str | None:

@@ -14,19 +14,19 @@ from pydantic import (
 )
 
 
-def _validate_email(value: str) -> str:
-    """Validate the address syntax while allowing reserved test domains."""
+def normalize_email(value: str) -> str:
+    """Return the canonical lowercase form of an email address."""
     try:
-        validate_email(value, check_deliverability=False, test_environment=True)
+        validated = validate_email(value, check_deliverability=False, test_environment=True)
     except EmailNotValidError as error:
         raise ValueError(str(error)) from error
-    return value
+    return validated.normalized.lower()
 
 
 EmailAddress = Annotated[
     str,
     WithJsonSchema({"type": "string", "format": "email"}),
-    AfterValidator(_validate_email),
+    AfterValidator(normalize_email),
 ]
 
 
