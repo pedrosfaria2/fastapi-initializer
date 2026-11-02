@@ -8,8 +8,8 @@ from jwt import InvalidTokenError
 from pwdlib import PasswordHash
 from pydantic import ValidationError
 
-from {{ spec.package }}.core.config import get_settings
-from {{ spec.package }}.schemas.user import TokenPayload
+from {{ spec.package }}.{{ layout.config_import }} import get_settings
+from {{ spec.package }}.{{ layout.schema("user") }} import TokenPayload
 
 _PASSWORD_HASH = PasswordHash.recommended()
 

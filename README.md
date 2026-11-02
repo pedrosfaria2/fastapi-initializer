@@ -19,6 +19,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 - Generated projects with `src/` layout, FastAPI app factory, health/readiness,
   request IDs, gzip compression, logging, error handlers, tests, and a
   selected-feature `HELP.md` checklist.
+- Selectable minimal, layered, or feature-based project structures.
 - Optional SQLAlchemy or SQLModel CRUD, Alembic, PostgreSQL or MySQL/MariaDB,
   ARQ or Celery workers, JWT authentication, CORS, Docker/Compose, GitHub
   Actions, pre-commit, and coverage.
@@ -134,11 +135,24 @@ Parameters:
 - `description`: project summary.
 - `version`: project version, `MAJOR.MINOR.PATCH` (default `0.1.0`).
 - `author`: optional author name.
+- `structure`: `minimal`, `layered` (default), or `feature`.
 - `python` / `pythonVersion`: `3.11`, `3.12`, `3.13`, or `3.14`.
 - `preset`: `custom` (default), `api`, `db-auth`, `worker`, or `full`.
 - `baseDir`: root directory inside the archive (defaults to `name`).
 - `applicationName`: OpenAPI application title (defaults to `name`).
 - `dependencies`: repeated ids or a comma-separated list.
+
+## Project structures
+
+- `layered` keeps the familiar `api/`, `core/`, `db/`, `models/`, `schemas/`,
+  and `services/` packages.
+- `feature` groups each domain under `features/<name>/` with its models,
+  schemas, service, and router; shared infrastructure stays in `core/`, `db/`,
+  and `api/`.
+- `minimal` uses a small `main.py` and top-level `config.py`, `errors.py`,
+  `logging.py`, and `middleware.py`. It supports cors, observability, and
+  operations features; database, auth, workers, GraphQL, uploads, WebSockets,
+  and similar domain features require `layered` or `feature`.
 
 ## Dependency versions
 
@@ -275,6 +289,10 @@ my-service/
     └── test_auth.py
 ```
 
+With `structure=feature`, domain modules live under
+`src/<package>/features/<name>/`. With `structure=minimal`, the app uses
+top-level `config.py`, `errors.py`, `logging.py`, and `middleware.py`.
+
 Run it:
 
 ```sh
@@ -315,6 +333,7 @@ Generate a project directory without the web server:
 
 ```sh
 uv run fastapi-initializr new my-service \
+  --structure feature \
   --preset db-auth \
   --dependency redis \
   --output .

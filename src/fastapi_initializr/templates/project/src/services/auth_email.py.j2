@@ -13,7 +13,7 @@ from {{ spec.package }}.core.security import (
     decode_action_token,
     hash_password,
 )
-from {{ spec.package }}.services.auth import get_user_by_email
+from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
 
 RESET_TOKEN_PURPOSE = "password_reset"  # noqa: S105 - token purpose, not a credential
 EMAIL_VERIFY_PURPOSE = "email_verify"

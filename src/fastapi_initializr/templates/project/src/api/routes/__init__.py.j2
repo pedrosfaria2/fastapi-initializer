@@ -2,63 +2,11 @@
 
 from fastapi import APIRouter
 
-from {{ spec.package }}.api.routes import (
-{% if spec.has("auth-jwt") %}
-    auth,
-{% endif %}
-{% if spec.has("email") %}
-    auth_email,
-{% endif %}
-{% if spec.has("mongodb") %}
-    documents,
-{% endif %}
-    health,
-{% if spec.has_database %}
-    items,
-{% endif %}
-{% if spec.has("rate-limit") %}
-    limited,
-{% endif %}
-{% if spec.has("oauth2") %}
-    oauth,
-{% endif %}
-{% if spec.has("static-templates") %}
-    pages,
-{% endif %}
-{% if spec.has("uploads") %}
-    uploads,
-{% endif %}
-{% if spec.has("websockets") %}
-    ws,
-{% endif %}
-)
+{% for router in routers %}
+from {{ spec.package }}.{{ router.module }} import router as {{ router.alias }}
+{% endfor %}
 
 api_router = APIRouter()
-api_router.include_router(health.router)
-{% if spec.has("mongodb") %}
-api_router.include_router(documents.router)
-{% endif %}
-{% if spec.has_database %}
-api_router.include_router(items.router)
-{% endif %}
-{% if spec.has("auth-jwt") %}
-api_router.include_router(auth.router)
-{% endif %}
-{% if spec.has("email") %}
-api_router.include_router(auth_email.router)
-{% endif %}
-{% if spec.has("rate-limit") %}
-api_router.include_router(limited.router)
-{% endif %}
-{% if spec.has("oauth2") %}
-api_router.include_router(oauth.router)
-{% endif %}
-{% if spec.has("static-templates") %}
-api_router.include_router(pages.router)
-{% endif %}
-{% if spec.has("websockets") %}
-api_router.include_router(ws.router)
-{% endif %}
-{% if spec.has("uploads") %}
-api_router.include_router(uploads.router)
-{% endif %}
+{% for router in routers %}
+api_router.include_router({{ router.alias }})
+{% endfor %}

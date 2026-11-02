@@ -2,8 +2,8 @@
 
 from fastapi.testclient import TestClient
 
-from {{ spec.package }}.core.config import Settings
-from {{ spec.package }}.core.observability import init_sentry
+from {{ spec.package }}.{{ layout.config_import }} import Settings
+from {{ spec.package }}.{{ layout.observability_import }} import init_sentry
 
 
 def test_sentry_init_is_disabled_without_dsn() -> None:

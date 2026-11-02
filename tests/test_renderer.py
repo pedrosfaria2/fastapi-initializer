@@ -37,6 +37,54 @@ def test_minimal_project_contains_core_files() -> None:
     assert "tests/test_items.py" not in files
 
 
+def test_minimal_structure_keeps_a_small_module_set() -> None:
+    files = render_project(ProjectSpec(name="my-service", structure="minimal"))
+
+    assert "src/my_service/main.py" in files
+    assert "src/my_service/config.py" in files
+    assert "src/my_service/errors.py" in files
+    assert "src/my_service/logging.py" in files
+    assert "src/my_service/middleware.py" in files
+    assert "src/my_service/api/routes/health.py" not in files
+    assert "src/my_service/core/config.py" not in files
+    assert "def health() -> dict[str, str]:" in files["src/my_service/main.py"]
+    assert "├── config.py" in files["README.md"]
+    assert "├── api/" not in files["README.md"]
+
+
+def test_feature_structure_moves_domain_modules() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        structure="feature",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "cors"}),
+    )
+
+    files = render_project(spec)
+
+    assert "src/my_service/features/items/router.py" in files
+    assert "src/my_service/features/items/models.py" in files
+    assert "src/my_service/features/items/schemas.py" in files
+    assert "src/my_service/features/items/service.py" in files
+    assert "src/my_service/features/auth/router.py" in files
+    assert "src/my_service/features/auth/models.py" in files
+    assert "src/my_service/api/router.py" in files
+    assert "src/my_service/models_registry.py" in files
+    assert "src/my_service/models/item.py" not in files
+    assert "src/my_service/api/routes/items.py" not in files
+    assert "src/my_service/schemas/item.py" not in files
+    assert "src/my_service/services/items.py" not in files
+    assert "from my_service.api.router import api_router" in files["src/my_service/main.py"]
+    assert "features.items.router" in files["src/my_service/api/router.py"]
+    assert "features.auth.models" in files["src/my_service/models_registry.py"]
+
+
+def test_feature_structure_keeps_layered_files_by_default() -> None:
+    files = render_project(ProjectSpec(name="my-service"))
+
+    assert "src/my_service/api/routes/health.py" in files
+    assert not any(path.startswith("src/my_service/features/") for path in files)
+
+
 def test_application_name_escapes_python_string_content() -> None:
     spec = ProjectSpec(
         name="my-service",
@@ -556,10 +604,10 @@ def test_auth_feature_renders_security_slice() -> None:
     assert "from my_service.models.item import Item" in files["src/my_service/models/__init__.py"]
     assert "from my_service.models.user import User" in files["src/my_service/models/__init__.py"]
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "    auth," in routes
-    assert "    health," in routes
-    assert "    items," in routes
-    assert "api_router.include_router(auth.router)" in routes
+    assert "from my_service.api.routes.auth import router as auth_router" in routes
+    assert "from my_service.api.routes.health import router as health_router" in routes
+    assert "from my_service.api.routes.items import router as items_router" in routes
+    assert "api_router.include_router(auth_router)" in routes
     assert (
         'OAuth2PasswordBearer(tokenUrl="/auth/login")' in files["src/my_service/services/auth.py"]
     )
@@ -608,8 +656,8 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
     assert "tests/test_email_auth.py" in files
 
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "    auth_email," in routes
-    assert "api_router.include_router(auth_email.router)" in routes
+    assert "from my_service.api.routes.auth_email import router as auth_email_router" in routes
+    assert "api_router.include_router(auth_email_router)" in routes
 
     config = files["src/my_service/core/config.py"]
     for setting in (
@@ -680,8 +728,8 @@ def test_oauth_feature_renders_provider_slice() -> None:
     assert "tests/test_oauth.py" in files
 
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "    oauth," in routes
-    assert "api_router.include_router(oauth.router)" in routes
+    assert "from my_service.api.routes.oauth import router as oauth_router" in routes
+    assert "api_router.include_router(oauth_router)" in routes
 
     oauth = files["src/my_service/core/oauth.py"]
     assert "OAuthClient" in oauth
@@ -984,8 +1032,8 @@ def test_uploads_feature_renders_storage_and_routes() -> None:
     assert ".env.example" in files
 
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "    uploads," in routes
-    assert "api_router.include_router(uploads.router)" in routes
+    assert "from my_service.api.routes.uploads import router as uploads_router" in routes
+    assert "api_router.include_router(uploads_router)" in routes
 
     storage = files["src/my_service/core/storage.py"]
     assert "class Storage(Protocol):" in storage
@@ -1150,8 +1198,8 @@ def test_mongodb_feature_renders_beanie_slice() -> None:
     assert '"Document"' in models
 
     routes = files["src/my_service/api/routes/__init__.py"]
-    assert "    documents," in routes
-    assert "api_router.include_router(documents.router)" in routes
+    assert "from my_service.api.routes.documents import router as documents_router" in routes
+    assert "api_router.include_router(documents_router)" in routes
 
     main = files["src/my_service/main.py"]
     assert "from my_service.core.mongo import close_mongo, init_mongo" in main

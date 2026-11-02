@@ -6,8 +6,8 @@ from beanie import init_beanie  # pyright: ignore[reportUnknownVariableType]  # 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.asynchronous.database import AsyncDatabase
 
-from {{ spec.package }}.core.config import get_settings
-from {{ spec.package }}.models.document import Document
+from {{ spec.package }}.{{ layout.config_import }} import get_settings
+from {{ spec.package }}.{{ layout.model("document") }} import Document
 
 _client: AsyncIOMotorClient[Any] | None = None
 

@@ -84,6 +84,12 @@ def test_metadata_exposes_spring_style_capabilities() -> None:
     assert catalog.links["compatibility"].templated is True
     assert catalog.type.default == "uv-project"
     assert catalog.language.default == "python"
+    assert catalog.structure.default == "layered"
+    assert [value.id for value in catalog.structure.values] == [
+        "minimal",
+        "layered",
+        "feature",
+    ]
     assert catalog.project.version.default == "0.1.0"
     assert catalog.project.author.default == ""
     assert catalog.base_dir.default == ""

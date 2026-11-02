@@ -5,7 +5,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from {{ spec.package }}.api.dependencies import SessionDep
 from {{ spec.package }}.core.email import EmailBackendDep
-from {{ spec.package }}.services import auth_email
+{% set auth_email_module = layout.service("auth_email").rsplit(".", 1) %}
+from {{ spec.package }}.{{ auth_email_module[0] }} import {{ auth_email_module[1] }} as auth_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

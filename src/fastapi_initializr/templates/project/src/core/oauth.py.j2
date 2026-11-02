@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from starlette.requests import Request
 from starlette.responses import Response
 
-from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.{{ layout.config_import }} import get_settings
 
 PROVIDERS: frozenset[str] = frozenset({"google", "github"})
 GOOGLE_METADATA_URL = "https://accounts.google.com/.well-known/openid-configuration"

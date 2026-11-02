@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from fastapi_initializr.generation.constants import (
     DEFAULT_PYTHON_VERSION,
+    DEFAULT_STRUCTURE,
+    STRUCTURES,
     SUPPORTED_PYTHON_VERSIONS,
 )
 from fastapi_initializr.schemas.metadata import (
@@ -689,7 +691,8 @@ PRESETS: tuple[Preset, ...] = (
 PRESETS_BY_ID: dict[str, Preset] = {preset.id: preset for preset in PRESETS}
 
 _GENERATION_PARAMS = (
-    "name,package,description,version,author,python,preset,baseDir,applicationName,dependencies"
+    "name,package,description,version,author,structure,python,preset,"
+    "baseDir,applicationName,dependencies"
 )
 
 
@@ -773,6 +776,16 @@ def metadata() -> Metadata:
         language=SelectOption(
             default="python",
             values=[SelectValue(id="python", name="Python")],
+        ),
+        structure=SelectOption(
+            default=DEFAULT_STRUCTURE,
+            values=[
+                SelectValue(
+                    id=structure,
+                    name=structure.capitalize(),
+                )
+                for structure in STRUCTURES
+            ],
         ),
         python=SelectOption(
             default=DEFAULT_PYTHON_VERSION,

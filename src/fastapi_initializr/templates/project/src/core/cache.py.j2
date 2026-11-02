@@ -2,7 +2,7 @@
 
 from redis.asyncio import Redis
 
-from {{ spec.package }}.core.config import get_settings
+from {{ spec.package }}.{{ layout.config_import }} import get_settings
 
 
 def create_redis_client() -> Redis:

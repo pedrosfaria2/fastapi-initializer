@@ -9,7 +9,7 @@ from fastapi import HTTPException, Request
 from pydantic import ValidationError
 from starlette.datastructures import FormData
 
-from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
+from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION, DEFAULT_STRUCTURE
 from fastapi_initializr.generation.spec import ProjectSpec
 
 ALLOWED_KEYS = frozenset(
@@ -19,6 +19,7 @@ ALLOWED_KEYS = frozenset(
         "description",
         "version",
         "author",
+        "structure",
         "python",
         "pythonVersion",
         "preset",
@@ -79,6 +80,7 @@ def build_spec(
     description: str,
     version: str,
     author: str,
+    structure: str,
     python: str,
     preset: str,
     base_dir: str | None,
@@ -93,6 +95,7 @@ def build_spec(
             description=description,
             version=version,
             author=author,
+            structure=structure,
             python=python,
             preset=preset,
             base_dir=base_dir,
@@ -133,6 +136,7 @@ def _spec_from_form(form: FormData) -> ProjectSpec:
         description=_form_value(form, "description", "A FastAPI service"),
         version=_form_value(form, "version", "0.1.0"),
         author=_form_value(form, "author"),
+        structure=_form_value(form, "structure", DEFAULT_STRUCTURE),
         python=resolve_python(python, python_version),
         preset=_form_value(form, "preset", "custom"),
         base_dir=_form_value(form, "baseDir") or _form_value(form, "base_dir") or None,

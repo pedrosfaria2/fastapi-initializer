@@ -1,4 +1,77 @@
 """Application entry point."""
+{% if spec.structure == "minimal" %}
+
+from fastapi import FastAPI
+{% if spec.has("cors") %}
+from fastapi.middleware.cors import CORSMiddleware
+{% endif %}
+from fastapi.middleware.gzip import GZipMiddleware
+{% if spec.has("prometheus") %}
+from prometheus_fastapi_instrumentator import Instrumentator
+{% endif %}
+
+from {{ spec.package }} import __version__
+from {{ spec.package }}.config import get_settings
+from {{ spec.package }}.errors import install_error_handlers
+from {{ spec.package }}.logging import configure_logging
+from {{ spec.package }}.middleware import RequestIdMiddleware
+{% if spec.has("sentry") %}
+from {{ spec.package }}.observability import init_sentry
+{% endif %}
+{% if spec.has("opentelemetry") %}
+from {{ spec.package }}.tracing import configure_tracing
+{% endif %}
+
+
+def create_app() -> FastAPI:
+    """Build the FastAPI application."""
+    settings = get_settings()
+    configure_logging(settings.log_level)
+{% if spec.has("sentry") %}
+    init_sentry(settings)
+{% endif %}
+    app = FastAPI(title=settings.app_name, version=__version__)
+{% if spec.has("opentelemetry") %}
+    configure_tracing(app, settings)
+{% endif %}
+{% if spec.has("cors") %}
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+{% endif %}
+    app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+    install_error_handlers(app)
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Return service liveness."""
+        return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready() -> dict[str, str]:
+        """Return service readiness."""
+        return {"status": "ready"}
+
+{% if spec.has("prometheus") %}
+    Instrumentator().instrument(app).expose(app)
+{% endif %}
+    return app
+
+
+app = create_app()
+
+
+def main() -> None:
+    """Run the development server."""
+    import uvicorn
+
+    uvicorn.run("{{ spec.package }}.main:app", host="127.0.0.1", port=8000)
+{% else %}
 {% if spec.has_database or spec.has("mongodb") or spec.has("static-templates") %}
 
 {% if spec.has_database or spec.has("mongodb") %}
@@ -36,7 +109,7 @@ from strawberry.fastapi import GraphQLRouter
 {% endif %}
 
 from {{ spec.package }} import __version__
-from {{ spec.package }}.api.routes import api_router
+from {{ spec.package }}.{{ layout.router_import }} import api_router
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.errors import install_error_handlers
 from {{ spec.package }}.core.logging import configure_logging
@@ -57,7 +130,7 @@ from {{ spec.package }}.core.tracing import configure_tracing
 from {{ spec.package }}.db.session import SessionFactory, create_session_factory
 {% endif %}
 {% if spec.has("graphql") %}
-from {{ spec.package }}.graphql.schema import schema
+from {{ spec.package }}.{{ layout.graphql_import }} import schema
 {% endif %}
 
 
@@ -150,3 +223,4 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run("{{ spec.package }}.main:app", host="127.0.0.1", port=8000)
+{% endif %}

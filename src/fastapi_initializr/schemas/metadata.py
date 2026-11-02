@@ -117,6 +117,7 @@ class Metadata(BaseModel):
     links: dict[str, Link]
     type: ActionOption
     language: SelectOption
+    structure: SelectOption
     python: SelectOption
     preset: PresetOption
     base_dir: TextOption = Field(serialization_alias="baseDir")

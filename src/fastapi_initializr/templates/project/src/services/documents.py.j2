@@ -3,8 +3,8 @@
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from {{ spec.package }}.models.document import Document
-from {{ spec.package }}.schemas.document import DocumentCreate, DocumentUpdate
+from {{ spec.package }}.{{ layout.model("document") }} import Document
+from {{ spec.package }}.{{ layout.schema("document") }} import DocumentCreate, DocumentUpdate
 
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 50

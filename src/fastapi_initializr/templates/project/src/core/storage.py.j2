@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from fastapi import Depends
 
-from {{ spec.package }}.core.config import Settings, get_settings
+from {{ spec.package }}.{{ layout.config_import }} import Settings, get_settings
 
 _SAFE_SUFFIX = re.compile(r"\.[a-z0-9]{1,10}")
 

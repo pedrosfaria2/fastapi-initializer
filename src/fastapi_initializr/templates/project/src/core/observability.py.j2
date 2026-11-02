@@ -2,7 +2,7 @@
 
 import sentry_sdk
 
-from {{ spec.package }}.core.config import Settings
+from {{ spec.package }}.{{ layout.config_import }} import Settings
 
 
 def init_sentry(settings: Settings) -> None:

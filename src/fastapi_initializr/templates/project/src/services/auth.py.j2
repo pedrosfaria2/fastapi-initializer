@@ -15,8 +15,8 @@ from {{ spec.package }}.core.security import (
     hash_password,
     verify_password,
 )
-from {{ spec.package }}.models.user import User
-from {{ spec.package }}.schemas.user import UserCreate
+from {{ spec.package }}.{{ layout.model("user") }} import User
+from {{ spec.package }}.{{ layout.schema("user") }} import UserCreate
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 

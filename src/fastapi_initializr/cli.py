@@ -22,6 +22,7 @@ from fastapi_initializr.generation.catalog import (
 )
 from fastapi_initializr.generation.constants import (
     DEFAULT_PYTHON_VERSION,
+    DEFAULT_STRUCTURE,
     SUPPORTED_PYTHON_VERSIONS,
 )
 from fastapi_initializr.generation.manifest import MANIFEST_NAME
@@ -42,6 +43,7 @@ _NEW_OPTIONS = (
     "--description",
     "--version",
     "--author",
+    "--structure",
     "--python",
     "--preset",
     "--base-dir",
@@ -68,6 +70,7 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--description", default="A FastAPI service")
     parser.add_argument("--version", default="0.1.0", help="Project version.")
     parser.add_argument("--author", default="", help="Optional author name.")
+    parser.add_argument("--structure", default=DEFAULT_STRUCTURE)
     parser.add_argument("--python", default=DEFAULT_PYTHON_VERSION)
     parser.add_argument(
         "--preset",
@@ -291,6 +294,7 @@ def _new(args: argparse.Namespace) -> int:
             description=args.description,
             version=args.version,
             author=args.author,
+            structure=args.structure,
             python=args.python,
             preset=args.preset,
             base_dir=args.base_dir,

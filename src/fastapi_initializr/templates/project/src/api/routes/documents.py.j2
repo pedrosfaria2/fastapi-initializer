@@ -4,12 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from {{ spec.package }}.schemas.document import (
+from {{ spec.package }}.{{ layout.schema("document") }} import (
     DocumentCreate,
     DocumentRead,
     DocumentUpdate,
 )
-from {{ spec.package }}.services.documents import (
+from {{ spec.package }}.{{ layout.service("documents") }} import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
     DocumentNotFoundError,

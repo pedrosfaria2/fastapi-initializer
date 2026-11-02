@@ -5,8 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 
 from {{ spec.package }}.api.dependencies import SessionDep
-from {{ spec.package }}.schemas.item import ItemCreate, ItemRead, ItemUpdate
-from {{ spec.package }}.services.items import (
+from {{ spec.package }}.{{ layout.schema("item") }} import ItemCreate, ItemRead, ItemUpdate
+from {{ spec.package }}.{{ layout.service("items") }} import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
     ItemNotFoundError,

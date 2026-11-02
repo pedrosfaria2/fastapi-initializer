@@ -12,6 +12,7 @@ from fastapi_initializr.api.params import (
     resolve_python,
     spec_from_request,
 )
+from fastapi_initializr.generation.constants import DEFAULT_STRUCTURE
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.requirements import render_requirements
@@ -33,6 +34,7 @@ def query_spec(
     description: Annotated[str, Query()] = "A FastAPI service",
     version: Annotated[str, Query()] = "0.1.0",
     author: Annotated[str, Query()] = "",
+    structure: Annotated[str, Query()] = DEFAULT_STRUCTURE,
     python: Annotated[str | None, Query()] = None,
     python_version: Annotated[str | None, Query(alias="pythonVersion")] = None,
     preset: Annotated[str, Query()] = "custom",
@@ -48,6 +50,7 @@ def query_spec(
         description=description,
         version=version,
         author=author,
+        structure=structure,
         python=resolve_python(python, python_version),
         preset=preset,
         base_dir=base_dir,

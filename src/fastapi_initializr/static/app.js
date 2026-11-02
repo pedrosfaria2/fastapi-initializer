@@ -10,6 +10,7 @@
   const baseDirInput = document.getElementById("base-dir");
   const applicationNameInput = document.getElementById("application-name");
   const pythonSelect = document.getElementById("python");
+  const structureSelect = document.getElementById("structure");
   const presetSelect = document.getElementById("preset");
   const dependencyGroups = document.getElementById("dependency-groups");
   const dependencySearch = document.getElementById("dependency-search");
@@ -42,6 +43,7 @@
     !baseDirInput ||
     !applicationNameInput ||
     !pythonSelect ||
+    !structureSelect ||
     !presetSelect ||
     !dependencyGroups ||
     !dependencySearch ||
@@ -218,6 +220,7 @@
       version: versionInput.value,
       author: authorInput.value,
       python: pythonSelect.value,
+      structure: structureSelect.value,
       preset: presetSelect.value,
       baseDir: baseDirInput.value,
       applicationName: applicationNameInput.value,
@@ -233,6 +236,7 @@
     params.set("version", state.version);
     params.set("author", state.author);
     params.set("python", state.python);
+    params.set("structure", state.structure);
     params.set("preset", state.preset);
     params.set("baseDir", state.baseDir);
     params.set("applicationName", state.applicationName);
@@ -751,6 +755,11 @@
       initialSelectValue(params, ["python", "pythonVersion"], metadata.python),
     );
     renderSelect(
+      structureSelect,
+      metadata.structure.values,
+      initialSelectValue(params, ["structure"], metadata.structure),
+    );
+    renderSelect(
       presetSelect,
       metadata.preset.values,
       initialSelectValue(params, ["preset"], metadata.preset),
@@ -1150,6 +1159,7 @@
     baseDirInput.value = metadata.baseDir.default;
     applicationNameInput.value = metadata.applicationName.default;
     pythonSelect.value = metadata.python.default;
+    structureSelect.value = metadata.structure.default;
     presetSelect.value = metadata.preset.default;
     packageTouched = false;
     dependencySearch.value = "";
@@ -1343,6 +1353,8 @@
         !payload.project ||
         !payload.python ||
         !Array.isArray(payload.python.values) ||
+        !payload.structure ||
+        !Array.isArray(payload.structure.values) ||
         !payload.preset ||
         !Array.isArray(payload.preset.values) ||
         !payload.dependencies ||

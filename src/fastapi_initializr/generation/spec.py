@@ -21,6 +21,9 @@ from fastapi_initializr.generation.catalog import PRESETS, PRESETS_BY_ID
 from fastapi_initializr.generation.compatibility import selection_issues
 from fastapi_initializr.generation.constants import (
     DEFAULT_PYTHON_VERSION,
+    DEFAULT_STRUCTURE,
+    MINIMAL_FEATURES,
+    STRUCTURES,
     SUPPORTED_PYTHON_VERSIONS,
 )
 
@@ -62,6 +65,7 @@ class ProjectSpec(BaseModel):
     description: str = Field(default="A FastAPI service", max_length=200)
     version: str = Field(default="0.1.0", max_length=32)
     author: str = Field(default="", max_length=100)
+    structure: str = Field(default=DEFAULT_STRUCTURE)
     python: str = Field(
         default=DEFAULT_PYTHON_VERSION,
         validation_alias=AliasChoices("python", "pythonVersion"),
@@ -155,7 +159,9 @@ class ProjectSpec(BaseModel):
         if self.python not in SUPPORTED_PYTHON_VERSIONS:
             allowed = ", ".join(SUPPORTED_PYTHON_VERSIONS)
             raise ValueError(f"Python version must be one of: {allowed}.")
-
+        if self.structure not in STRUCTURES:
+            allowed = ", ".join(STRUCTURES)
+            raise ValueError(f"Structure must be one of: {allowed}.")
         preset = PRESETS_BY_ID.get(self.preset)
         if preset is None:
             allowed = ", ".join(p.id for p in PRESETS)
@@ -164,6 +170,14 @@ class ProjectSpec(BaseModel):
         dependencies = self.dependencies | frozenset(preset.dependencies)
         if dependencies != self.dependencies:
             object.__setattr__(self, "dependencies", dependencies)
+
+        if self.structure == "minimal":
+            unsupported = sorted(self.dependencies - MINIMAL_FEATURES)
+            if unsupported:
+                raise ValueError(
+                    "Minimal structure does not support: "
+                    f"{', '.join(unsupported)}. Choose layered or feature."
+                )
 
         issues = selection_issues(self.dependencies)
         if issues:

@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from {{ spec.package }}.core.oauth import OAuthClient
 from {{ spec.package }}.core.security import hash_password
-from {{ spec.package }}.models.user import User
-from {{ spec.package }}.services.auth import get_user_by_email
+from {{ spec.package }}.{{ layout.model("user") }} import User
+from {{ spec.package }}.{{ layout.service("auth") }} import get_user_by_email
 
 
 def _as_mapping(value: object) -> Mapping[str, object] | None:

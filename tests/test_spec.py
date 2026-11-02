@@ -194,6 +194,25 @@ def test_rejects_non_ascii_digits_in_version(version: str) -> None:
         ProjectSpec(name="my-service", version=version)
 
 
+def test_accepts_supported_structures() -> None:
+    assert ProjectSpec(name="my-service", structure="layered").structure == "layered"
+    assert ProjectSpec(name="my-service", structure="feature").structure == "feature"
+
+
+def test_rejects_unknown_structure() -> None:
+    with pytest.raises(ValidationError, match="Structure"):
+        ProjectSpec(name="my-service", structure="unknown")
+
+
+def test_minimal_structure_rejects_domain_features() -> None:
+    with pytest.raises(ValidationError, match="Minimal structure does not support"):
+        ProjectSpec(
+            name="my-service",
+            structure="minimal",
+            dependencies=frozenset({"sqlalchemy"}),
+        )
+
+
 def test_accepts_camel_case_aliases() -> None:
     spec = ProjectSpec.model_validate(
         {

@@ -36,6 +36,7 @@ def test_manifest_describes_every_other_file() -> None:
 def test_manifest_records_the_resolved_spec() -> None:
     spec = ProjectSpec(
         name="my-service",
+        structure="feature",
         preset="db-auth",
         base_dir="custom-root",
         application_name="My API",
@@ -46,6 +47,7 @@ def test_manifest_records_the_resolved_spec() -> None:
     assert manifest["spec"]["package"] == "my_service"
     assert manifest["spec"]["base_dir"] == "custom-root"
     assert manifest["spec"]["application_name"] == "My API"
+    assert manifest["spec"]["structure"] == "feature"
     assert manifest["spec"]["preset"] == "db-auth"
     assert manifest["spec"]["dependencies"] == sorted(spec.dependencies)
 

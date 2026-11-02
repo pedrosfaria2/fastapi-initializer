@@ -56,6 +56,14 @@
       {% set python_value = metadata.python.default %}
     {% endif %}
 
+    {% set requested_structure = query.get("structure") %}
+    {% set structure_ids = metadata.structure.values | map(attribute="id") | list %}
+    {% if requested_structure and requested_structure in structure_ids %}
+      {% set structure_value = requested_structure %}
+    {% else %}
+      {% set structure_value = metadata.structure.default %}
+    {% endif %}
+
     {% set requested_preset = query.get("preset") %}
     {% set preset_ids = metadata.preset.values | map(attribute="id") | list %}
     {% if requested_preset and requested_preset in preset_ids %}
@@ -230,6 +238,16 @@
                     {% endfor %}
                   </select>
                   <p id="python-hint" class="hint">Python interpreter used by uv.</p>
+                </div>
+
+                <div class="field">
+                  <label for="structure">Project structure</label>
+                  <select id="structure" name="structure" aria-describedby="structure-hint">
+                    {% for value in metadata.structure.values %}
+                      <option value="{{ value.id }}"{% if value.id == structure_value %} selected{% endif %}>{{ value.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <p id="structure-hint" class="hint">Minimal, layered, or feature-based modules.</p>
                 </div>
 
                 <div class="field">

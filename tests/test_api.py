@@ -340,6 +340,7 @@ def test_index_server_renders_options_without_javascript(client: TestClient) -> 
     assert 'id="reset"' in response.text
     assert 'id="output"' in response.text
     assert 'value="requirements"' in response.text
+    assert 'id="structure"' in response.text
     assert 'id="preset"' in response.text
     assert 'name="preset"' in response.text
 
@@ -356,6 +357,7 @@ def test_metadata_supports_versioned_media_type(client: TestClient) -> None:
     assert "starter.zip" in body["links"]
     assert "requirements.txt" in body["links"]
     assert body["type"]["default"] == "uv-project"
+    assert body["structure"]["default"] == "layered"
     assert "fastapi" not in body
 
 
@@ -376,6 +378,54 @@ def test_dependencies_returns_resolved_coordinates(client: TestClient) -> None:
         "aiosqlite",
     ]
     assert "fastapiVersion" not in body
+
+
+def test_generate_accepts_feature_structure(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "structure": "feature", "dependencies": ["sqlalchemy"]},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        names = archive.namelist()
+    assert "my-service/src/my_service/features/items/router.py" in names
+    assert "my-service/src/my_service/api/routes/items.py" not in names
+
+
+def test_generate_accepts_minimal_structure(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "structure": "minimal"},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        names = archive.namelist()
+    assert "my-service/src/my_service/main.py" in names
+    assert "my-service/src/my_service/config.py" in names
+    assert "my-service/src/my_service/api/routes/health.py" not in names
+
+
+def test_minimal_structure_rejects_domain_features(client: TestClient) -> None:
+    response = client.get(
+        "/api/generate",
+        params={"name": "my-service", "structure": "minimal", "dependencies": ["sqlalchemy"]},
+    )
+
+    assert response.status_code == 422
+    assert "Minimal structure does not support" in str(response.json())
+
+
+def test_post_generate_accepts_structure(client: TestClient) -> None:
+    response = client.post(
+        "/api/generate",
+        json={"name": "my-service", "structure": "feature"},
+    )
+
+    assert response.status_code == 200
+    with ZipFile(io.BytesIO(response.content)) as archive:
+        assert "my-service/src/my_service/features/health/router.py" in archive.namelist()
 
 
 def test_compatibility_reports_a_compatible_selection(client: TestClient) -> None:

@@ -11,7 +11,7 @@ import aiosmtplib
 from fastapi import Depends
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from {{ spec.package }}.core.config import Settings, get_settings
+from {{ spec.package }}.{{ layout.config_import }} import Settings, get_settings
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates" / "email"
 

@@ -35,6 +35,56 @@ def test_new_writes_a_project(tmp_path: Path) -> None:
     assert (project / "src" / "my_service" / "db" / "session.py").exists()
 
 
+def test_new_accepts_feature_structure(tmp_path: Path) -> None:
+    assert (
+        main(
+            [
+                "new",
+                "my-service",
+                "--structure",
+                "feature",
+                "--dependency",
+                "sqlalchemy",
+                "--output",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+
+    project = tmp_path / "my-service"
+    assert (project / "src" / "my_service" / "features" / "items" / "router.py").exists()
+    assert (project / "src" / "my_service" / "api" / "router.py").exists()
+    assert not (project / "src" / "my_service" / "api" / "routes" / "items.py").exists()
+
+
+def test_new_accepts_minimal_structure(tmp_path: Path) -> None:
+    assert main(["new", "my-service", "--structure", "minimal", "--output", str(tmp_path)]) == 0
+
+    project = tmp_path / "my-service"
+    assert (project / "src" / "my_service" / "config.py").exists()
+    assert not (project / "src" / "my_service" / "api").exists()
+    assert not (project / "src" / "my_service" / "core").exists()
+
+
+def test_new_minimal_rejects_domain_features(tmp_path: Path) -> None:
+    exit_code = main(
+        [
+            "new",
+            "my-service",
+            "--structure",
+            "minimal",
+            "--dependency",
+            "sqlalchemy",
+            "--output",
+            str(tmp_path),
+        ]
+    )
+
+    assert exit_code == 2
+    assert not (tmp_path / "my-service").exists()
+
+
 def test_new_rejects_existing_target_without_force(tmp_path: Path) -> None:
     target = tmp_path / "my-service"
     target.mkdir()

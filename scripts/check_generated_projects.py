@@ -15,6 +15,15 @@ from fastapi_initializr.services.generator import generate_project
 
 CASES: dict[str, ProjectSpec] = {
     "minimal": ProjectSpec(name="minimal-service"),
+    "minimal-core": ProjectSpec(
+        name="minimal-core-service",
+        structure="minimal",
+    ),
+    "minimal-ops": ProjectSpec(
+        name="minimal-ops-service",
+        structure="minimal",
+        dependencies=frozenset({"cors", "sentry", "prometheus", "opentelemetry", "docker", "ci"}),
+    ),
     "unicode": ProjectSpec(
         name="unicode-service",
         application_name="Service 🚀",
@@ -38,6 +47,30 @@ CASES: dict[str, ProjectSpec] = {
     "sqlmodel-mysql": ProjectSpec(
         name="sqlmodel-mysql-service",
         dependencies=frozenset({"sqlmodel", "mysql", "alembic"}),
+    ),
+    "feature": ProjectSpec(
+        name="feature-service",
+        structure="feature",
+        dependencies=frozenset(
+            {
+                "sqlalchemy",
+                "alembic",
+                "auth-jwt",
+                "email",
+                "oauth2",
+                "cors",
+                "static-templates",
+                "websockets",
+                "graphql",
+                "rate-limit",
+                "uploads",
+            }
+        ),
+    ),
+    "feature-mongo": ProjectSpec(
+        name="feature-mongo-service",
+        structure="feature",
+        dependencies=frozenset({"mongodb", "cors"}),
     ),
     "auth": ProjectSpec(
         name="auth-service",

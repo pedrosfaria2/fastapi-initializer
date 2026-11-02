@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from {{ spec.package }}.api.dependencies import SessionDep
-from {{ spec.package }}.schemas.user import Token, UserCreate, UserRead
-from {{ spec.package }}.services.auth import (
+from {{ spec.package }}.{{ layout.schema("user") }} import Token, UserCreate, UserRead
+from {{ spec.package }}.{{ layout.service("auth") }} import (
     CurrentUser,
     authenticate_user,
     create_user,

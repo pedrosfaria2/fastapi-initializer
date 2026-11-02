@@ -2,24 +2,16 @@
 
 {% if spec.has_database %}
 from {{ spec.package }}.db.base import Base
-from {{ spec.package }}.models.item import Item
 {% endif %}
-{% if spec.has("auth-jwt") %}
-from {{ spec.package }}.models.user import User
-{% endif %}
-{% if spec.has("mongodb") %}
-from {{ spec.package }}.models.document import Document
-{% endif %}
+{% for model in model_imports %}
+from {{ spec.package }}.{{ model.module }} import {{ model.name }}
+{% endfor %}
 
 __all__ = [
 {% if spec.has_database %}
     "Base",
-    "Item",
 {% endif %}
-{% if spec.has("auth-jwt") %}
-    "User",
-{% endif %}
-{% if spec.has("mongodb") %}
-    "Document",
-{% endif %}
+{% for name in model_names %}
+    "{{ name }}",
+{% endfor %}
 ]

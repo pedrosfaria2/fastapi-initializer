@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 {% if spec.has_database %}
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.main import create_app
-from {{ spec.package }}.models import Base
+from {{ spec.package }}.{{ layout.models_import }} import Base
 {% elif spec.has("mongodb") %}
 from {{ spec.package }} import main as main_module
 from {{ spec.package }}.core import mongo

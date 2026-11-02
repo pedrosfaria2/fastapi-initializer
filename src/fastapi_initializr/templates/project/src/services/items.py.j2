@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 {% endif %}
 
-from {{ spec.package }}.models.item import Item
-from {{ spec.package }}.schemas.item import ItemCreate, ItemUpdate
+from {{ spec.package }}.{{ layout.model("item") }} import Item
+from {{ spec.package }}.{{ layout.schema("item") }} import ItemCreate, ItemUpdate
 
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 50

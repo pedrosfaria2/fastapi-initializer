@@ -597,6 +597,32 @@ uv run alembic revision --autogenerate -m "describe the change"
 
 ## Project structure
 
+{% if spec.structure == "minimal" %}
+
+```text
+.
+├── pyproject.toml
+├── HELP.md
+├── README.md
+├── .gitignore
+├── .python-version
+{% if needs_env %}
+├── .env.example
+{% endif %}
+└── src/{{ spec.package }}/
+    ├── __init__.py
+    ├── config.py
+    ├── errors.py
+    ├── logging.py
+    ├── main.py
+    └── middleware.py
+```
+
+Optional Docker, CI, pre-commit, security, and Kubernetes files are added at
+the project root when selected.
+
+{% else %}
+
 ```text
 .
 ├── pyproject.toml
@@ -883,3 +909,4 @@ uv run alembic revision --autogenerate -m "describe the change"
     └── test_websockets.py
 {% endif %}
 ```
+{% endif %}

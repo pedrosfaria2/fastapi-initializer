@@ -12,12 +12,21 @@ from {{ spec.package }}.core.oauth import (
     ensure_supported_provider,
     get_oauth_client,
 )
-from {{ spec.package }}.schemas.user import Token
-from {{ spec.package }}.services.auth import issue_access_token
-from {{ spec.package }}.services.oauth import (
+{% if layout.is_feature %}
+from {{ spec.package }}.{{ layout.service("oauth") }} import (
     fetch_provider_email,
     get_or_create_oauth_user,
 )
+from {{ spec.package }}.{{ layout.schema("user") }} import Token
+from {{ spec.package }}.{{ layout.service("auth") }} import issue_access_token
+{% else %}
+from {{ spec.package }}.{{ layout.schema("user") }} import Token
+from {{ spec.package }}.{{ layout.service("auth") }} import issue_access_token
+from {{ spec.package }}.{{ layout.service("oauth") }} import (
+    fetch_provider_email,
+    get_or_create_oauth_user,
+)
+{% endif %}
 
 router = APIRouter(prefix="/auth/oauth", tags=["oauth"])
 
