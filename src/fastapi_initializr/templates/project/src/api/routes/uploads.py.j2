@@ -46,6 +46,7 @@ def _owned_key(owner_id: int, key: str) -> str:
     "",
     status_code=status.HTTP_201_CREATED,
     responses={
+        400: {"description": "Malformed multipart request"},
         401: {"description": "Not authenticated"},
         413: {"description": "Upload exceeds the size limit"},
         415: {"description": "Upload type is not allowed"},

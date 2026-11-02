@@ -1,15 +1,21 @@
 """Password reset and email verification endpoints."""
 
 from fastapi import APIRouter, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from {{ spec.package }}.api.dependencies import SessionDep
 from {{ spec.package }}.core.email import EmailBackendDep
 {% if spec.has("rate-limit") %}
 from {{ spec.package }}.core.rate_limit import rate_limit
 {% endif %}
+{% if not layout.is_feature %}
+from {{ spec.package }}.{{ layout.schema("user") }} import EmailAddress
+{% endif %}
 {% set auth_email_module = layout.service("auth_email").rsplit(".", 1) %}
 from {{ spec.package }}.{{ auth_email_module[0] }} import {{ auth_email_module[1] }} as auth_email
+{% if layout.is_feature %}
+from {{ spec.package }}.{{ layout.schema("user") }} import EmailAddress
+{% endif %}
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,7 +25,7 @@ GENERIC_EMAIL_MESSAGE = "If the email is registered, a message has been sent."
 class PasswordResetRequest(BaseModel):
     """Fields accepted when requesting a password reset."""
 
-    email: EmailStr
+    email: EmailAddress
 
 
 class PasswordResetConfirm(BaseModel):
@@ -32,7 +38,7 @@ class PasswordResetConfirm(BaseModel):
 class EmailVerificationRequest(BaseModel):
     """Fields accepted when requesting email verification."""
 
-    email: EmailStr
+    email: EmailAddress
 
 
 class EmailVerificationConfirm(BaseModel):

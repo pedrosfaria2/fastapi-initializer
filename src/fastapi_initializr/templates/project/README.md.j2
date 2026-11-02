@@ -116,7 +116,9 @@ The application reads the JWT signing key from `SECRET_KEY`. The value in
 `.env.example` is only a placeholder; replace it with your own secret before
 deploying. When `ENVIRONMENT=production`, startup rejects placeholder values and
 secrets shorter than 32 characters. `ACCESS_TOKEN_EXPIRE_MINUTES` controls the
-token lifetime and defaults to `30`.
+token lifetime and defaults to `5` minutes. Each token also carries a unique
+`jti` claim; logout and password reset invalidate every token through the
+account version.
 
 Registration returns the same message for new and existing emails. Access tokens
 are bound to the account token version, so a password reset invalidates older
@@ -160,15 +162,15 @@ message for local use and never prints SMTP credentials.
 | Method | Path | Description |
 | --- | --- | --- |
 | `POST` | `/auth/request-password-reset` | Send a reset link token when the email is registered and return `202`. |
-| `POST` | `/auth/reset-password` | Accept `token` and `new_password` and return `204`, or `400` for an invalid token. |
+| `POST` | `/auth/reset-password` | Accept `token` and `new_password` and return `204`, or `401` for an invalid token. |
 | `POST` | `/auth/request-verification` | Send a verification token when the email is registered and return `202`. |
-| `POST` | `/auth/verify-email` | Accept `token`, mark the email as verified, and return `204`, or `400` for an invalid token. |
+| `POST` | `/auth/verify-email` | Accept `token`, mark the email as verified, and return `204`, or `401` for an invalid token. |
 
 Requests for an unknown email return the same generic `202` response as a
 registered email and send nothing. Password reset tokens expire after 30
 minutes; email verification tokens expire after 24 hours. Both token types are
 single-use: a successful request advances a per-account version, so replaying
-the same token returns `400`.
+the same token returns `401`.
 
 Request a reset and submit the token shown by the console backend:
 
@@ -200,9 +202,10 @@ provider, then set the matching client id and secret.
 | `GET` | `/auth/oauth/{provider}/login` | Redirect to Google or GitHub. |
 | `GET` | `/auth/oauth/{provider}/callback` | Exchange the provider callback for a bearer token. |
 
-Supported providers are `google` and `github`; any other value returns `400`.
-OAuth identity is stored by provider subject and a verified email. An unverified
-or missing email, subject, or provider id returns `400`. If the verified email
+Supported providers are `google` and `github`; any other value is rejected by
+request validation. A missing or invalid callback `state` returns `403`. OAuth
+identity is stored by provider subject and a verified email. An unverified or
+missing email, subject, or provider id returns `400`. If the verified email
 already belongs to a password account, the callback returns `409` and does not
 link automatically; sign in with the local password instead. A new OAuth account
 gets an unusable random password, so social-only accounts cannot use the password

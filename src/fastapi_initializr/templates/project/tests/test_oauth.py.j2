@@ -286,10 +286,7 @@ def test_callback_creates_new_user(client: TestClient) -> None:
 
 
 @pytest.mark.parametrize("endpoint", ["login", "callback"])
-def test_unknown_provider_returns_bad_request(
-    client: TestClient,
-    endpoint: str,
-) -> None:
+def test_unknown_provider_is_rejected(client: TestClient, endpoint: str) -> None:
     _install_fake(client, EMAIL)
 
     response = client.get(
@@ -297,7 +294,7 @@ def test_unknown_provider_returns_bad_request(
         follow_redirects=False,
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_callback_without_identity_returns_bad_request(client: TestClient) -> None:
@@ -317,7 +314,7 @@ def test_authlib_adapter_accepts_sync_json() -> None:
     assert asyncio.run(adapter.get_json("user", {})) == {"id": 12345}
 
 
-def test_callback_with_invalid_state_returns_bad_request(client: TestClient) -> None:
+def test_callback_with_invalid_state_is_forbidden(client: TestClient) -> None:
     app = cast(FastAPI, client.app)
     app.dependency_overrides[get_oauth_client] = lambda: AuthlibOAuthClient(BrokenAuthlibClient())
 
@@ -326,7 +323,7 @@ def test_callback_with_invalid_state_returns_bad_request(client: TestClient) -> 
         params={"code": "local", "state": "wrong"},
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 403
 
 
 def test_login_uses_pkce(client: TestClient) -> None:
