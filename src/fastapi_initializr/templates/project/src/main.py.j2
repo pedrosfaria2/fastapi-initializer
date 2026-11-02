@@ -66,14 +66,20 @@ def create_app() -> FastAPI:
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         if not settings.forwarded_allow_ips and request.headers.get("x-forwarded-for"):
-            return JSONResponse(
+            response: Response = JSONResponse(
                 status_code=400,
                 content={"detail": "Untrusted proxy headers"},
             )
-        response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.path.startswith("/auth"):
+            response.headers.setdefault("Cache-Control", "no-store")
+            response.headers.setdefault("Pragma", "no-cache")
+            vary = response.headers.get("Vary")
+            response.headers["Vary"] = f"{vary}, Authorization" if vary else "Authorization"
         if request.url.scheme == "https":
             response.headers.setdefault(
                 "Strict-Transport-Security",
@@ -238,7 +244,7 @@ def create_app() -> FastAPI:
 {% if spec.has("oauth2") %}
     app.add_middleware(
         SessionMiddleware,
-        secret_key=settings.secret_key,
+        secret_key=settings.session_secret,
         https_only=settings.environment.lower() == "production",
         same_site="lax",
     )
@@ -268,14 +274,20 @@ def create_app() -> FastAPI:
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         if not settings.forwarded_allow_ips and request.headers.get("x-forwarded-for"):
-            return JSONResponse(
+            response: Response = JSONResponse(
                 status_code=400,
                 content={"detail": "Untrusted proxy headers"},
             )
-        response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.path.startswith("/auth"):
+            response.headers.setdefault("Cache-Control", "no-store")
+            response.headers.setdefault("Pragma", "no-cache")
+            vary = response.headers.get("Vary")
+            response.headers["Vary"] = f"{vary}, Authorization" if vary else "Authorization"
         if request.url.scheme == "https":
             response.headers.setdefault(
                 "Strict-Transport-Security",

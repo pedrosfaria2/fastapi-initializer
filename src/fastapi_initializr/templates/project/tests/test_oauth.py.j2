@@ -372,7 +372,7 @@ def test_oauth_session_cookie_is_secure_in_production(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
-    monkeypatch.setenv("SECRET_KEY", "x" * 32)
+    monkeypatch.setenv("SECRET_KEY", secrets.token_urlsafe(48))
 {% if spec.has("email") %}
     monkeypatch.setenv("EMAIL_BACKEND", "smtp")
 {% endif %}

@@ -1,14 +1,59 @@
 """Application settings."""
 
+{% if spec.has("auth-jwt") %}
+import base64
+import hashlib
+import hmac
+import math
+from collections import Counter
 from functools import lru_cache
-
-{% if spec.has("uploads") %}
-from pydantic import field_validator
+{% else %}
+from functools import lru_cache
 {% endif %}
+{% if spec.has("email") %}
+from typing import Literal
+{% endif %}
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 {% if spec.has("uploads") %}
 
 from {{ spec.package }}.core.upload_validation import CONTENT_VALIDATORS
+{% endif %}
+
+_VALID_ENVIRONMENTS = frozenset({"development", "test", "staging", "production"})
+{% if spec.has("auth-jwt") %}
+
+_PLACEHOLDER_SECRETS = frozenset(
+    {
+        "dev-secret-change-me-32-bytes-minimum",
+        "change-me-in-production-32-bytes-minimum",
+    }
+)
+_MIN_SECRET_LENGTH = 43
+_MIN_UNIQUE_CHARACTERS = 14
+_MIN_ENTROPY = 3.5
+
+
+def _derive_key(secret: str, purpose: str) -> str:
+    """Derive a purpose-specific key from the master secret."""
+    digest = hmac.new(secret.encode(), purpose.encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode()
+
+
+def _shannon_entropy(value: str) -> float:
+    """Return the per-character Shannon entropy of a string."""
+    counts = Counter(value)
+    length = len(value)
+    return -sum((count / length) * math.log2(count / length) for count in counts.values())
+
+
+def _is_repeated_pattern(value: str) -> bool:
+    """Return whether the whole string repeats a shorter block."""
+    return any(
+        len(value) % size == 0 and value == value[:size] * (len(value) // size)
+        for size in range(1, len(value) // 2 + 1)
+    )
 {% endif %}
 
 
@@ -51,7 +96,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 {% endif %}
 {% if spec.has("email") %}
-    email_backend: str = "console"
+    email_backend: Literal["console", "smtp"] = "console"
     require_verified_email: bool = False
     smtp_host: str = "localhost"
     smtp_port: int = 587
@@ -100,25 +145,76 @@ class Settings(BaseSettings):
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
 {% endif %}
+
+    @field_validator("environment", mode="before")
+    @classmethod
+    def normalize_environment(cls, value: object) -> object:
+        """Normalize and validate the deployment environment name."""
+        if not isinstance(value, str):
+            raise ValueError("ENVIRONMENT must be a string")
+        normalized = value.strip().lower()
+        if normalized not in _VALID_ENVIRONMENTS:
+            allowed = ", ".join(sorted(_VALID_ENVIRONMENTS))
+            raise ValueError(f"ENVIRONMENT must be one of: {allowed}")
+        return normalized
+
+    @field_validator("forwarded_allow_ips")
+    @classmethod
+    def normalize_forwarded_allow_ips(cls, value: str) -> str:
+        """Strip surrounding whitespace from the trusted proxy list."""
+        return value.strip()
+{% if spec.has("auth-jwt") %}
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, value: str) -> str:
+        """Reject empty, padded, and control-bearing master secrets."""
+        if not value:
+            raise ValueError("SECRET_KEY must not be empty")
+        if value != value.strip():
+            raise ValueError("SECRET_KEY must not have leading or trailing whitespace")
+        if any(ord(character) < 32 for character in value):
+            raise ValueError("SECRET_KEY must not contain control characters")
+        return value
+
+    @property
+    def jwt_secret(self) -> str:
+        """Return the key used to sign access tokens."""
+        return _derive_key(self.secret_key, "jwt")
+
+    @property
+    def action_secret(self) -> str:
+        """Return the key used to sign action tokens."""
+        return _derive_key(self.secret_key, "action")
+
+    @property
+    def session_secret(self) -> str:
+        """Return the key used to sign OAuth session cookies."""
+        return _derive_key(self.secret_key, "session")
+{% endif %}
 {% if spec.has("auth-jwt") %}
 
 
 def _validate_production_settings(settings: Settings) -> None:
-    """Refuse development secrets when the app runs in production."""
-    placeholders = frozenset(
-        {
-            "dev-secret-change-me-32-bytes-minimum",
-            "change-me-in-production-32-bytes-minimum",
-        }
-    )
-    if settings.environment.lower() == "production" and (
-        settings.secret_key in placeholders or len(settings.secret_key) < 32
-    ):
+    """Refuse weak configuration when the app runs in production."""
+    if settings.environment != "production":
+        return
+    if settings.secret_key.lower() in _PLACEHOLDER_SECRETS:
+        raise ValueError("SECRET_KEY must not be a placeholder in production.")
+    if len(settings.secret_key) < _MIN_SECRET_LENGTH:
         raise ValueError(
-            "SECRET_KEY must be a non-placeholder value with at least 32 characters in production."
+            f"SECRET_KEY must have at least {_MIN_SECRET_LENGTH} characters in production."
         )
+    if len(set(settings.secret_key)) < _MIN_UNIQUE_CHARACTERS:
+        raise ValueError("SECRET_KEY must use at least 14 distinct characters in production.")
+    if _shannon_entropy(settings.secret_key) < _MIN_ENTROPY:
+        raise ValueError("SECRET_KEY has insufficient entropy for production.")
+    if _is_repeated_pattern(settings.secret_key):
+        raise ValueError("SECRET_KEY must not repeat a short pattern in production.")
+    if settings.forwarded_allow_ips == "*":
+        raise ValueError("FORWARDED_ALLOW_IPS must list explicit proxy addresses in production.")
 {% if spec.has("email") %}
-    if settings.environment.lower() == "production" and settings.email_backend == "console":
+    if settings.email_backend == "console":
         raise ValueError("EMAIL_BACKEND must be smtp in production.")
 {% endif %}
 {% endif %}

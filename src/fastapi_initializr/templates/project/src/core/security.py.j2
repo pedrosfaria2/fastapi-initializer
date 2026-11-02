@@ -72,7 +72,7 @@ def create_access_token(
         "aud": settings.app_name,
         "jti": secrets.token_urlsafe(16),
     }
-    return _PYJWT.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return _PYJWT.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> TokenPayload | None:
@@ -81,7 +81,7 @@ def decode_access_token(token: str) -> TokenPayload | None:
     try:
         payload = _PYJWT.decode(
             token,
-            settings.secret_key,
+            settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
             issuer=settings.app_name,
             audience=settings.app_name,
@@ -107,7 +107,7 @@ def create_action_token(
         "typ": "action",
         "exp": expires_at,
     }
-    return _PYJWT.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return _PYJWT.encode(payload, settings.action_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_action_token(token: str, purpose: str) -> ActionToken | None:
@@ -116,7 +116,7 @@ def decode_action_token(token: str, purpose: str) -> ActionToken | None:
     try:
         payload = _PYJWT.decode(
             token,
-            settings.secret_key,
+            settings.action_secret,
             algorithms=[settings.jwt_algorithm],
         )
     except InvalidTokenError:

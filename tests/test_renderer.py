@@ -702,7 +702,8 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
 
     config = files["src/my_service/core/config.py"]
     for setting in (
-        'email_backend: str = "console"',
+        'email_backend: Literal["console", "smtp"] = "console"',
+        "require_verified_email: bool = False",
         'smtp_host: str = "localhost"',
         "smtp_port: int = 587",
         "smtp_starttls: bool = True",
