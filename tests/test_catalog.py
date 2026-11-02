@@ -67,6 +67,7 @@ def test_metadata_exposes_spring_style_capabilities() -> None:
 
     assert "starter.zip" in catalog.links
     assert catalog.links["starter.zip"].templated is True
+    assert catalog.links["compatibility"].templated is True
     assert catalog.type.default == "uv-project"
     assert catalog.language.default == "python"
     assert catalog.project.version.default == "0.1.0"

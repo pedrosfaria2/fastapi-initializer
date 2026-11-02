@@ -635,6 +635,10 @@ def metadata() -> Metadata:
                 templated=True,
             ),
             "dependencies": Link(href="/dependencies"),
+            "compatibility": Link(
+                href="/compatibility{?dependencies}",
+                templated=True,
+            ),
         },
         type=ActionOption(
             default="uv-project",

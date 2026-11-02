@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 
 from fastapi_initializr.generation.catalog import DEPENDENCIES
+from fastapi_initializr.generation.compatibility import selection_issues
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
 
@@ -23,9 +24,7 @@ def _closure(selected: set[str]) -> set[str]:
 
 
 def _compatible(selected: set[str]) -> bool:
-    return not any(
-        set(DEPENDENCIES[dependency_id].conflicts) & selected for dependency_id in selected
-    )
+    return not selection_issues(frozenset(selected))
 
 
 def main() -> int:

@@ -230,6 +230,61 @@ def test_dependencies_returns_resolved_coordinates(client: TestClient) -> None:
     assert "fastapiVersion" not in body
 
 
+def test_compatibility_reports_a_compatible_selection(client: TestClient) -> None:
+    response = client.get(
+        "/compatibility",
+        params={"dependencies": ["sqlalchemy,alembic"]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["compatible"] is True
+    assert body["issues"] == []
+    assert any(feature["id"] == "sqlalchemy" for feature in body["features"])
+
+
+def test_compatibility_reports_a_missing_requirement(client: TestClient) -> None:
+    response = client.get("/compatibility", params={"dependencies": ["alembic"]})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["compatible"] is False
+    assert body["issues"] == [
+        {
+            "feature": "alembic",
+            "kind": "missing-requirement",
+            "message": "Dependency 'alembic' requires: sqlalchemy.",
+            "related": ["sqlalchemy"],
+        }
+    ]
+
+
+def test_compatibility_reports_a_conflict(client: TestClient) -> None:
+    response = client.get(
+        "/compatibility",
+        params={"dependencies": ["sqlalchemy", "mongodb"]},
+    )
+
+    body = response.json()
+    assert body["compatible"] is False
+    assert body["issues"] == [
+        {
+            "feature": "mongodb",
+            "kind": "conflict",
+            "message": "Dependency 'mongodb' conflicts with: sqlalchemy.",
+            "related": ["sqlalchemy"],
+        }
+    ]
+
+
+def test_compatibility_reports_unknown_features(client: TestClient) -> None:
+    response = client.get("/compatibility", params={"dependencies": ["missing"]})
+
+    body = response.json()
+    assert body["compatible"] is False
+    assert body["issues"][0]["kind"] == "unknown"
+
+
 def test_starter_zip_alias(client: TestClient) -> None:
     response = client.get("/starter.zip", params={"name": "my-service"})
 

@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 
+from fastapi_initializr.api.params import split_dependencies
 from fastapi_initializr.generation.constants import DEFAULT_PYTHON_VERSION
 from fastapi_initializr.generation.preview import build_preview
 from fastapi_initializr.generation.renderer import render_project
@@ -20,15 +21,6 @@ from fastapi_initializr.services.generator import (
 )
 
 router = APIRouter(tags=["generate"])
-
-
-def _split_dependencies(values: list[str] | None) -> frozenset[str]:
-    if not values:
-        return frozenset()
-    dependencies: list[str] = []
-    for value in values:
-        dependencies.extend(part.strip() for part in value.split(",") if part.strip())
-    return frozenset(dependencies)
 
 
 def _build_spec(
@@ -55,7 +47,7 @@ def _build_spec(
             preset=preset,
             base_dir=base_dir,
             application_name=application_name,
-            dependencies=_split_dependencies(dependencies),
+            dependencies=split_dependencies(dependencies),
         )
     except ValidationError as exc:
         raise HTTPException(

@@ -9,7 +9,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from fastapi_initializr.generation.catalog import DEPENDENCIES, PRESETS, PRESETS_BY_ID
+from fastapi_initializr.generation.catalog import PRESETS, PRESETS_BY_ID
+from fastapi_initializr.generation.compatibility import selection_issues
 from fastapi_initializr.generation.constants import (
     DEFAULT_PYTHON_VERSION,
     SUPPORTED_PYTHON_VERSIONS,
@@ -123,20 +124,9 @@ class ProjectSpec(BaseModel):
         if dependencies != self.dependencies:
             object.__setattr__(self, "dependencies", dependencies)
 
-        unknown = sorted(self.dependencies - DEPENDENCIES.keys())
-        if unknown:
-            raise ValueError(f"Unknown dependencies: {', '.join(unknown)}.")
-
-        for dependency_id in sorted(self.dependencies):
-            dependency = DEPENDENCIES[dependency_id]
-            missing = sorted(set(dependency.requires) - self.dependencies)
-            if missing:
-                raise ValueError(f"Dependency '{dependency_id}' requires: {', '.join(missing)}.")
-            conflicts = sorted(set(dependency.conflicts) & self.dependencies)
-            if conflicts:
-                raise ValueError(
-                    f"Dependency '{dependency_id}' conflicts with: {', '.join(conflicts)}."
-                )
+        issues = selection_issues(self.dependencies)
+        if issues:
+            raise ValueError(" ".join(issue.message for issue in issues))
 
         object.__setattr__(self, "package", package)
         return self

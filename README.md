@@ -6,7 +6,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 
 ## Features
 
-- Metadata-driven web UI and HTTP API.
+- Metadata-driven web UI and HTTP API, with a compatibility report for API
+  clients and IDE integrations.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
   `requirements.txt` outputs.
 - Searchable catalog with 30 selectable features, docs links, compatibility
@@ -56,6 +57,7 @@ Open <http://127.0.0.1:8000>. The API documentation is at
 | `GET` | `/metadata` | Capability document |
 | `GET` | `/api/metadata` | Option catalog alias |
 | `GET` | `/dependencies` | Package names and files for every feature |
+| `GET` | `/compatibility` | Selection issues and per-feature availability |
 | `GET` | `/preview` | Rendered file list and contents |
 | `GET` | `/starter.zip` | Download a zip |
 | `GET` | `/starter.tgz` | Download a tar.gz |
@@ -94,6 +96,12 @@ List package names and files for every feature:
 
 ```sh
 curl 'http://127.0.0.1:8000/dependencies'
+```
+
+Check selection compatibility and per-feature availability:
+
+```sh
+curl 'http://127.0.0.1:8000/compatibility?dependencies=sqlalchemy&dependencies=alembic'
 ```
 
 The capability document supports a versioned media type:
