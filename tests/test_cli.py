@@ -188,6 +188,126 @@ def test_update_force_overwrites_local_changes(tmp_path: Path) -> None:
     assert 'description = "Updated description"' in pyproject.read_text()
 
 
+def test_add_feature_updates_files_and_manifest(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+
+    assert main(["add", "cors", str(project)]) == 0
+
+    assert (project / ".env.example").exists()
+    assert "CORSMiddleware" in (project / "src" / "my_service" / "main.py").read_text()
+    manifest = _manifest(project)
+    spec = manifest["spec"]
+    assert isinstance(spec, dict)
+    assert spec["dependencies"] == ["cors"]
+    assert spec["preset"] == "custom"
+
+
+def test_remove_feature_updates_files_and_manifest(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    assert main(["add", "cors", str(project)]) == 0
+
+    assert main(["remove", "cors", str(project)]) == 0
+
+    assert not (project / ".env.example").exists()
+    assert "CORSMiddleware" not in (project / "src" / "my_service" / "main.py").read_text()
+    manifest = _manifest(project)
+    spec = manifest["spec"]
+    assert isinstance(spec, dict)
+    assert spec["dependencies"] == []
+
+
+def test_add_dry_run_writes_nothing(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+
+    assert main(["add", "cors", str(project), "--dry-run"]) == 0
+
+    assert not (project / ".env.example").exists()
+
+
+def test_diff_shows_local_changes(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    project = _generated_project(tmp_path)
+    (project / "README.md").write_text("# local notes\n")
+
+    assert main(["diff", str(project)]) == 0
+
+    output = capsys.readouterr().out
+    assert "--- a/README.md" in output
+    assert "+++ b/README.md" in output
+    assert "local notes" in output
+
+
+def test_add_merges_a_disjoint_local_edit(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    main_file = project / "src" / "my_service" / "main.py"
+    main_file.write_text(
+        main_file.read_text().replace(
+            "    app.include_router(api_router)",
+            "    # local marker\n    app.include_router(api_router)",
+        )
+    )
+
+    assert main(["add", "cors", str(project)]) == 0
+
+    content = main_file.read_text()
+    assert "# local marker" in content
+    assert "CORSMiddleware" in content
+
+
+def test_remove_conflict_requires_force(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    assert main(["add", "cors", str(project)]) == 0
+    main_file = project / "src" / "my_service" / "main.py"
+    main_file.write_text(
+        main_file.read_text().replace(
+            "        allow_origins=settings.cors_origins,",
+            '        allow_origins=["http://local"],',
+        )
+    )
+
+    assert main(["remove", "cors", str(project)]) == 3
+    assert "CORSMiddleware" in main_file.read_text()
+
+    assert main(["remove", "cors", str(project), "--force"]) == 0
+    assert "CORSMiddleware" not in main_file.read_text()
+
+
+def test_add_rejects_a_conflicting_feature(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    assert main(["add", "sqlalchemy", str(project)]) == 0
+
+    assert main(["add", "mongodb", str(project)]) == 2
+
+    manifest = _manifest(project)
+    spec = manifest["spec"]
+    assert isinstance(spec, dict)
+    assert spec["dependencies"] == ["sqlalchemy"]
+
+
+def test_remove_rejects_a_required_feature(tmp_path: Path) -> None:
+    project = _generated_project(tmp_path)
+    assert main(["add", "sqlalchemy,alembic", str(project)]) == 0
+
+    assert main(["remove", "sqlalchemy", str(project)]) == 2
+
+    assert (project / "alembic.ini").exists()
+
+
+def test_change_switches_the_preset_to_custom(tmp_path: Path) -> None:
+    assert main(["new", "my-service", "--output", str(tmp_path), "--preset", "db-auth"]) == 0
+    project = tmp_path / "my-service"
+
+    assert main(["add", "cors", str(project)]) == 0
+
+    manifest = _manifest(project)
+    spec = manifest["spec"]
+    assert isinstance(spec, dict)
+    assert spec["preset"] == "custom"
+    assert {"sqlalchemy", "alembic", "auth-jwt", "cors"} <= set(spec["dependencies"])
+
+
 def test_update_dry_run_writes_nothing(tmp_path: Path) -> None:
     project = _generated_project(tmp_path)
     data = _manifest(project)

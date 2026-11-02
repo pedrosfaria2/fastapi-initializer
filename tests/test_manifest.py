@@ -90,13 +90,15 @@ def test_update_plan_has_no_changes_for_a_fresh_project(tmp_path: Path) -> None:
     assert plan.obsolete == ()
 
 
-def test_update_plan_detects_local_edits(tmp_path: Path) -> None:
+def test_update_plan_preserves_local_edits_when_the_template_is_unchanged(
+    tmp_path: Path,
+) -> None:
     _write_project(tmp_path, ProjectSpec(name="my-service"))
     (tmp_path / "README.md").write_text("local notes\n", encoding="utf-8")
 
     plan = plan_update(tmp_path)
 
-    assert "README.md" in plan.conflicted
+    assert "README.md" in plan.unchanged
 
 
 def test_update_plan_ignores_unsafe_manifest_paths(tmp_path: Path) -> None:

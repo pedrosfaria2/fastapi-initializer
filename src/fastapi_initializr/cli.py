@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import shutil
@@ -23,12 +24,19 @@ from fastapi_initializr.generation.constants import (
     DEFAULT_PYTHON_VERSION,
     SUPPORTED_PYTHON_VERSIONS,
 )
+from fastapi_initializr.generation.manifest import MANIFEST_NAME
 from fastapi_initializr.generation.plugins import install_plugins
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
-from fastapi_initializr.generation.update import UpdateError, apply_update, plan_update
+from fastapi_initializr.generation.update import (
+    UpdateError,
+    UpdatePlan,
+    apply_update,
+    plan_update,
+    read_project_spec,
+)
 
-_COMMANDS = ("new", "update", "list", "metadata", "completion")
+_COMMANDS = ("new", "update", "add", "remove", "diff", "list", "metadata", "completion")
 _NEW_OPTIONS = (
     "--package",
     "--description",
@@ -46,6 +54,7 @@ _NEW_OPTIONS = (
     "--json",
     "--list-dependencies",
 )
+_CHANGE_OPTIONS = ("--dry-run", "--json", "--force", "--plugin-dir")
 
 
 def _add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -117,6 +126,39 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_change_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "items",
+        nargs="+",
+        metavar="FEATURE... PROJECT",
+        help="One or more feature ids followed by the project directory.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print the plan without writing files.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="Print a machine-readable plan.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite conflicting files and remove obsolete ones.",
+    )
+    parser.add_argument(
+        "--plugin-dir",
+        type=Path,
+        default=None,
+        dest="plugin_dir",
+        help="Directory of local JSON plugin features.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
     parser = argparse.ArgumentParser(
@@ -145,6 +187,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Overwrite files that changed since generation.",
     )
     update_parser.add_argument(
+        "--plugin-dir",
+        type=Path,
+        default=None,
+        dest="plugin_dir",
+        help="Directory of local JSON plugin features.",
+    )
+
+    add_parser = subparsers.add_parser(
+        "add",
+        help="Add features to an existing generated project.",
+    )
+    _add_change_options(add_parser)
+
+    remove_parser = subparsers.add_parser(
+        "remove",
+        help="Remove features from an existing generated project.",
+    )
+    _add_change_options(remove_parser)
+
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Show template differences for an existing project.",
+    )
+    diff_parser.add_argument("project", type=Path, nargs="?", default=Path())
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="Print a machine-readable plan.",
+    )
+    diff_parser.add_argument(
         "--plugin-dir",
         type=Path,
         default=None,
@@ -291,6 +364,193 @@ def _new(args: argparse.Namespace) -> int:
     return 0
 
 
+def _plan_payload(
+    plan: UpdatePlan,
+    project: Path,
+    *,
+    dry_run: bool,
+) -> dict[str, object]:
+    return {
+        "project": str(project),
+        "dryRun": dry_run,
+        "added": list(plan.added),
+        "updated": list(plan.updated),
+        "merged": list(plan.merged),
+        "conflicted": list(plan.conflicted),
+        "unchanged": list(plan.unchanged),
+        "removable": list(plan.removable),
+        "obsolete": list(plan.obsolete),
+        "hasConflicts": plan.has_conflicts,
+    }
+
+
+def _print_plan(
+    plan: UpdatePlan,
+    project: Path,
+    *,
+    dry_run: bool,
+    as_json: bool,
+    force: bool,
+) -> None:
+    if as_json:
+        print(json.dumps(_plan_payload(plan, project, dry_run=dry_run), indent=2))
+        return
+    prefix = "would " if dry_run else ""
+    for path in plan.added:
+        print(f"{prefix}add {path}")
+    for path in plan.updated:
+        print(f"{prefix}update {path}")
+    for path in plan.merged:
+        print(f"{prefix}merge {path}")
+    for path in plan.conflicted:
+        print(f"conflict {path} (locally modified)")
+    for path in plan.removable:
+        print(f"{prefix}remove {path}")
+    for path in plan.obsolete:
+        action = "remove" if force else "keep"
+        print(f"{action} {path} (locally modified, obsolete)")
+    print(f"{len(plan.unchanged)} unchanged")
+
+
+def _split_features(features: list[str]) -> list[str]:
+    result: list[str] = []
+    for value in features:
+        result.extend(part.strip() for part in value.split(",") if part.strip())
+    return result
+
+
+def _changed_spec(
+    spec: ProjectSpec,
+    features: list[str],
+    *,
+    remove: bool,
+) -> ProjectSpec:
+    selected = set(spec.dependencies)
+    for feature_id in _split_features(features):
+        if feature_id not in DEPENDENCIES:
+            raise ValueError(f"Unknown dependency: {feature_id}.")
+        if remove:
+            if feature_id not in selected:
+                raise ValueError(f"Feature '{feature_id}' is not selected.")
+            selected.remove(feature_id)
+        else:
+            selected.add(feature_id)
+    data = spec.model_dump(mode="json")
+    data["dependencies"] = sorted(selected)
+    data["preset"] = "custom"
+    try:
+        return ProjectSpec.model_validate(data)
+    except ValidationError as exc:
+        messages = "; ".join(
+            str(error["msg"]) for error in exc.errors(include_url=False, include_context=False)
+        )
+        raise ValueError(messages) from exc
+
+
+def _project_and_features(items: list[str]) -> tuple[Path, list[str]]:
+    if len(items) < 2:
+        raise ValueError("Provide one or more features followed by the project directory.")
+    project = Path(items[-1])
+    if not project.is_dir():
+        raise ValueError(f"Project directory not found: {project}")
+    return project, items[:-1]
+
+
+def _change(args: argparse.Namespace, *, remove: bool) -> int:
+    plugin_error = _install_plugin_dir(args.plugin_dir)
+    if plugin_error is not None:
+        return plugin_error
+    try:
+        project, features = _project_and_features(args.items)
+        new_spec = _changed_spec(
+            read_project_spec(project),
+            features,
+            remove=remove,
+        )
+        plan = plan_update(project, new_spec)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    except UpdateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    _print_plan(
+        plan,
+        project,
+        dry_run=args.dry_run,
+        as_json=args.as_json,
+        force=args.force,
+    )
+    if plan.has_conflicts and not args.force:
+        print(
+            "Local changes block the change; rerun with --force to overwrite them.",
+            file=sys.stderr,
+        )
+        return 3
+    if not plan.has_changes and not plan.has_conflicts:
+        if not args.as_json:
+            print("No file changes.")
+        if args.dry_run:
+            return 0
+    if args.dry_run:
+        return 0
+    try:
+        apply_update(plan, project, force=args.force)
+    except UpdateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if not args.as_json:
+        action = "Removed" if remove else "Added"
+        print(f"{action} features in {project} ({len(plan.unchanged)} unchanged)")
+    return 0
+
+
+def _print_unified_diffs(project: Path, plan: UpdatePlan) -> None:
+    for path, new_content in plan.files.items():
+        if path == MANIFEST_NAME:
+            continue
+        target = project / path
+        old_content = target.read_text(encoding="utf-8") if target.is_file() else ""
+        if old_content == new_content:
+            continue
+        diff = difflib.unified_diff(
+            old_content.splitlines(keepends=True),
+            new_content.splitlines(keepends=True),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+        )
+        print("".join(diff), end="")
+    for path in plan.removable:
+        print(f"remove {path}")
+    for path in plan.obsolete:
+        print(f"keep {path} (locally modified, obsolete)")
+
+
+def _diff(args: argparse.Namespace) -> int:
+    plugin_error = _install_plugin_dir(args.plugin_dir)
+    if plugin_error is not None:
+        return plugin_error
+    try:
+        plan = plan_update(args.project)
+    except UpdateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if args.as_json:
+        print(json.dumps(_plan_payload(plan, args.project, dry_run=True), indent=2))
+        return 0
+    _print_plan(
+        plan,
+        args.project,
+        dry_run=True,
+        as_json=False,
+        force=False,
+    )
+    _print_unified_diffs(args.project, plan)
+    return 0
+
+
 def _update(args: argparse.Namespace) -> int:
     plugin_error = _install_plugin_dir(args.plugin_dir)
     if plugin_error is not None:
@@ -301,16 +561,13 @@ def _update(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    prefix = "would " if args.dry_run else ""
-    for path in plan.added:
-        print(f"{prefix}add {path}")
-    for path in plan.updated:
-        print(f"{prefix}update {path}")
-    for path in plan.conflicted:
-        print(f"keep {path} (locally modified)")
-    for path in plan.obsolete:
-        print(f"obsolete {path} (left in place)")
-
+    _print_plan(
+        plan,
+        args.project,
+        dry_run=args.dry_run,
+        as_json=False,
+        force=args.force,
+    )
     if plan.has_conflicts and not args.force:
         print(
             "Local changes block the update; rerun with --force to overwrite them.",
@@ -318,10 +575,13 @@ def _update(args: argparse.Namespace) -> int:
         )
         return 3
     if args.dry_run:
-        print(f"{len(plan.unchanged)} unchanged")
         return 0
 
-    apply_update(plan, args.project, force=args.force)
+    try:
+        apply_update(plan, args.project, force=args.force)
+    except UpdateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     print(f"Updated {args.project} ({len(plan.unchanged)} unchanged)")
     return 0
 
@@ -330,7 +590,7 @@ def _bash_completion() -> str:
     dependencies = " ".join(sorted(DEPENDENCIES))
     presets = " ".join(preset.id for preset in PRESETS)
     pythons = " ".join(SUPPORTED_PYTHON_VERSIONS)
-    options = " ".join(_NEW_OPTIONS)
+    options = " ".join((*_NEW_OPTIONS, *_CHANGE_OPTIONS))
     commands = " ".join(_COMMANDS)
     return f"""\
 _fastapi_initializr() {{
@@ -384,6 +644,9 @@ def _fish_completion() -> str:
         for command, description in (
             ("new", "Generate a project directory"),
             ("update", "Update a generated project"),
+            ("add", "Add features to a project"),
+            ("remove", "Remove features from a project"),
+            ("diff", "Show template differences"),
             ("list", "List dependencies"),
             ("metadata", "Print metadata"),
             ("completion", "Print shell completion"),
@@ -419,6 +682,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _new(args)
     if args.command == "update":
         return _update(args)
+    if args.command == "add":
+        return _change(args, remove=False)
+    if args.command == "remove":
+        return _change(args, remove=True)
+    if args.command == "diff":
+        return _diff(args)
     if args.command == "list":
         return _list_dependencies(args.as_json)
     if args.command == "metadata":

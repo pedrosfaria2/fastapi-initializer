@@ -22,8 +22,9 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
 - Optional SQLAlchemy or SQLModel CRUD, Alembic, PostgreSQL or MySQL/MariaDB,
   ARQ or Celery workers, JWT authentication, CORS, Docker/Compose, GitHub
   Actions, pre-commit, and coverage.
-- Local CLI: `fastapi-initializr new`, `update`, `list`, `metadata`,
-  `completion`, `--lock`, `--dry-run`, `--json`, and `--preset`.
+- Local CLI: `fastapi-initializr new`, `update`, `add`, `remove`, `diff`,
+  `list`, `metadata`, `completion`, `--lock`, `--dry-run`, `--json`, and
+  `--preset`.
 - Local JSON plugins can add catalog features without changing the generator.
 - Generated projects pass Ruff, mypy, pyright, and pytest.
 - Stateless: no accounts, database, saved projects, or server-side execution of
@@ -285,7 +286,7 @@ uv run fastapi dev
 
 `.fastapi-initializr.json` records the template version, the resolved options,
 and a SHA-256 digest for every generated file. Keep it in version control; the
-`update` command uses it to detect local edits before overwriting files.
+CLI uses it to detect local edits and merge disjoint template changes.
 
 Quality gates:
 
@@ -331,16 +332,23 @@ uv run fastapi-initializr new my-service --dry-run
 uv run fastapi-initializr new my-service --json
 uv run fastapi-initializr new --list-dependencies
 uv run fastapi-initializr update ./my-service
+uv run fastapi-initializr add cors ./my-service
+uv run fastapi-initializr remove cors ./my-service
+uv run fastapi-initializr diff ./my-service
+uv run fastapi-initializr add celery ./my-service --dry-run --json
 ```
 
 The CLI uses the same validation and templates as the API. `--lock` runs
 `uv lock` in the generated project. `--dry-run` prints the file plan without
 writing, and `--json` prints a machine-readable summary.
 
-`update` re-renders the project from `.fastapi-initializr.json` and writes files
-that still match the recorded digests. It aborts with exit code `3` when a file
-was edited locally; rerun with `--force` to overwrite those files. `--dry-run`
-prints the plan without writing.
+`update` re-renders the project from `.fastapi-initializr.json`. Local edits are
+preserved; disjoint template changes are merged line by line. `add` and `remove`
+change the dependency set, switch the preset to `custom`, and apply the same
+plan. Overlapping edits abort with exit code `3`; rerun with `--force` to
+overwrite conflicts and remove locally modified obsolete files. Removed files
+are deleted only when they still match the recorded digest. `diff` prints the
+plan and unified diffs without writing.
 
 Shell completion scripts are generated from the catalog:
 
