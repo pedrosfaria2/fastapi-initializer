@@ -316,6 +316,11 @@ FILES: tuple[FileSpec, ...] = (
         _has("opentelemetry"),
     ),
     FileSpec(
+        "src/core/auth_throttle.py.j2",
+        "src/{{ spec.package }}/core/auth_throttle.py",
+        _has("auth-jwt"),
+    ),
+    FileSpec(
         "src/core/security.py.j2",
         "src/{{ spec.package }}/core/security.py",
         _has("auth-jwt"),

@@ -384,15 +384,26 @@ curl -X POST "http://127.0.0.1:8000/graphql" \
   -d '{"query": "mutation { echo(message: \"ping\") }"}'
 ```
 {% endif %}
+{% if spec.has("auth-jwt") %}
+
+## Authentication abuse protection
+
+JWT projects always install an in-process throttle at
+`app.state.auth_throttle`, even when the optional `rate-limit` feature is not
+selected. It keys on the client address and the route scope. Registration and
+email requests allow 5 per minute; login, logout, reset, and verification allow
+10; OAuth login and callback allow 20; `/auth/me` allows 60. Exceeding a limit
+returns `429` with `Retry-After`. The throttle is per process; put a shared
+limiter at the proxy for multi-worker deployments.
+{% endif %}
 {% if spec.has("rate-limit") %}
 
 ## Rate limiting
 
-The application installs a SlowAPI limiter as `app.state.limiter` with a default
-limit of 100 requests per minute. The `/limited` endpoint demonstrates a tighter
-limit of 5 requests per minute. Auth registration and email-request routes use
-5 requests per minute; login, reset, verification, and OAuth callbacks use
-10–20. Exceeding a limit returns `429` with a JSON `detail` field.
+The optional SlowAPI feature installs a limiter as `app.state.limiter` with a
+default limit of 100 requests per minute and adds the `/limited` example route.
+Authentication routes use the mandatory throttle described above instead.
+Exceeding a limit returns `429` with a JSON `detail` field.
 {% endif %}
 {% if spec.has("uploads") %}
 

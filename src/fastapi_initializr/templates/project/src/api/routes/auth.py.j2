@@ -3,14 +3,18 @@
 import contextlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from {{ spec.package }}.api.dependencies import SessionDep
-{% if spec.has("rate-limit") %}
-from {{ spec.package }}.core.rate_limit import rate_limit
-{% endif %}
+from {{ spec.package }}.core.auth_throttle import (
+    LOGIN_LIMIT,
+    LOGOUT_LIMIT,
+    ME_LIMIT,
+    REGISTER_LIMIT,
+    auth_rate_limit,
+)
 from {{ spec.package }}.{{ layout.schema("user") }} import Token, UserCreate, UserRead
 from {{ spec.package }}.{{ layout.service("auth") }} import (
     CurrentUser,
@@ -40,17 +44,13 @@ class RegistrationResponse(BaseModel):
         400: {"description": "Malformed request body"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[Depends(auth_rate_limit("register", REGISTER_LIMIT))],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("5/minute")
-{% endif %}
 async def register(
-    request: Request,
     payload: UserCreate,
     session: SessionDep,
 ) -> RegistrationResponse:
     """Create an account when the email is available."""
-    _ = request
     with contextlib.suppress(EmailAlreadyRegisteredError):
         await create_user(session, payload)
     return RegistrationResponse(message=REGISTRATION_MESSAGE)
@@ -64,17 +64,13 @@ async def register(
         401: {"description": "Invalid credentials"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[Depends(auth_rate_limit("login", LOGIN_LIMIT))],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("10/minute")
-{% endif %}
 async def login(
-    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: SessionDep,
 ) -> Token:
     """Exchange username and password for an access token."""
-    _ = request
     user = await authenticate_user(session, form_data.username, form_data.password)
     return Token(access_token=issue_access_token(user))
 
@@ -83,17 +79,13 @@ async def login(
     "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={401: {"description": "Not authenticated"}},
+    dependencies=[Depends(auth_rate_limit("logout", LOGOUT_LIMIT))],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("10/minute")
-{% endif %}
 async def logout(
-    request: Request,
     current_user: CurrentUser,
     session: SessionDep,
 ) -> None:
     """Invalidate every access token for the authenticated account."""
-    _ = request
     await revoke_user_tokens(session, current_user)
 
 
@@ -101,6 +93,7 @@ async def logout(
     "/me",
     response_model=UserRead,
     responses={401: {"description": "Not authenticated"}},
+    dependencies=[Depends(auth_rate_limit("me", ME_LIMIT))],
 )
 async def read_current_user(current_user: CurrentUser) -> UserRead:
     """Return the authenticated user."""

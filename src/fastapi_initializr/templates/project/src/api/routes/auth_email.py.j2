@@ -1,13 +1,17 @@
 """Password reset and email verification endpoints."""
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from {{ spec.package }}.api.dependencies import SessionDep
+from {{ spec.package }}.core.auth_throttle import (
+    PASSWORD_RESET_LIMIT,
+    PASSWORD_RESET_REQUEST_LIMIT,
+    VERIFICATION_REQUEST_LIMIT,
+    VERIFY_LIMIT,
+    auth_rate_limit,
+)
 from {{ spec.package }}.core.email import EmailBackendDep
-{% if spec.has("rate-limit") %}
-from {{ spec.package }}.core.rate_limit import rate_limit
-{% endif %}
 {% if not layout.is_feature %}
 from {{ spec.package }}.{{ layout.schema("user") }} import EmailAddress
 {% endif %}
@@ -61,18 +65,21 @@ class MessageResponse(BaseModel):
         400: {"description": "Malformed request body"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[
+        Depends(
+            auth_rate_limit(
+                "password_reset_request",
+                PASSWORD_RESET_REQUEST_LIMIT,
+            )
+        )
+    ],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("5/minute")
-{% endif %}
 async def request_password_reset(
-    request: Request,
     payload: PasswordResetRequest,
     session: SessionDep,
     backend: EmailBackendDep,
 ) -> MessageResponse:
     """Send a password reset message when the email is registered."""
-    _ = request
     await auth_email.request_password_reset(session, payload.email, backend)
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
@@ -85,18 +92,14 @@ async def request_password_reset(
         401: {"description": "Invalid or expired token"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[Depends(auth_rate_limit("password_reset", PASSWORD_RESET_LIMIT))],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("10/minute")
-{% endif %}
 async def reset_password(
-    request: Request,
     payload: PasswordResetConfirm,
     session: SessionDep,
     backend: EmailBackendDep,
 ) -> None:
     """Replace the password for a valid reset token."""
-    _ = request
     await auth_email.reset_password(session, payload.token, payload.new_password, backend)
 
 
@@ -108,18 +111,21 @@ async def reset_password(
         400: {"description": "Malformed request body"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[
+        Depends(
+            auth_rate_limit(
+                "verification_request",
+                VERIFICATION_REQUEST_LIMIT,
+            )
+        )
+    ],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("5/minute")
-{% endif %}
 async def request_verification(
-    request: Request,
     payload: EmailVerificationRequest,
     session: SessionDep,
     backend: EmailBackendDep,
 ) -> MessageResponse:
     """Send a verification message when the email is registered."""
-    _ = request
     await auth_email.request_email_verification(session, payload.email, backend)
     return MessageResponse(message=GENERIC_EMAIL_MESSAGE)
 
@@ -132,15 +138,11 @@ async def request_verification(
         401: {"description": "Invalid or expired token"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[Depends(auth_rate_limit("verify_email", VERIFY_LIMIT))],
 )
-{% if spec.has("rate-limit") %}
-@rate_limit("10/minute")
-{% endif %}
 async def verify_email(
-    request: Request,
     payload: EmailVerificationConfirm,
     session: SessionDep,
 ) -> None:
     """Mark the email behind a valid verification token as verified."""
-    _ = request
     await auth_email.verify_email(session, payload.token)

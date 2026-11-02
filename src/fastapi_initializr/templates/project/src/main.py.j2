@@ -157,6 +157,9 @@ from strawberry.fastapi import GraphQLRouter
 
 from {{ spec.package }} import __version__
 from {{ spec.package }}.{{ layout.router_import }} import api_router
+{% if spec.has("auth-jwt") %}
+from {{ spec.package }}.core.auth_throttle import AuthThrottle
+{% endif %}
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.errors import install_error_handlers
 from {{ spec.package }}.core.logging import configure_logging
@@ -226,6 +229,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
 {% endif %}
     )
+{% if spec.has("auth-jwt") %}
+    app.state.auth_throttle = AuthThrottle()
+{% endif %}
 {% if spec.has("opentelemetry") %}
     configure_tracing(app, settings)
 {% endif %}

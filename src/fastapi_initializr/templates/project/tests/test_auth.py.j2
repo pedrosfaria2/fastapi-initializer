@@ -273,7 +273,6 @@ def test_password_reset_revokes_previous_access_tokens(client: TestClient) -> No
     assert old.status_code == 401
     assert _login(client, credential=NEW_CREDENTIAL)
 {% endif %}
-{% if spec.has("rate-limit") %}
 
 
 def test_login_is_rate_limited(client: TestClient) -> None:
@@ -289,4 +288,4 @@ def test_login_is_rate_limited(client: TestClient) -> None:
         data={"username": "missing@example.com", "password": WRONG_CREDENTIAL},
     )
     assert limited.status_code == 429
-{% endif %}
+    assert limited.headers["retry-after"] == "60"
