@@ -232,6 +232,34 @@ def test_worker_and_cache_helpers_render_files_and_settings() -> None:
     assert "## Cache helpers" in readme
 
 
+def test_celery_rabbitmq_renders_worker_and_compose() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"celery", "rabbitmq"}),
+    )
+
+    files = render_project(spec)
+
+    worker = files["src/my_service/worker.py"]
+    assert "celery_app = Celery(" in worker
+    assert "def _add(left: int, right: int) -> int:" in worker
+    assert "celery_broker_url" in files["src/my_service/core/config.py"]
+    assert "amqp://guest:guest@localhost:5672//" in files[".env.example"]
+    assert "tests/test_worker.py" in files
+    assert "add.delay(2, 3)" in files["tests/test_worker.py"]
+
+    compose = files["docker-compose.yml"]
+    assert "  rabbitmq:" in compose
+    assert "rabbitmq:management" in compose
+    assert "rabbitmq-diagnostics" in compose
+    assert "  worker:" in compose
+    assert "celery -A my_service.worker.celery_app worker" in compose
+    assert "rabbitmq-data" in compose
+
+    assert "## Celery worker" in files["README.md"]
+    assert "celery -A my_service.worker.celery_app" in files["HELP.md"]
+
+
 def test_operations_features_render_makefile_and_compose() -> None:
     spec = ProjectSpec(
         name="my-service",

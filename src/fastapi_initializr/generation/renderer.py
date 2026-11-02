@@ -78,6 +78,7 @@ def _needs_env(spec: ProjectSpec) -> bool:
         or spec.has("oauth2")
         or spec.has("opentelemetry")
         or spec.has("mongodb")
+        or spec.has("celery")
     )
 
 
@@ -88,12 +89,28 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec("gitignore.j2", ".gitignore"),
     FileSpec("python-version.j2", ".python-version"),
     FileSpec("env.example.j2", ".env.example", _needs_env),
-    FileSpec("Dockerfile.j2", "Dockerfile", _has_any("docker", "compose", "arq")),
-    FileSpec("dockerignore.j2", ".dockerignore", _has_any("docker", "compose", "arq")),
+    FileSpec(
+        "Dockerfile.j2",
+        "Dockerfile",
+        _has_any("docker", "compose", "arq", "celery"),
+    ),
+    FileSpec(
+        "dockerignore.j2",
+        ".dockerignore",
+        _has_any("docker", "compose", "arq", "celery"),
+    ),
     FileSpec(
         "docker-compose.yml.j2",
         "docker-compose.yml",
-        _has_any("docker", "compose", "postgres", "mysql", "redis"),
+        _has_any(
+            "docker",
+            "compose",
+            "postgres",
+            "mysql",
+            "rabbitmq",
+            "redis",
+            "celery",
+        ),
     ),
     FileSpec("Makefile.j2", "Makefile", _has("makefile")),
     FileSpec("ci.yml.j2", ".github/workflows/ci.yml", _has("ci")),
@@ -355,7 +372,7 @@ FILES: tuple[FileSpec, ...] = (
     FileSpec(
         "src/worker.py.j2",
         "src/{{ spec.package }}/worker.py",
-        _has("arq"),
+        _has_any("arq", "celery"),
     ),
     FileSpec(
         "templates/index.html.j2",
@@ -394,7 +411,11 @@ FILES: tuple[FileSpec, ...] = (
         "tests/test_cache_helpers.py",
         _has("cache"),
     ),
-    FileSpec("tests/test_worker.py.j2", "tests/test_worker.py", _has("arq")),
+    FileSpec(
+        "tests/test_worker.py.j2",
+        "tests/test_worker.py",
+        _has_any("arq", "celery"),
+    ),
     FileSpec("tests/test_sentry.py.j2", "tests/test_sentry.py", _has("sentry")),
     FileSpec(
         "tests/test_prometheus.py.j2",

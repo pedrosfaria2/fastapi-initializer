@@ -10,7 +10,7 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   clients and IDE integrations.
 - Deterministic zip and tar.gz archives, plus standalone `pyproject.toml` and
   `requirements.txt` outputs.
-- Searchable catalog with 32 selectable features, docs links, compatibility
+- Searchable catalog with 34 selectable features, docs links, compatibility
   rules, shift-click selection, Share, Reset, and keyboard generation.
 - Presets for API only, database + auth, Redis worker, and full stack.
 - Explore preview with server-side Pygments highlighting, language labels, file
@@ -20,8 +20,8 @@ project using `uv`, Ruff, mypy, pyright, and pytest.
   request IDs, gzip compression, logging, error handlers, tests, and a
   selected-feature `HELP.md` checklist.
 - Optional SQLAlchemy or SQLModel CRUD, Alembic, PostgreSQL or MySQL/MariaDB,
-  JWT authentication, CORS, Docker/Compose, GitHub Actions, pre-commit, and
-  coverage.
+  ARQ or Celery workers, JWT authentication, CORS, Docker/Compose, GitHub
+  Actions, pre-commit, and coverage.
 - Local CLI: `fastapi-initializr new`, `update`, `list`, `metadata`,
   `completion`, `--lock`, `--dry-run`, `--json`, and `--preset`.
 - Local JSON plugins can add catalog features without changing the generator.
@@ -205,6 +205,8 @@ features only, so select plugin features explicitly.
 | `redis` | Database | Async Redis client and settings | — |
 | `cache` | Database | Typed cache-aside helpers with TTL and invalidation | `redis` |
 | `arq` | Messaging | ARQ worker and example background task | `redis` |
+| `celery` | Messaging | Celery worker and example task | RabbitMQ or Redis |
+| `rabbitmq` | Messaging | RabbitMQ broker and management UI | — |
 | `auth-jwt` | Security | JWT registration, login, and protected `/auth/me` | `sqlalchemy` |
 | `email` | Security | Console/SMTP email, password reset, and verification | `auth-jwt` |
 | `oauth2` | Security | Google/GitHub OAuth2 login linked to local users | `auth-jwt` |
@@ -220,7 +222,7 @@ features only, so select plugin features explicitly.
 | `prometheus` | Observability | Prometheus instrumentation and `/metrics` | — |
 | `opentelemetry` | Observability | OTLP tracing for FastAPI, SQLAlchemy, and Redis | — |
 | `docker` | Operations | Dockerfile and .dockerignore | — |
-| `compose` | Operations | Compose stack for the app, PostgreSQL/MySQL, and Redis | — |
+| `compose` | Operations | Compose stack for the app, databases, RabbitMQ, and Redis | — |
 | `makefile` | Operations | Common development targets | — |
 | `ci` | Operations | GitHub Actions workflow | — |
 | `ci-gitlab` | Operations | GitLab CI pipeline | — |
@@ -235,6 +237,8 @@ Every generated project includes FastAPI, Uvicorn, Pydantic Settings,
 `sqlmodel` covers the relational CRUD, Alembic, and database-driver slices.
 The JWT auth, email, and OAuth2 slices currently require `sqlalchemy`.
 `testcontainers` currently provides PostgreSQL and Redis fixtures, not MySQL.
+`arq` and `celery` are alternative workers; `celery` uses RabbitMQ or Redis as
+its broker.
 
 ## Generated project
 

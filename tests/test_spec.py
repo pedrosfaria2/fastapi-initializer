@@ -108,6 +108,25 @@ def test_database_url_uses_mysql_driver_with_sqlmodel() -> None:
     assert spec.database_url.startswith("mysql+aiomysql://")
 
 
+def test_celery_broker_url_uses_rabbitmq() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"celery", "rabbitmq"}),
+    )
+
+    assert spec.celery_broker_url == "amqp://guest:guest@localhost:5672//"
+    assert spec.has_environment is True
+
+
+def test_celery_broker_url_uses_redis() -> None:
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"celery", "redis"}),
+    )
+
+    assert spec.celery_broker_url == "redis://localhost:6379/0"
+
+
 def test_database_url_defaults_to_sqlite() -> None:
     spec = ProjectSpec(name="my-service", dependencies=frozenset({"sqlalchemy"}))
 

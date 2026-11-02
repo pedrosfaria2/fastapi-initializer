@@ -24,6 +24,9 @@ def test_full_preset_chooses_one_provider_per_capability() -> None:
     assert "postgres" in full.dependencies
     assert "mysql" not in full.dependencies
     assert "mongodb" not in full.dependencies
+    assert "arq" in full.dependencies
+    assert "celery" not in full.dependencies
+    assert "rabbitmq" not in full.dependencies
 
 
 def test_requirements_and_conflicts_reference_known_dependencies() -> None:

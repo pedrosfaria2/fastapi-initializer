@@ -143,7 +143,7 @@ class ProjectSpec(BaseModel):
     @property
     def has_environment(self) -> bool:
         """Return whether the generated project needs an environment file."""
-        return self.has_database or self.has("cors")
+        return self.has_database or self.has("cors") or self.has("celery")
 
     @property
     def database_url(self) -> str:
@@ -158,6 +158,15 @@ class ProjectSpec(BaseModel):
     def cors_origins(self) -> list[str]:
         """Return the default local CORS origins."""
         return ["http://localhost:3000"]
+
+    @property
+    def celery_broker_url(self) -> str:
+        """Return the default Celery broker URL for the selected broker."""
+        if self.has("rabbitmq"):
+            return "amqp://guest:guest@localhost:5672//"
+        if self.has("redis"):
+            return "redis://localhost:6379/0"
+        return ""
 
     @property
     def archive_root(self) -> str:

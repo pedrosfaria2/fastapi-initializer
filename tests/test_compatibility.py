@@ -53,6 +53,28 @@ def test_postgres_and_mysql_conflict() -> None:
     assert issues[0].kind == "conflict"
 
 
+def test_celery_requires_a_broker() -> None:
+    issues = selection_issues(frozenset({"celery"}))
+
+    assert len(issues) == 1
+    assert issues[0].kind == "missing-capability"
+    assert issues[0].related == ("rabbitmq", "redis")
+
+
+def test_rabbitmq_satisfies_celery() -> None:
+    assert selection_issues(frozenset({"celery", "rabbitmq"})) == ()
+
+
+def test_redis_satisfies_celery() -> None:
+    assert selection_issues(frozenset({"celery", "redis"})) == ()
+
+
+def test_celery_conflicts_with_arq() -> None:
+    issues = selection_issues(frozenset({"celery", "rabbitmq", "arq", "redis"}))
+
+    assert any(issue.kind == "conflict" for issue in issues)
+
+
 def test_auth_jwt_still_requires_sqlalchemy() -> None:
     issues = selection_issues(frozenset({"sqlmodel", "auth-jwt"}))
 

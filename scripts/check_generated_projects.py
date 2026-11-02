@@ -69,6 +69,14 @@ CASES: dict[str, ProjectSpec] = {
         name="worker-service",
         dependencies=frozenset({"redis", "arq", "cache"}),
     ),
+    "celery": ProjectSpec(
+        name="celery-service",
+        dependencies=frozenset({"celery", "rabbitmq"}),
+    ),
+    "celery-redis": ProjectSpec(
+        name="celery-redis-service",
+        dependencies=frozenset({"celery", "redis"}),
+    ),
     "graphql": ProjectSpec(
         name="graphql-service",
         dependencies=frozenset({"graphql"}),

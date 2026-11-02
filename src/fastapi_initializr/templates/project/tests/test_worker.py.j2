@@ -1,3 +1,17 @@
+{% if spec.has("celery") %}
+"""Celery worker configuration and eager task execution."""
+
+from {{ spec.package }}.worker import add, celery_app
+
+
+def test_example_task_returns_sum() -> None:
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = True
+
+    result = add.delay(2, 3)
+
+    assert result.get() == 5
+{% else %}
 """ARQ worker configuration and eager task execution."""
 
 import asyncio
@@ -14,3 +28,4 @@ def test_example_task_returns_greeting() -> None:
 
 def test_worker_registers_example_task() -> None:
     assert example_task in WorkerSettings.functions
+{% endif %}

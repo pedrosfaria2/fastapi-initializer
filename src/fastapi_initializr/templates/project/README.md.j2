@@ -28,7 +28,7 @@ Copy the example environment file and adjust it for your machine:
 cp .env.example .env
 ```
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("rabbitmq") or spec.has("redis") or spec.has("celery") %}
 
 ## Docker Compose
 
@@ -40,10 +40,12 @@ includes only the selected services:
   credentials `postgres` / `postgres`.
 - MySQL when MySQL/MariaDB is selected, with database `app` and the
   credentials `root` / `root`.
+- RabbitMQ when RabbitMQ is selected, with the management UI on port `15672`.
 - Redis when Redis is selected, with a persistent volume.
 - An ARQ worker when ARQ is selected, built from the same image as the app.
+- A Celery worker when Celery is selected, built from the same image as the app.
 
-PostgreSQL, MySQL, and Redis include healthchecks. Start the stack with:
+PostgreSQL, MySQL, RabbitMQ, and Redis include healthchecks. Start the stack with:
 
 ```sh
 docker compose up -d
@@ -296,6 +298,21 @@ uv run arq {{ spec.package }}.worker.WorkerSettings
 
 The worker reads `REDIS_URL` through `RedisSettings.from_dsn` and registers
 `example_task` in `WorkerSettings.functions`.
+{% endif %}
+{% if spec.has("celery") %}
+
+## Celery worker
+
+Celery uses {% if spec.has("rabbitmq") %}RabbitMQ{% else %}Redis{% endif %} as the
+broker. The worker configuration lives in
+`{{ spec.package }}.worker.celery_app`, and the example task is
+`{{ spec.package }}.worker.add`. Start the worker from the project root:
+
+```sh
+uv run celery -A {{ spec.package }}.worker.celery_app worker --loglevel=info
+```
+
+The worker reads `CELERY_BROKER_URL` through the application settings.
 {% endif %}
 {% if spec.has("static-templates") %}
 
@@ -594,7 +611,7 @@ uv run alembic revision --autogenerate -m "describe the change"
 ├── Dockerfile
 ├── .dockerignore
 {% endif %}
-{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
+{% if spec.has("docker") or spec.has("compose") or spec.has("postgres") or spec.has("mysql") or spec.has("rabbitmq") or spec.has("redis") or spec.has("celery") %}
 ├── docker-compose.yml
 {% endif %}
 {% if spec.has("makefile") %}
@@ -742,6 +759,8 @@ uv run alembic revision --autogenerate -m "describe the change"
 │   ├── tasks/
 │   │   ├── __init__.py
 │   │   └── example.py
+{% endif %}
+{% if spec.has("arq") or spec.has("celery") %}
 │   ├── worker.py
 {% endif %}
 {% if spec.has_database %}
@@ -857,7 +876,7 @@ uv run alembic revision --autogenerate -m "describe the change"
     │   ├── conftest.py
     │   └── test_integration.py
 {% endif %}
-{% if spec.has("arq") %}
+{% if spec.has("arq") or spec.has("celery") %}
     ├── test_worker.py
 {% endif %}
 {% if spec.has("websockets") %}

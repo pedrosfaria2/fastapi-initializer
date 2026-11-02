@@ -30,6 +30,22 @@ services:
       redis:
         condition: service_healthy
 {% endif %}
+{% if spec.has("celery") %}
+  worker:
+    build: .
+    command: uv run celery -A {{ spec.package }}.worker.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+{% if spec.has("rabbitmq") %}
+      rabbitmq:
+        condition: service_healthy
+{% endif %}
+{% if spec.has("redis") %}
+      redis:
+        condition: service_healthy
+{% endif %}
+{% endif %}
 {% if spec.has("postgres") %}
   db:
     image: postgres:latest
@@ -63,6 +79,23 @@ services:
       timeout: 5s
       retries: 10
 {% endif %}
+{% if spec.has("rabbitmq") %}
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+{% endif %}
 {% if spec.has("redis") %}
   redis:
     image: redis:alpine
@@ -76,7 +109,7 @@ services:
       timeout: 5s
       retries: 10
 {% endif %}
-{% if spec.has("postgres") or spec.has("mysql") or spec.has("redis") %}
+{% if spec.has("postgres") or spec.has("mysql") or spec.has("rabbitmq") or spec.has("redis") %}
 
 volumes:
 {% if spec.has("postgres") %}
@@ -84,6 +117,9 @@ volumes:
 {% endif %}
 {% if spec.has("mysql") %}
   mysql-data:
+{% endif %}
+{% if spec.has("rabbitmq") %}
+  rabbitmq-data:
 {% endif %}
 {% if spec.has("redis") %}
   redis-data:

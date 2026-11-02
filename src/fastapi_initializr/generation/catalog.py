@@ -130,6 +130,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         name="Redis",
         description="Async Redis client and cache settings.",
         group="Database",
+        provides=("broker",),
         packages=("redis",),
         files=("src/{package}/core/cache.py",),
         guide="https://redis.readthedocs.io/en/stable/",
@@ -176,6 +177,7 @@ DEPENDENCIES: dict[str, Dependency] = {
         description="Redis-backed background job worker.",
         group="Messaging",
         requires=("redis",),
+        conflicts=("celery",),
         packages=("arq",),
         files=(
             "src/{package}/worker.py",
@@ -186,6 +188,32 @@ DEPENDENCIES: dict[str, Dependency] = {
         guide="https://arq-docs.helpmanual.io/",
         guide_title="ARQ documentation",
         reference="https://github.com/python-arq/arq",
+    ),
+    "rabbitmq": Dependency(
+        id="rabbitmq",
+        name="RabbitMQ",
+        description="RabbitMQ broker for Celery workers.",
+        group="Messaging",
+        provides=("broker",),
+        guide="https://www.rabbitmq.com/tutorials",
+        guide_title="RabbitMQ tutorials",
+        reference="https://www.rabbitmq.com/docs",
+    ),
+    "celery": Dependency(
+        id="celery",
+        name="Celery workers",
+        description="Celery worker and an example task.",
+        group="Messaging",
+        requires_capabilities=("broker",),
+        conflicts=("arq",),
+        packages=("celery",),
+        files=(
+            "src/{package}/worker.py",
+            "tests/test_worker.py",
+        ),
+        guide="https://docs.celeryq.dev/en/stable/getting-started/first-steps-with-celery.html",
+        guide_title="Celery first steps",
+        reference="https://docs.celeryq.dev/en/stable/",
     ),
     "cors": Dependency(
         id="cors",
@@ -519,6 +547,11 @@ HELP_STEPS: dict[str, tuple[str, ...]] = {
     "redis": ("Set `REDIS_URL` in `.env`.",),
     "cache": ("Use the cache helpers in `core/cache_helpers.py`.",),
     "arq": ("Start the worker with `uv run arq {package}.worker.WorkerSettings`.",),
+    "rabbitmq": ("Compose starts RabbitMQ; the management UI is on port 15672.",),
+    "celery": (
+        "Start the worker with `uv run celery -A {package}.worker.celery_app worker --loglevel=info`.",
+        "The example task is `{package}.worker.add`.",
+    ),
     "auth-jwt": (
         "Change `SECRET_KEY` in `.env` before deploying.",
         "Endpoints: `/auth/register`, `/auth/login`, and `/auth/me`.",
@@ -617,7 +650,7 @@ class Preset:
 _FULL_PRESET_IDS = tuple(
     dependency_id
     for dependency_id in DEPENDENCIES
-    if dependency_id not in {"mongodb", "sqlmodel", "mysql"}
+    if dependency_id not in {"mongodb", "sqlmodel", "mysql", "celery", "rabbitmq"}
 )
 
 PRESETS: tuple[Preset, ...] = (
