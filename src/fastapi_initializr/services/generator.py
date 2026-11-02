@@ -1,7 +1,5 @@
 """Generation service used by the HTTP layer."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from fastapi_initializr.core.config import get_settings
@@ -11,6 +9,7 @@ from fastapi_initializr.generation.archive import (
     build_zip,
     tar_filename,
 )
+from fastapi_initializr.generation.limits import ProjectLimitError
 from fastapi_initializr.generation.renderer import render_project
 from fastapi_initializr.generation.spec import ProjectSpec
 
@@ -26,7 +25,7 @@ class GeneratedProject:
 def _rendered_files(spec: ProjectSpec) -> dict[str, str]:
     files = render_project(spec)
     if len(files) > get_settings().max_generated_files:
-        raise ValueError("Generated project exceeds the file limit.")
+        raise ProjectLimitError("Generated project exceeds the file limit.")
     return files
 
 
@@ -35,7 +34,7 @@ def generate_project(spec: ProjectSpec) -> GeneratedProject:
     files = _rendered_files(spec)
     content = build_zip(files, root=spec.archive_root)
     if len(content) > get_settings().max_zip_bytes:
-        raise ValueError("Generated project exceeds the archive size limit.")
+        raise ProjectLimitError("Generated project exceeds the archive size limit.")
     return GeneratedProject(filename=archive_filename(spec.name), content=content)
 
 
@@ -44,5 +43,5 @@ def generate_tar_project(spec: ProjectSpec) -> GeneratedProject:
     files = _rendered_files(spec)
     content = build_tar_gz(files, root=spec.archive_root)
     if len(content) > get_settings().max_zip_bytes:
-        raise ValueError("Generated project exceeds the archive size limit.")
+        raise ProjectLimitError("Generated project exceeds the archive size limit.")
     return GeneratedProject(filename=tar_filename(spec.name), content=content)

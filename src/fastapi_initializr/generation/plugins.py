@@ -1,7 +1,5 @@
 """Local JSON plugins that extend the dependency catalog."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path, PurePosixPath
 

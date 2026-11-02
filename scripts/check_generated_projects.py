@@ -1,7 +1,5 @@
 """Generate representative projects and run their real quality gates."""
 
-from __future__ import annotations
-
 import argparse
 import io
 import os
@@ -133,7 +131,7 @@ CASES: dict[str, ProjectSpec] = {
     ),
     "uploads": ProjectSpec(
         name="uploads-service",
-        dependencies=frozenset({"uploads", "s3"}),
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "uploads", "s3"}),
     ),
     "deploy": ProjectSpec(
         name="deploy-service",

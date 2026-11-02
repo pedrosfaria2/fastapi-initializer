@@ -1,7 +1,5 @@
 """Project request model and validation."""
 
-from __future__ import annotations
-
 import keyword
 import re
 import sys

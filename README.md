@@ -237,7 +237,7 @@ features only, so select plugin features explicitly.
 | `static-templates` | Web | Jinja2 templates, static assets, and a welcome page | — |
 | `websockets` | Web | WebSocket echo endpoint | — |
 | `rate-limit` | Web | SlowAPI limiter and example route | — |
-| `uploads` | Web | Local file uploads with size/type validation | — |
+| `uploads` | Web | Authenticated local file uploads with owner-scoped keys | `auth-jwt` |
 | `graphql` | Web | Strawberry GraphQL query and mutation | — |
 | `typescript-client` | Web | Typed `openapi-fetch` client and generated types | — |
 | `s3` | Operations | S3-compatible storage backend | `uploads` |
@@ -367,12 +367,14 @@ The CLI uses the same validation and templates as the API. `--lock` runs
 writing, and `--json` prints a machine-readable summary.
 
 `update` re-renders the project from `.fastapi-initializr.json`. Local edits are
-preserved; disjoint template changes are merged line by line. `add` and `remove`
-change the dependency set, switch the preset to `custom`, and apply the same
-plan. Overlapping edits abort with exit code `3`; rerun with `--force` to
-overwrite conflicts and remove locally modified obsolete files. Removed files
-are deleted only when they still match the recorded digest. `diff` prints the
-plan and unified diffs without writing.
+preserved; disjoint template changes are merged line by line. Changes are staged
+and backed up before they replace files, and a failed write restores the
+previous state. A backup left by an interrupted process is recovered on the next
+run. `add` and `remove` change the dependency set, switch the preset to
+`custom`, and apply the same plan. Overlapping edits abort with exit code `3`;
+rerun with `--force` to overwrite conflicts and remove locally modified obsolete
+files. Removed files are deleted only when they still match the recorded digest.
+`diff` prints the plan and unified diffs without writing.
 
 Shell completion scripts are generated from the catalog:
 
@@ -453,8 +455,14 @@ src/fastapi_initializr/
   paths are rejected.
 - Archives are built from a fixed relative manifest with a constant timestamp.
   Path traversal, absolute paths, and symlinks are rejected.
+- Generated auth links OAuth accounts only by a provider-verified email and uses
+  single-use password-reset and email-verification tokens.
+- Generated uploads require a bearer token, and storage keys are scoped to the
+  owning user. Production startup rejects placeholder or short JWT secrets.
+- Project updates stage and back up every changed file, roll back on failure,
+  and recover an interrupted update on the next run.
 - Generated projects are never executed inside a web request.
-- Generation is bounded by file-count and archive-size limits.
+- Generation is bounded by file-count, preview-byte, and archive-size limits.
 
 ## Status
 

@@ -299,8 +299,9 @@ DEPENDENCIES: dict[str, Dependency] = {
     "uploads": Dependency(
         id="uploads",
         name="File uploads",
-        description="Local file storage and upload, download, and delete endpoints.",
+        description="Authenticated local file storage with upload, download, and delete endpoints.",
         group="Web",
+        requires=("auth-jwt",),
         files=(
             "src/{package}/core/storage.py",
             "src/{package}/api/routes/uploads.py",
@@ -591,7 +592,7 @@ HELP_STEPS: dict[str, tuple[str, ...]] = {
     "static-templates": ("The welcome page is at `/`.",),
     "websockets": ("The WebSocket echo endpoint is at `/ws`.",),
     "rate-limit": ("The limiter is wired in `core/rate_limit.py`.",),
-    "uploads": ("Set `UPLOAD_DIR` and `MAX_UPLOAD_BYTES`; the endpoint is `/uploads`.",),
+    "uploads": ("Uploads require a bearer token; set `UPLOAD_DIR` and `MAX_UPLOAD_BYTES`.",),
     "graphql": ("The GraphQL endpoint is at `/graphql`.",),
     "s3": ("Set `STORAGE_BACKEND=s3` and the `S3_*` variables in `.env`.",),
     "testcontainers": (

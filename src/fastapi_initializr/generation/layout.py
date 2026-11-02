@@ -1,7 +1,5 @@
 """Project structure paths and import names."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 _LAYERED_ROUTES = {

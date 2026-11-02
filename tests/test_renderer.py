@@ -706,7 +706,10 @@ def test_email_feature_renders_reset_and_verification_slice() -> None:
         assert setting in config
 
     assert "is_verified: Mapped[bool]" in files["src/my_service/models/user.py"]
+    assert "password_reset_version: Mapped[int]" in files["src/my_service/models/user.py"]
+    assert "email_verification_version: Mapped[int]" in files["src/my_service/models/user.py"]
     assert "is_verified: bool" in files["src/my_service/schemas/user.py"]
+    assert "def _validate_production_secret(" in config
 
     security = files["src/my_service/core/security.py"]
     assert "def create_action_token(" in security
@@ -778,7 +781,9 @@ def test_oauth_feature_renders_provider_slice() -> None:
     service = files["src/my_service/services/oauth.py"]
     assert "fetch_provider_email" in service
     assert "get_or_create_oauth_user" in service
-    assert "user/emails" in service
+    assert "email_verified" in service
+    assert 'client.get_json("user/emails"' in service
+    assert 'client.get_json("user"' not in service
 
     config = files["src/my_service/core/config.py"]
     for setting in (
@@ -1059,7 +1064,10 @@ def test_python_version_changes_requires_python_and_ruff_target() -> None:
 
 
 def test_uploads_feature_renders_storage_and_routes() -> None:
-    spec = ProjectSpec(name="my-service", dependencies=frozenset({"uploads"}))
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "uploads"}),
+    )
 
     files = render_project(spec)
 
@@ -1075,9 +1083,13 @@ def test_uploads_feature_renders_storage_and_routes() -> None:
     storage = files["src/my_service/core/storage.py"]
     assert "class Storage(Protocol):" in storage
     assert "class LocalStorage:" in storage
-    assert "def new_storage_key(filename: str) -> str:" in storage
+    assert "def new_storage_key(filename: str, owner_id: int) -> str:" in storage
     assert "def get_storage(" in storage
     assert "is_relative_to(root)" in storage
+
+    uploads = files["src/my_service/api/routes/uploads.py"]
+    assert "current_user: CurrentUser" in uploads
+    assert "def _owned_key(owner_id: int, key: str) -> str:" in uploads
 
     config = files["src/my_service/core/config.py"]
     assert 'upload_dir: str = "uploads"' in config
@@ -1104,7 +1116,7 @@ def test_uploads_feature_renders_storage_and_routes() -> None:
 def test_s3_feature_renders_backend_and_test_dependencies() -> None:
     spec = ProjectSpec(
         name="my-service",
-        dependencies=frozenset({"uploads", "s3"}),
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "uploads", "s3"}),
     )
 
     files = render_project(spec)

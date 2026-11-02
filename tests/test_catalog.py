@@ -10,6 +10,8 @@ from fastapi_initializr.generation.catalog import (
     metadata,
     resolve_packages,
 )
+from fastapi_initializr.generation.renderer import render_project
+from fastapi_initializr.generation.spec import ProjectSpec
 
 
 def test_every_dependency_has_a_unique_id() -> None:
@@ -125,3 +127,39 @@ def test_catalog_packages_have_no_version_specifiers() -> None:
             assert not any(
                 marker in package for marker in (">=", "<=", "==", "~=", "!=", ">", "<")
             ), package
+
+
+def test_uploads_require_authentication() -> None:
+    assert "auth-jwt" in DEPENDENCIES["uploads"].requires
+
+
+def _selection_for(feature_id: str) -> set[str]:
+    selected = {feature_id}
+    pending = [feature_id]
+    while pending:
+        dependency = DEPENDENCIES[pending.pop()]
+        for required in dependency.requires:
+            if required not in selected:
+                selected.add(required)
+                pending.append(required)
+        for capability in dependency.requires_capabilities:
+            provider = next(
+                item.id for item in DEPENDENCIES.values() if capability in item.provides
+            )
+            if provider not in selected:
+                selected.add(provider)
+                pending.append(provider)
+    return selected
+
+
+def test_every_catalog_feature_file_is_rendered() -> None:
+    for feature_id, dependency in DEPENDENCIES.items():
+        spec = ProjectSpec(
+            name="my-service",
+            dependencies=frozenset(_selection_for(feature_id)),
+        )
+
+        files = render_project(spec)
+
+        for path in dependency.files:
+            assert path.format(package=spec.package) in files, (feature_id, path)

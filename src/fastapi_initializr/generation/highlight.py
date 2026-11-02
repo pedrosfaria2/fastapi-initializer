@@ -1,7 +1,5 @@
 """Server-side syntax highlighting for preview file contents."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from pygments import highlight

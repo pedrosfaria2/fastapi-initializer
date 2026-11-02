@@ -107,8 +107,9 @@ curl -X POST "http://127.0.0.1:8000/items" \
 
 The application reads the JWT signing key from `SECRET_KEY`. The value in
 `.env.example` is only a placeholder; replace it with your own secret before
-deploying. `ACCESS_TOKEN_EXPIRE_MINUTES` controls the token lifetime and defaults
-to `30`.
+deploying. When `ENVIRONMENT=production`, startup rejects placeholder values and
+secrets shorter than 32 characters. `ACCESS_TOKEN_EXPIRE_MINUTES` controls the
+token lifetime and defaults to `30`.
 
 Register a user, request a token, and call the protected route:
 
@@ -144,7 +145,9 @@ message for local use and never prints SMTP credentials.
 
 Requests for an unknown email return the same generic `202` response as a
 registered email and send nothing. Password reset tokens expire after 30
-minutes; email verification tokens expire after 24 hours.
+minutes; email verification tokens expire after 24 hours. Both token types are
+single-use: a successful request advances a per-account version, so replaying
+the same token returns `400`.
 
 Request a reset and submit the token shown by the console backend:
 
@@ -177,7 +180,8 @@ provider, then set the matching client id and secret.
 | `GET` | `/auth/oauth/{provider}/callback` | Exchange the provider callback for a bearer token. |
 
 Supported providers are `google` and `github`; any other value returns `400`.
-OAuth accounts are linked by verified email address. A new local account gets
+OAuth accounts are linked only by an email address the provider marks as
+verified; an unverified or missing email returns `400`. A new local account gets
 an unusable random password, so social-only accounts cannot use the password
 login form until a password is set separately.
 
@@ -369,13 +373,15 @@ limit of 5 requests per minute. Exceeding a limit returns `429` with a JSON
 
 Uploads are stored through the `Storage` protocol in
 `{{ spec.package }}.core.storage`. The default `LocalStorage` backend writes to
-`UPLOAD_DIR` (`uploads` by default) and creates missing parent directories.
+`UPLOAD_DIR` (`uploads` by default) and creates missing parent directories. All
+routes require a bearer token, and generated keys are prefixed with the owner's
+user id; another user's key returns `404`.
 
 | Method | Path | Description |
 | --- | --- | --- |
 | `POST` | `/uploads` | Store a file after checking its type and size and return `201` with a generated `key`. |
-| `GET` | `/uploads/{key}` | Download a stored file or return `404`. |
-| `DELETE` | `/uploads/{key}` | Delete a stored file and return `204`. |
+| `GET` | `/uploads/{key}` | Download a stored file owned by the caller or return `404`. |
+| `DELETE` | `/uploads/{key}` | Delete a stored file owned by the caller and return `204`. |
 
 `MAX_UPLOAD_BYTES` defaults to `5000000`. `ALLOWED_UPLOAD_TYPES` lists the
 accepted media types and defaults to PNG, JPEG, PDF, and plain text. Rejected
@@ -385,11 +391,14 @@ attempts are rejected.
 
 ```sh
 curl -X POST "http://127.0.0.1:8000/uploads" \
+  -H "Authorization: Bearer <token>" \
   -F "file=@example.png;type=image/png"
 
-curl "http://127.0.0.1:8000/uploads/<key>"
+curl "http://127.0.0.1:8000/uploads/<key>" \
+  -H "Authorization: Bearer <token>"
 
-curl -X DELETE "http://127.0.0.1:8000/uploads/<key>"
+curl -X DELETE "http://127.0.0.1:8000/uploads/<key>" \
+  -H "Authorization: Bearer <token>"
 ```
 {% endif %}
 {% if spec.has("s3") %}

@@ -41,6 +41,7 @@ async def request_password_reset(
         user.email,
         RESET_TOKEN_PURPOSE,
         PASSWORD_RESET_EXPIRE_MINUTES,
+        user.password_reset_version,
     )
     body = render_email_template("password_reset.txt", {"token": token})
     await backend.send(EmailMessage(to=user.email, subject="Reset your password", body=body))
@@ -51,14 +52,15 @@ async def reset_password(
     token: str,
     new_password: str,
 ) -> None:
-    """Replace a user's password using a valid reset token."""
-    email = decode_action_token(token, RESET_TOKEN_PURPOSE)
-    if email is None:
+    """Replace a user's password using a valid, unused reset token."""
+    action = decode_action_token(token, RESET_TOKEN_PURPOSE)
+    if action is None:
         raise InvalidActionTokenError("Invalid or expired password reset token")
-    user = await get_user_by_email(session, email)
-    if user is None:
+    user = await get_user_by_email(session, action.subject)
+    if user is None or user.password_reset_version != action.version:
         raise InvalidActionTokenError("Invalid or expired password reset token")
     user.hashed_password = hash_password(new_password)
+    user.password_reset_version += 1
     await session.commit()
 
 
@@ -75,18 +77,20 @@ async def request_email_verification(
         user.email,
         EMAIL_VERIFY_PURPOSE,
         EMAIL_VERIFY_EXPIRE_MINUTES,
+        user.email_verification_version,
     )
     body = render_email_template("verify_email.txt", {"token": token})
     await backend.send(EmailMessage(to=user.email, subject="Verify your email", body=body))
 
 
 async def verify_email(session: AsyncSession, token: str) -> None:
-    """Mark a user's email as verified using a valid verification token."""
-    email = decode_action_token(token, EMAIL_VERIFY_PURPOSE)
-    if email is None:
+    """Mark a user's email as verified using a valid, unused token."""
+    action = decode_action_token(token, EMAIL_VERIFY_PURPOSE)
+    if action is None:
         raise InvalidActionTokenError("Invalid or expired email verification token")
-    user = await get_user_by_email(session, email)
-    if user is None:
+    user = await get_user_by_email(session, action.subject)
+    if user is None or user.email_verification_version != action.version:
         raise InvalidActionTokenError("Invalid or expired email verification token")
     user.is_verified = True
+    user.email_verification_version += 1
     await session.commit()

@@ -76,6 +76,13 @@ def test_password_reset_flow(client: TestClient) -> None:
     assert _login(client, password=NEW_CREDENTIAL) == 200
     assert _login(client) == 401
 
+    reused = client.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": CREDENTIAL},
+    )
+    assert reused.status_code == 400
+    assert _login(client, password=NEW_CREDENTIAL) == 200
+
 
 def test_verify_email_sets_verified_flag(client: TestClient) -> None:
     _register(client)
@@ -91,6 +98,8 @@ def test_verify_email_sets_verified_flag(client: TestClient) -> None:
     verify = client.post("/auth/verify-email", json={"token": token})
 
     assert verify.status_code == 204
+    reused = client.post("/auth/verify-email", json={"token": token})
+    assert reused.status_code == 400
     login = client.post(
         "/auth/login",
         data={"username": EMAIL, "password": CREDENTIAL},

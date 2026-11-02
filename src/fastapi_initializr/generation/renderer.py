@@ -1,7 +1,5 @@
 """Render generated project files from templates."""
 
-from __future__ import annotations
-
 import ast
 import json
 import tomllib

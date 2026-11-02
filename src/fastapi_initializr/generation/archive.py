@@ -1,7 +1,5 @@
 """Build deterministic, safe zip archives."""
 
-from __future__ import annotations
-
 import gzip
 import io
 import re

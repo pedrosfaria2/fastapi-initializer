@@ -56,6 +56,9 @@ def test_requirements_are_sorted_and_end_with_a_newline() -> None:
 
 
 def test_requirements_are_deterministic() -> None:
-    spec = ProjectSpec(name="my-service", dependencies=frozenset({"uploads", "s3"}))
+    spec = ProjectSpec(
+        name="my-service",
+        dependencies=frozenset({"sqlalchemy", "auth-jwt", "uploads", "s3"}),
+    )
 
     assert render_requirements(spec) == render_requirements(spec)

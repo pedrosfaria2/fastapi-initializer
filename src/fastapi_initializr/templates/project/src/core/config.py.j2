@@ -81,9 +81,33 @@ class Settings(BaseSettings):
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
 {% endif %}
+{% if spec.has("auth-jwt") %}
+
+
+def _validate_production_secret(settings: Settings) -> None:
+    """Refuse development secrets when the app runs in production."""
+    placeholders = frozenset(
+        {
+            "dev-secret-change-me-32-bytes-minimum",
+            "change-me-in-production-32-bytes-minimum",
+        }
+    )
+    if settings.environment.lower() == "production" and (
+        settings.secret_key in placeholders or len(settings.secret_key) < 32
+    ):
+        raise ValueError(
+            "SECRET_KEY must be a non-placeholder value with at least 32 characters in production."
+        )
+{% endif %}
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Return the cached application settings."""
+{% if spec.has("auth-jwt") %}
+    settings = Settings()
+    _validate_production_secret(settings)
+    return settings
+{% else %}
     return Settings()
+{% endif %}

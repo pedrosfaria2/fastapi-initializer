@@ -2,7 +2,14 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+{% if spec.has("email") %}
+    Integer,
+{% endif %}
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from {{ spec.package }}.db.base import Base
@@ -24,6 +31,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 {% if spec.has("email") %}
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    password_reset_version: Mapped[int] = mapped_column(Integer, default=0)
+    email_verification_version: Mapped[int] = mapped_column(Integer, default=0)
 {% endif %}
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -1,7 +1,5 @@
 """File storage backends."""
 
-from __future__ import annotations
-
 import asyncio
 import re
 from pathlib import Path, PurePosixPath
@@ -31,12 +29,12 @@ class Storage(Protocol):
         ...
 
 
-def new_storage_key(filename: str) -> str:
-    """Return a unique storage key that keeps a safe file extension."""
+def new_storage_key(filename: str, owner_id: int) -> str:
+    """Return a unique, owner-scoped storage key that keeps a safe extension."""
     suffix = PurePosixPath(filename).suffix.lower()
     if not _SAFE_SUFFIX.fullmatch(suffix):
         suffix = ""
-    return f"{uuid4().hex}{suffix}"
+    return f"{owner_id}-{uuid4().hex}{suffix}"
 
 
 class LocalStorage:

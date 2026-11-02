@@ -12,6 +12,10 @@ from fastapi.testclient import TestClient
 from {{ spec.package }}.core.config import get_settings
 from {{ spec.package }}.core.storage import LocalStorage, get_storage
 
+OWNER = "owner@example.com"
+OTHER = "other@example.com"
+CREDENTIAL = "correct-horse-battery"
+
 
 @pytest.fixture
 def storage(tmp_path: Path) -> LocalStorage:
@@ -30,34 +34,81 @@ def upload_client(client: TestClient, storage: LocalStorage) -> Iterator[TestCli
         app.dependency_overrides.clear()
 
 
+def _auth_headers(client: TestClient, email: str) -> dict[str, str]:
+    registration = client.post(
+        "/auth/register",
+        json={"email": email, "password": CREDENTIAL},
+    )
+    assert registration.status_code == 201
+    login = client.post(
+        "/auth/login",
+        data={"username": email, "password": CREDENTIAL},
+    )
+    assert login.status_code == 200
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
 def test_upload_download_and_delete(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
     response = upload_client.post(
         "/uploads",
         files={"file": ("note.txt", b"hello uploads", "text/plain")},
+        headers=headers,
     )
 
     assert response.status_code == 201
     key = response.json()["key"]
     assert key.endswith(".txt")
 
-    download = upload_client.get(f"/uploads/{key}")
+    download = upload_client.get(f"/uploads/{key}", headers=headers)
     assert download.status_code == 200
     assert download.content == b"hello uploads"
 
-    assert upload_client.delete(f"/uploads/{key}").status_code == 204
-    assert upload_client.get(f"/uploads/{key}").status_code == 404
+    assert upload_client.delete(f"/uploads/{key}", headers=headers).status_code == 204
+    assert upload_client.get(f"/uploads/{key}", headers=headers).status_code == 404
+
+
+def test_uploads_require_authentication(upload_client: TestClient) -> None:
+    upload = upload_client.post(
+        "/uploads",
+        files={"file": ("note.txt", b"data", "text/plain")},
+    )
+    download = upload_client.get("/uploads/1-missing.txt")
+    delete = upload_client.delete("/uploads/1-missing.txt")
+
+    assert upload.status_code == 401
+    assert download.status_code == 401
+    assert delete.status_code == 401
+
+
+def test_uploads_are_scoped_to_the_owner(upload_client: TestClient) -> None:
+    owner = _auth_headers(upload_client, OWNER)
+    other = _auth_headers(upload_client, OTHER)
+    response = upload_client.post(
+        "/uploads",
+        files={"file": ("note.txt", b"private", "text/plain")},
+        headers=owner,
+    )
+    key = response.json()["key"]
+
+    assert upload_client.get(f"/uploads/{key}", headers=other).status_code == 404
+    assert upload_client.delete(f"/uploads/{key}", headers=other).status_code == 404
+    assert upload_client.get(f"/uploads/{key}", headers=owner).content == b"private"
 
 
 def test_upload_rejects_oversized_file(
     upload_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    headers = _auth_headers(upload_client, OWNER)
     monkeypatch.setenv("MAX_UPLOAD_BYTES", "4")
     get_settings.cache_clear()
     try:
         response = upload_client.post(
             "/uploads",
             files={"file": ("note.txt", b"too large", "text/plain")},
+            headers=headers,
         )
     finally:
         get_settings.cache_clear()
@@ -66,9 +117,12 @@ def test_upload_rejects_oversized_file(
 
 
 def test_upload_rejects_disallowed_type(upload_client: TestClient) -> None:
+    headers = _auth_headers(upload_client, OWNER)
+
     response = upload_client.post(
         "/uploads",
         files={"file": ("archive.zip", b"data", "application/zip")},
+        headers=headers,
     )
 
     assert response.status_code == 415
@@ -78,10 +132,14 @@ def test_upload_rejects_path_traversal(
     upload_client: TestClient,
     storage: LocalStorage,
 ) -> None:
-    assert upload_client.get("/uploads/..%2Fsecret.txt").status_code == 404
+    headers = _auth_headers(upload_client, OWNER)
+
+    assert upload_client.get("/uploads/..%2Fsecret.txt", headers=headers).status_code == 404
     with pytest.raises(ValueError, match="Unsafe storage key"):
         asyncio.run(storage.read("../secret.txt"))
 
 
 def test_missing_upload_returns_404(upload_client: TestClient) -> None:
-    assert upload_client.get("/uploads/missing.txt").status_code == 404
+    headers = _auth_headers(upload_client, OWNER)
+
+    assert upload_client.get("/uploads/1-missing.txt", headers=headers).status_code == 404

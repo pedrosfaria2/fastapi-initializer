@@ -20,8 +20,18 @@ PROVIDERS = ("google", "github")
 class FakeOAuthClient:
     """Deterministic provider that never contacts the network."""
 
-    def __init__(self, email: str) -> None:
+    def __init__(
+        self,
+        email: str,
+        *,
+        google_verified: bool | str = True,
+        github_verified: bool = True,
+        public_email: str | None = None,
+    ) -> None:
         self.email = email
+        self.google_verified = google_verified
+        self.github_verified = github_verified
+        self.public_email = public_email
         self.redirect_uri: str | None = None
         self.requested_paths: list[str] = []
 
@@ -34,21 +44,39 @@ class FakeOAuthClient:
     async def authorize_access_token(self, request: Request) -> Mapping[str, object]:
         """Return a token shaped like an OIDC token response."""
         _ = request
-        return {"userinfo": {"email": self.email}, "access_token": "provider-token"}
+        return {
+            "userinfo": {
+                "email": self.email,
+                "email_verified": self.google_verified,
+            },
+            "access_token": "provider-token",
+        }
 
     async def get_json(self, path: str, token: Mapping[str, object]) -> object:
         """Return fixed GitHub profile responses."""
         _ = token
         self.requested_paths.append(path)
         if path == "user":
-            return {"login": "octocat"}
+            return {"email": self.public_email or self.email}
         if path == "user/emails":
-            return [{"email": self.email, "primary": True, "verified": True}]
+            return [{"email": self.email, "primary": True, "verified": self.github_verified}]
         raise AssertionError(f"unexpected provider path: {path}")
 
 
-def _install_fake(client: TestClient, email: str) -> FakeOAuthClient:
-    fake = FakeOAuthClient(email)
+def _install_fake(
+    client: TestClient,
+    email: str,
+    *,
+    google_verified: bool | str = True,
+    github_verified: bool = True,
+    public_email: str | None = None,
+) -> FakeOAuthClient:
+    fake = FakeOAuthClient(
+        email,
+        google_verified=google_verified,
+        github_verified=github_verified,
+        public_email=public_email,
+    )
     app = cast(FastAPI, client.app)
     app.dependency_overrides[get_oauth_client] = lambda: fake
     return fake
@@ -104,8 +132,55 @@ def test_callback_returns_token(client: TestClient, provider: str) -> None:
     token = _callback(client, provider)
 
     assert token
-    expected_paths = ["user", "user/emails"] if provider == "github" else []
+    expected_paths = ["user/emails"] if provider == "github" else []
     assert fake.requested_paths == expected_paths
+
+
+@pytest.mark.parametrize("provider", PROVIDERS)
+def test_callback_rejects_an_unverified_email(client: TestClient, provider: str) -> None:
+    _install_fake(
+        client,
+        EMAIL,
+        google_verified=False,
+        github_verified=False,
+        public_email=EMAIL,
+    )
+
+    response = client.get(
+        f"/auth/oauth/{provider}/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_google_accepts_a_string_verified_claim(client: TestClient) -> None:
+    _install_fake(client, EMAIL, google_verified="true")
+
+    token = _callback(client, "google")
+
+    assert _me(client, token)["email"] == EMAIL
+
+
+def test_github_ignores_the_unverified_profile_email(client: TestClient) -> None:
+    fake = _install_fake(client, NEW_EMAIL, public_email=EMAIL)
+
+    token = _callback(client, "github")
+
+    assert _me(client, token)["email"] == NEW_EMAIL
+    assert fake.requested_paths == ["user/emails"]
+
+
+def test_unverified_email_does_not_link_an_existing_account(client: TestClient) -> None:
+    _register(client)
+    _install_fake(client, EMAIL, google_verified=False)
+
+    response = client.get(
+        "/auth/oauth/google/callback",
+        params={"code": "fake-code", "state": "fake-state"},
+    )
+
+    assert response.status_code == 400
 
 
 def test_callback_creates_new_user(client: TestClient) -> None:

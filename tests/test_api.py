@@ -4,7 +4,10 @@ import io
 import tarfile
 from zipfile import ZipFile
 
+import pytest
 from fastapi.testclient import TestClient
+
+from fastapi_initializr.core.config import get_settings
 
 
 def test_health(client: TestClient) -> None:
@@ -53,6 +56,51 @@ def test_preview_rejects_invalid_input(client: TestClient) -> None:
 
     assert response.status_code == 422
     assert isinstance(response.json()["detail"], list)
+
+
+def test_preview_rejects_too_many_files(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_GENERATED_FILES", "1")
+    get_settings.cache_clear()
+    try:
+        response = client.get("/api/preview", params={"name": "my-service"})
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 413
+    assert "file limit" in response.json()["detail"]
+
+
+def test_preview_rejects_an_oversized_response(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_PREVIEW_BYTES", "100")
+    get_settings.cache_clear()
+    try:
+        response = client.get("/api/preview", params={"name": "my-service"})
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 413
+    assert "size limit" in response.json()["detail"]
+
+
+def test_generate_rejects_too_many_files(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_GENERATED_FILES", "1")
+    get_settings.cache_clear()
+    try:
+        response = client.get("/api/generate", params={"name": "my-service"})
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 413
+    assert "file limit" in response.json()["detail"]
 
 
 def test_metadata_exposes_presets(client: TestClient) -> None:

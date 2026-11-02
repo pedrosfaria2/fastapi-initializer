@@ -28,6 +28,16 @@ def _email_from(value: object) -> str | None:
     return None
 
 
+def _verified_email_from(value: object) -> str | None:
+    record = _as_mapping(value)
+    if record is None:
+        return None
+    verified = record.get("email_verified")
+    if verified is not True and verified != "true":
+        return None
+    return _email_from(record)
+
+
 def _primary_verified_email(value: object) -> str | None:
     if not isinstance(value, list):
         return None
@@ -50,11 +60,8 @@ async def fetch_provider_email(
 ) -> str | None:
     """Return the verified email address reported by the provider."""
     if provider == "google":
-        return _email_from(token.get("userinfo"))
+        return _verified_email_from(token.get("userinfo"))
     if provider == "github":
-        email = _email_from(await client.get_json("user", token))
-        if email is not None:
-            return email
         return _primary_verified_email(await client.get_json("user/emails", token))
     return None
 

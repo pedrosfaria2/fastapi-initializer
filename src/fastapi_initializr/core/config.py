@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     plugin_dir: str = ""
     max_generated_files: int = 200
+    max_preview_bytes: int = 2_000_000
     max_zip_bytes: int = 5_000_000
 
 

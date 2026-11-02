@@ -1,7 +1,5 @@
 """Render every compatible pair of generated-project features."""
 
-from __future__ import annotations
-
 import itertools
 from collections.abc import Iterator
 

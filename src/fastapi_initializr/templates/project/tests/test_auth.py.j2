@@ -1,6 +1,9 @@
 """Authentication endpoint contract."""
 
+import pytest
 from fastapi.testclient import TestClient
+
+from {{ spec.package }}.core.config import get_settings
 
 EMAIL = "user@example.com"
 CREDENTIAL = "correct-horse-battery"
@@ -94,3 +97,35 @@ def test_me_with_invalid_token_returns_unauthorized(client: TestClient) -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_production_rejects_placeholder_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    try:
+        for secret in (
+            "dev-secret-change-me-32-bytes-minimum",
+            "change-me-in-production-32-bytes-minimum",
+            "too-short",
+        ):
+            monkeypatch.setenv("SECRET_KEY", secret)
+            get_settings.cache_clear()
+            with pytest.raises(ValueError, match="SECRET_KEY"):
+                get_settings()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_production_accepts_a_strong_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "x" * 32)
+    get_settings.cache_clear()
+    try:
+        settings = get_settings()
+    finally:
+        get_settings.cache_clear()
+
+    assert settings.secret_key == "x" * 32

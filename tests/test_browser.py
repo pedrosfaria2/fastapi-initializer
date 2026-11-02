@@ -1,7 +1,5 @@
 """Browser tests for the interactive UI."""
 
-from __future__ import annotations
-
 import re
 import socket
 import threading
